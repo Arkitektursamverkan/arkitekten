@@ -1,0 +1,43 @@
+{
+  "name": "arkitekten",
+  "private": true,
+  "license": "EUPL-1.2",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Arkitekten – processritaren: affärsprocesser och systemprocesser, en modul i Arkitekturportalen.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && tsc -p tsconfig.server.json --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "ai:draft": "node --import tsx scripts/ai-draft.mjs",
+    "test:browser": "vitest run --config vitest.browser.config.ts",
+    "flodestjanst": "tsx server/flodestjanst.mts",
+    "start": "tsx server/arkitekten.mts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.3",
+    "@xyflow/react": "^12.3.5",
+    "elkjs": "^0.9.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsx": "^4.23.1"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "happy-dom": "^20.11.0",
+    "playwright-core": "^1.61.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Arkitektursamverkan/arkitekten.git"
+  }
+}

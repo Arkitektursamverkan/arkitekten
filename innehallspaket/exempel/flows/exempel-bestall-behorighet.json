@@ -1,0 +1,364 @@
+{
+  "id": "exempel-bestall-behorighet",
+  "name": "Beställ behörighet",
+  "category": "Exempel",
+  "savedAt": "2026-10-22T08:00:00.000Z",
+  "rawText": "Beställ behörighet\nMedarbetare behöver behörighet → Öppnar portalen → Fyller i beställningen → Skickar in → Chefen granskar beställningen (↓ Om chefen godkänner → Behörigheten läggs upp → Bekräftelse till medarbetaren) (↓ Om chefen avslår → Avslag till medarbetaren)",
+  "draft": {
+    "title": "Beställ behörighet",
+    "lanes": [
+      {
+        "id": "Användare",
+        "title": "Användare",
+        "order": 0,
+        "perspectives": [
+          "business",
+          "system"
+        ]
+      },
+      {
+        "id": "Portalen",
+        "title": "Portalen",
+        "order": 1,
+        "perspectives": [
+          "business",
+          "system"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "id": "s1",
+        "sourceIndex": 0,
+        "type": "activity",
+        "text": "Medarbetare behöver behörighet",
+        "laneId": "Användare",
+        "sourceText": "Medarbetare behöver behörighet",
+        "perspectives": [
+          "business",
+          "system"
+        ]
+      },
+      {
+        "id": "s2",
+        "sourceIndex": 1,
+        "type": "activity",
+        "text": "Öppnar portalen",
+        "laneId": "Portalen",
+        "sourceText": "Öppnar portalen",
+        "perspectives": [
+          "business",
+          "system"
+        ]
+      },
+      {
+        "id": "s3",
+        "sourceIndex": 2,
+        "type": "activity",
+        "text": "Fyller i beställningen",
+        "laneId": "Portalen",
+        "sourceText": "Fyller i beställningen",
+        "perspectives": [
+          "business",
+          "system"
+        ]
+      },
+      {
+        "id": "s4",
+        "sourceIndex": 3,
+        "type": "activity",
+        "text": "Skickar in",
+        "laneId": "Portalen",
+        "sourceText": "Skickar in",
+        "perspectives": [
+          "business",
+          "system"
+        ]
+      },
+      {
+        "id": "s5",
+        "sourceIndex": 4,
+        "type": "activity",
+        "text": "Chefen granskar beställningen",
+        "laneId": "Portalen",
+        "sourceText": "Chefen granskar beställningen",
+        "perspectives": [
+          "business",
+          "system"
+        ]
+      },
+      {
+        "id": "s6",
+        "sourceIndex": 5,
+        "type": "decision",
+        "text": "Chefen godkänner?",
+        "gateway": "exclusive",
+        "laneId": "Portalen",
+        "sourceText": "↓ Om chefen godkänner",
+        "perspectives": [
+          "system"
+        ]
+      },
+      {
+        "id": "s7",
+        "sourceIndex": 6,
+        "type": "activity",
+        "text": "Behörigheten läggs upp",
+        "laneId": "Portalen",
+        "sourceText": "Behörigheten läggs upp",
+        "perspectives": [
+          "business",
+          "system"
+        ],
+        "branchOf": {
+          "stepId": "s6",
+          "label": "Ja"
+        }
+      },
+      {
+        "id": "s8",
+        "sourceIndex": 7,
+        "type": "activity",
+        "text": "Bekräftelse till medarbetaren",
+        "laneId": "Portalen",
+        "sourceText": "Bekräftelse till medarbetaren",
+        "perspectives": [
+          "business",
+          "system"
+        ],
+        "branchOf": {
+          "stepId": "s6",
+          "label": "Ja"
+        }
+      },
+      {
+        "id": "s9",
+        "sourceIndex": 8,
+        "type": "decision",
+        "text": "Chefen avslår?",
+        "gateway": "exclusive",
+        "laneId": "Portalen",
+        "sourceText": "↓ Om chefen avslår",
+        "perspectives": [
+          "system"
+        ]
+      },
+      {
+        "id": "s10",
+        "sourceIndex": 9,
+        "type": "activity",
+        "text": "Avslag till medarbetaren",
+        "laneId": "Portalen",
+        "sourceText": "Avslag till medarbetaren",
+        "perspectives": [
+          "business",
+          "system"
+        ],
+        "branchOf": {
+          "stepId": "s9",
+          "label": "Ja"
+        }
+      }
+    ],
+    "meta": {
+      "sourceText": "Beställ behörighet\nMedarbetare behöver behörighet → Öppnar portalen → Fyller i beställningen → Skickar in → Chefen granskar beställningen (↓ Om chefen godkänner → Behörigheten läggs upp → Bekräftelse till medarbetaren) (↓ Om chefen avslår → Avslag till medarbetaren)",
+      "origin": "rules",
+      "sourceFragments": [
+        "Medarbetare behöver behörighet",
+        "Öppnar portalen",
+        "Fyller i beställningen",
+        "Skickar in",
+        "Chefen granskar beställningen",
+        "↓ Om chefen godkänner",
+        "Behörigheten läggs upp",
+        "Bekräftelse till medarbetaren",
+        "↓ Om chefen avslår",
+        "Avslag till medarbetaren"
+      ],
+      "warnings": []
+    }
+  },
+  "versions": [
+    {
+      "id": "exempel-bestall-behorighet-v1",
+      "savedAt": "2026-10-22T08:00:00.000Z",
+      "label": "Exempel",
+      "status": "fastslagen",
+      "rawText": "Beställ behörighet\nMedarbetare behöver behörighet → Öppnar portalen → Fyller i beställningen → Skickar in → Chefen granskar beställningen (↓ Om chefen godkänner → Behörigheten läggs upp → Bekräftelse till medarbetaren) (↓ Om chefen avslår → Avslag till medarbetaren)",
+      "draft": {
+        "title": "Beställ behörighet",
+        "lanes": [
+          {
+            "id": "Användare",
+            "title": "Användare",
+            "order": 0,
+            "perspectives": [
+              "business",
+              "system"
+            ]
+          },
+          {
+            "id": "Portalen",
+            "title": "Portalen",
+            "order": 1,
+            "perspectives": [
+              "business",
+              "system"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "s1",
+            "sourceIndex": 0,
+            "type": "activity",
+            "text": "Medarbetare behöver behörighet",
+            "laneId": "Användare",
+            "sourceText": "Medarbetare behöver behörighet",
+            "perspectives": [
+              "business",
+              "system"
+            ]
+          },
+          {
+            "id": "s2",
+            "sourceIndex": 1,
+            "type": "activity",
+            "text": "Öppnar portalen",
+            "laneId": "Portalen",
+            "sourceText": "Öppnar portalen",
+            "perspectives": [
+              "business",
+              "system"
+            ]
+          },
+          {
+            "id": "s3",
+            "sourceIndex": 2,
+            "type": "activity",
+            "text": "Fyller i beställningen",
+            "laneId": "Portalen",
+            "sourceText": "Fyller i beställningen",
+            "perspectives": [
+              "business",
+              "system"
+            ]
+          },
+          {
+            "id": "s4",
+            "sourceIndex": 3,
+            "type": "activity",
+            "text": "Skickar in",
+            "laneId": "Portalen",
+            "sourceText": "Skickar in",
+            "perspectives": [
+              "business",
+              "system"
+            ]
+          },
+          {
+            "id": "s5",
+            "sourceIndex": 4,
+            "type": "activity",
+            "text": "Chefen granskar beställningen",
+            "laneId": "Portalen",
+            "sourceText": "Chefen granskar beställningen",
+            "perspectives": [
+              "business",
+              "system"
+            ]
+          },
+          {
+            "id": "s6",
+            "sourceIndex": 5,
+            "type": "decision",
+            "text": "Chefen godkänner?",
+            "gateway": "exclusive",
+            "laneId": "Portalen",
+            "sourceText": "↓ Om chefen godkänner",
+            "perspectives": [
+              "system"
+            ]
+          },
+          {
+            "id": "s7",
+            "sourceIndex": 6,
+            "type": "activity",
+            "text": "Behörigheten läggs upp",
+            "laneId": "Portalen",
+            "sourceText": "Behörigheten läggs upp",
+            "perspectives": [
+              "business",
+              "system"
+            ],
+            "branchOf": {
+              "stepId": "s6",
+              "label": "Ja"
+            }
+          },
+          {
+            "id": "s8",
+            "sourceIndex": 7,
+            "type": "activity",
+            "text": "Bekräftelse till medarbetaren",
+            "laneId": "Portalen",
+            "sourceText": "Bekräftelse till medarbetaren",
+            "perspectives": [
+              "business",
+              "system"
+            ],
+            "branchOf": {
+              "stepId": "s6",
+              "label": "Ja"
+            }
+          },
+          {
+            "id": "s9",
+            "sourceIndex": 8,
+            "type": "decision",
+            "text": "Chefen avslår?",
+            "gateway": "exclusive",
+            "laneId": "Portalen",
+            "sourceText": "↓ Om chefen avslår",
+            "perspectives": [
+              "system"
+            ]
+          },
+          {
+            "id": "s10",
+            "sourceIndex": 9,
+            "type": "activity",
+            "text": "Avslag till medarbetaren",
+            "laneId": "Portalen",
+            "sourceText": "Avslag till medarbetaren",
+            "perspectives": [
+              "business",
+              "system"
+            ],
+            "branchOf": {
+              "stepId": "s9",
+              "label": "Ja"
+            }
+          }
+        ],
+        "meta": {
+          "sourceText": "Beställ behörighet\nMedarbetare behöver behörighet → Öppnar portalen → Fyller i beställningen → Skickar in → Chefen granskar beställningen (↓ Om chefen godkänner → Behörigheten läggs upp → Bekräftelse till medarbetaren) (↓ Om chefen avslår → Avslag till medarbetaren)",
+          "origin": "rules",
+          "sourceFragments": [
+            "Medarbetare behöver behörighet",
+            "Öppnar portalen",
+            "Fyller i beställningen",
+            "Skickar in",
+            "Chefen granskar beställningen",
+            "↓ Om chefen godkänner",
+            "Behörigheten läggs upp",
+            "Bekräftelse till medarbetaren",
+            "↓ Om chefen avslår",
+            "Avslag till medarbetaren"
+          ],
+          "warnings": []
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+# Bara koden går in i avbilden – aldrig innehåll, nycklar eller lokala underlag.
+.git
+.github
+node_modules
+dist
+flows
+ramar
+stilar
+konton.json
+.lokalt
+Input
+Rita flödesschema
+.ark
+.env
+.env.*
+*.log
+docs
+e2e
+**/*.test.ts
+**/*.test.tsx
+tsconfig.tsbuildinfo
+# Skripten är verktyg för utvecklare – bara Vite-tillägget behövs i bygget.
+scripts
+!scripts/ark-bridge.ts
+kontrakt

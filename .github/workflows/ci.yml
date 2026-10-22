@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Release-arbetsflödet kör samma kontroller innan det publicerar avbilden.
+  workflow_call:
+
+jobs:
+  test:
+    name: Typkontroll, tester och bygge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # tsc för appen och servern, sedan Vite.
+      - run: npm run build
+
+      # Testerna som läser riktiga processer hoppar över – innehållet ligger
+      # aldrig i repot.
+      - run: npx vitest run
+
+  docker:
+    name: Avbilden startar
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bygg
+        run: docker build -t arkitekten:ci .
+
+      # Som en ny installation: bara miljövariabler och en tom volym.
+      - name: Starta webben och flödestjänsten
+        run: |
+          docker volume create ark-data
+          # En tom installation lägger in exempelpaketet.
+          docker run --rm -v ark-data:/data arkitekten:ci node_modules/.bin/tsx server/innehallspaket.mts import exempel
+          docker run -d --name ark -p 5173:5173 -v ark-data:/data arkitekten:ci
+          docker run -d --name flodestjanst -p 8200:8200 -e PORT=8200 -v ark-data:/data \
+            arkitekten:ci node_modules/.bin/tsx server/flodestjanst.mts
+
+      - name: Hälsan svarar
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5173/health && curl -sf http://localhost:8200/health; then
+              echo; echo "Båda svarar."
+              curl -sf http://localhost:5173/ | grep -q "<title>" || { echo "Gränssnittet saknas"; exit 1; }
+              curl -sf http://localhost:8200/api/flows/ap-exempel-rekrytering/scen | grep -q '"familj":"affarsprocess"' \
+                || { echo "Exempelprocessen ritas inte"; exit 1; }
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs ark; docker logs flodestjanst
+          exit 1
+
+      - name: Inget innehåll eller nycklar i avbilden
+        run: |
+          docker run --rm --entrypoint sh arkitekten:ci -c \
+            'test ! -e /app/flows && test ! -e /app/ramar && test ! -e /app/.env && test ! -e /app/Input && test ! -e /app/.ark'
+
+      - name: Städa
+        if: always()
+        run: docker rm -f ark flodestjanst; docker volume rm ark-data || true

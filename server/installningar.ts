@@ -1,0 +1,98 @@
+/**
+ * Arkitektens inställningar – BARA ur miljön.
+ *
+ * Allt en installation väljer står i miljövariabler (i drift: driftrepots
+ * `.env`). Koden känner inte till någon fil på servern och har inga
+ * standardvärden som pekar på en viss organisation. Nycklar läses här och av
+ * de moduler som använder dem, men skrivs aldrig ut – inte heller i loggen.
+ *
+ * `kontrollera` körs vid start: ett FEL stoppar den fristående servern med en
+ * rad per problem, en VARNING loggas. Vite-dev-servern loggar båda.
+ */
+
+import fs from "node:fs";
+import path from "node:path";
+import { authKonfigUrMiljö, saknasFörEntra } from "./auth";
+
+export interface Installningar {
+  /** Där relativa sökvägar räknas ifrån – projektroten. */
+  root: string;
+  /** Appens port (webben och `/__ark`). */
+  port: number;
+  flowsDir: string;
+  ramarDir: string;
+  /** Symbolstilarna (server/symbolstilar.ts). */
+  stilarDir: string;
+  /** AI-brevlådan och uppladdade underlag. */
+  arkDir: string;
+  /** De lokala kontona (inloggningsläget "lokal", server/konton.ts). */
+  kontonFil: string;
+  /** Det byggda gränssnittet (`npm run build`). */
+  distDir: string;
+  /** Claude Code-brevlådan – en utvecklarväg, av i drift. */
+  utvecklarläge: boolean;
+  version: string;
+}
+
+const på = (v: string | undefined) => /^(1|true|ja|on)$/i.test(v?.trim() ?? "");
+
+/** Versionen: byggets tagg (`ARK_VERSION`, sätts av avbilden) eller package.json. */
+export function version(root: string, env: NodeJS.ProcessEnv = process.env): string {
+  const tagg = env.ARK_VERSION?.trim().replace(/^v/, "");
+  if (tagg) return tagg;
+  try {
+    return String(JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version ?? "0.0.0");
+  } catch {
+    return "0.0.0";
+  }
+}
+
+export function installningarUrMiljö(root: string, env: NodeJS.ProcessEnv = process.env): Installningar {
+  const katalog = (v: string | undefined, standard: string) => path.resolve(root, v?.trim() || standard);
+  return {
+    root,
+    port: Number(env.PORT?.trim() || 5173),
+    flowsDir: katalog(env.FLOWS_DIR, "flows"),
+    ramarDir: katalog(env.RAMAR_DIR, "ramar"),
+    stilarDir: katalog(env.STILAR_DIR, "stilar"),
+    arkDir: katalog(env.ARK_DIR, ".ark"),
+    kontonFil: katalog(env.ARK_KONTON, "konton.json"),
+    distDir: katalog(env.ARK_DIST_DIR, "dist"),
+    utvecklarläge: på(env.ARK_UTVECKLARLAGE),
+    version: version(root, env),
+  };
+}
+
+export interface Kontroll {
+  fel: string[];
+  varningar: string[];
+}
+
+/** Det som saknas eller är farligt i miljön. Inga värden skrivs ut, bara namnen. */
+export function kontrollera(env: NodeJS.ProcessEnv = process.env): Kontroll {
+  const fel: string[] = [];
+  const varningar: string[] = [];
+  const auth = authKonfigUrMiljö(env);
+
+  if (auth.läge === "entra" || auth.läge === "lokal") {
+    if (auth.läge === "entra") {
+      const saknas = saknasFörEntra(auth);
+      if (saknas.length) fel.push(`Inloggningen (Entra ID) saknar ${saknas.join(", ")}.`);
+    } else if (!auth.basUrl.startsWith("https:")) {
+      varningar.push("Lokala konton utan https (ARK_BAS_URL) – lösenorden går okrypterade över nätet.");
+    }
+    if (!env.ARK_SESSION_SECRET?.trim()) fel.push("ARK_SESSION_SECRET saknas – den signerar sessionerna.");
+    else if (env.ARK_SESSION_SECRET.trim().length < 32)
+      fel.push("ARK_SESSION_SECRET är för kort – minst 32 tecken.");
+  } else if (auth.läge === "dev") {
+    varningar.push("Inloggning: PROVLÄGE (ARK_AUTH=dev) – vem som helst väljer namn och roll.");
+  } else {
+    varningar.push("Inloggning: ÖPPEN drift – alla som når appen är administratörer. Bara för utveckling.");
+  }
+
+  if (!env.ANTHROPIC_API_KEY?.trim() && !på(env.ARK_UTVECKLARLAGE))
+    varningar.push("AI-stödet är av (ingen ANTHROPIC_API_KEY).");
+  if (env.EA_API_KEY?.trim() && !env.EA_WEBB_URL?.trim())
+    varningar.push("EA_WEBB_URL saknas – publiceringsrutan kan inte länka till portalen.");
+  return { fel, varningar };
+}

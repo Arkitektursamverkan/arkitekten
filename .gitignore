@@ -1,0 +1,43 @@
+# Beroenden och byggresultat
+node_modules
+dist/
+tsconfig.tsbuildinfo
+
+# Ark-bryggans brevlåda mot Claude Code – tillfällig, inte källkod
+.ark/
+
+# Editor/OS
+.DS_Store
+*.log
+
+# Lokala källdokument (underlag) – ligger i Input/ men versionshanteras inte.
+Input/*.docx
+Input/*.pdf
+Input/*.odt
+
+# LibreOffice-låsfiler
+.~lock.*#
+
+# Underlagsdokument i den äldre Input-mappen
+Rita flödesschema/Input/*.docx
+
+# INNEHÅLLET hör inte hemma i git eller på GitHub – det är verksamhetens
+# processer och underlag, och får inte spridas utanför (beslut 2026-10-07).
+# Det versioneras lokalt av scripts/sakerhetskopiera-innehall.sh, som
+# installationen kör varje natt. Testerna som läser de riktiga flödena hoppas
+# över i en klon där mapparna saknas.
+/flows/
+/ramar/
+/stilar/
+# De lokala kontona (lösenordshashar) – aldrig i git.
+/konton.json
+# Installationens egna skript och tester (t.ex. en organisations husstil),
+# monterade hit av driftrepot – aldrig i produktens git.
+/.lokalt/
+/Input/
+/Rita flödesschema/Input/
+
+# Installationens nycklar – aldrig i git
+.env
+.env.*
+!.env.example

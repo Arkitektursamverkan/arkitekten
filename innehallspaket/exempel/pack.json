@@ -1,0 +1,9 @@
+{
+  "format": "arkitekten.innehallspaket",
+  "version": 1,
+  "namn": "Exempel",
+  "beskrivning": "En affärsprocess och en systemprocess att utgå från.",
+  "antal": {
+    "flows": 2
+  }
+}

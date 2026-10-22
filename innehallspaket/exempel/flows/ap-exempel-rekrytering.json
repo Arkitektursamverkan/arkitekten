@@ -1,0 +1,294 @@
+{
+  "id": "ap-exempel-rekrytering",
+  "name": "Rekrytering",
+  "category": "Exempel",
+  "savedAt": "2026-10-22T08:00:00.000Z",
+  "rawText": "Rekrytering\nBehov av ny medarbetare [Ut: Behov fastställt] → Ta fram kravprofil [Roll: Rekryterande chef U] [Ut: Kravprofil] → Annonsera tjänsten [Roll: HR-specialist U] [IT: Rekryteringssystemet] [Ut: Ansökningar] → Genomför urval [Roll: Rekryterande chef H] [Roll: HR-specialist K] [Krav: Likabehandling] [Ut: Slutkandidat] → Erbjud anställning [Roll: HR-specialist U] [Tid: Inom 5 dagar] [Ut: Anställningsavtal]",
+  "draft": {
+    "title": "Rekrytering",
+    "lanes": [
+      {
+        "id": "Användare",
+        "title": "Användare",
+        "order": 0,
+        "perspectives": [
+          "business",
+          "system"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "id": "s1",
+        "sourceIndex": 0,
+        "type": "start",
+        "text": "Behov av ny medarbetare",
+        "laneId": "Användare",
+        "sourceText": "Behov av ny medarbetare [Ut: Behov fastställt]",
+        "perspectives": [
+          "business",
+          "system"
+        ],
+        "ap": {
+          "output": "Behov fastställt"
+        }
+      },
+      {
+        "id": "s2",
+        "sourceIndex": 1,
+        "type": "activity",
+        "text": "Ta fram kravprofil",
+        "laneId": "Användare",
+        "sourceText": "Ta fram kravprofil [Roll: Rekryterande chef U] [Ut: Kravprofil]",
+        "perspectives": [
+          "business",
+          "system"
+        ],
+        "ap": {
+          "roller": [
+            {
+              "namn": "Rekryterande chef",
+              "huki": "U"
+            }
+          ],
+          "output": "Kravprofil"
+        }
+      },
+      {
+        "id": "s3",
+        "sourceIndex": 2,
+        "type": "activity",
+        "text": "Annonsera tjänsten",
+        "laneId": "Användare",
+        "sourceText": "Annonsera tjänsten [Roll: HR-specialist U] [IT: Rekryteringssystemet] [Ut: Ansökningar]",
+        "perspectives": [
+          "business",
+          "system"
+        ],
+        "ap": {
+          "roller": [
+            {
+              "namn": "HR-specialist",
+              "huki": "U"
+            }
+          ],
+          "applikationer": [
+            "Rekryteringssystemet"
+          ],
+          "output": "Ansökningar"
+        }
+      },
+      {
+        "id": "s4",
+        "sourceIndex": 3,
+        "type": "activity",
+        "text": "Genomför urval",
+        "laneId": "Användare",
+        "sourceText": "Genomför urval [Roll: Rekryterande chef H] [Roll: HR-specialist K] [Krav: Likabehandling] [Ut: Slutkandidat]",
+        "perspectives": [
+          "business",
+          "system"
+        ],
+        "ap": {
+          "roller": [
+            {
+              "namn": "Rekryterande chef",
+              "huki": "H"
+            },
+            {
+              "namn": "HR-specialist",
+              "huki": "K"
+            }
+          ],
+          "krav": [
+            "Likabehandling"
+          ],
+          "output": "Slutkandidat"
+        }
+      },
+      {
+        "id": "s5",
+        "sourceIndex": 4,
+        "type": "activity",
+        "text": "Erbjud anställning",
+        "laneId": "Användare",
+        "sourceText": "Erbjud anställning [Roll: HR-specialist U] [Tid: Inom 5 dagar] [Ut: Anställningsavtal]",
+        "perspectives": [
+          "business",
+          "system"
+        ],
+        "ap": {
+          "roller": [
+            {
+              "namn": "HR-specialist",
+              "huki": "U"
+            }
+          ],
+          "tid": "Inom 5 dagar",
+          "output": "Anställningsavtal"
+        }
+      }
+    ],
+    "meta": {
+      "sourceText": "Rekrytering\nBehov av ny medarbetare [Ut: Behov fastställt] → Ta fram kravprofil [Roll: Rekryterande chef U] [Ut: Kravprofil] → Annonsera tjänsten [Roll: HR-specialist U] [IT: Rekryteringssystemet] [Ut: Ansökningar] → Genomför urval [Roll: Rekryterande chef H] [Roll: HR-specialist K] [Krav: Likabehandling] [Ut: Slutkandidat] → Erbjud anställning [Roll: HR-specialist U] [Tid: Inom 5 dagar] [Ut: Anställningsavtal]",
+      "origin": "rules",
+      "sourceFragments": [
+        "Behov av ny medarbetare [Ut: Behov fastställt]",
+        "Ta fram kravprofil [Roll: Rekryterande chef U] [Ut: Kravprofil]",
+        "Annonsera tjänsten [Roll: HR-specialist U] [IT: Rekryteringssystemet] [Ut: Ansökningar]",
+        "Genomför urval [Roll: Rekryterande chef H] [Roll: HR-specialist K] [Krav: Likabehandling] [Ut: Slutkandidat]",
+        "Erbjud anställning [Roll: HR-specialist U] [Tid: Inom 5 dagar] [Ut: Anställningsavtal]"
+      ],
+      "warnings": []
+    },
+    "diagramType": "affarsprocess"
+  },
+  "versions": [
+    {
+      "id": "ap-exempel-rekrytering-v1",
+      "savedAt": "2026-10-22T08:00:00.000Z",
+      "label": "Exempel",
+      "status": "fastslagen",
+      "rawText": "Rekrytering\nBehov av ny medarbetare [Ut: Behov fastställt] → Ta fram kravprofil [Roll: Rekryterande chef U] [Ut: Kravprofil] → Annonsera tjänsten [Roll: HR-specialist U] [IT: Rekryteringssystemet] [Ut: Ansökningar] → Genomför urval [Roll: Rekryterande chef H] [Roll: HR-specialist K] [Krav: Likabehandling] [Ut: Slutkandidat] → Erbjud anställning [Roll: HR-specialist U] [Tid: Inom 5 dagar] [Ut: Anställningsavtal]",
+      "draft": {
+        "title": "Rekrytering",
+        "lanes": [
+          {
+            "id": "Användare",
+            "title": "Användare",
+            "order": 0,
+            "perspectives": [
+              "business",
+              "system"
+            ]
+          }
+        ],
+        "steps": [
+          {
+            "id": "s1",
+            "sourceIndex": 0,
+            "type": "start",
+            "text": "Behov av ny medarbetare",
+            "laneId": "Användare",
+            "sourceText": "Behov av ny medarbetare [Ut: Behov fastställt]",
+            "perspectives": [
+              "business",
+              "system"
+            ],
+            "ap": {
+              "output": "Behov fastställt"
+            }
+          },
+          {
+            "id": "s2",
+            "sourceIndex": 1,
+            "type": "activity",
+            "text": "Ta fram kravprofil",
+            "laneId": "Användare",
+            "sourceText": "Ta fram kravprofil [Roll: Rekryterande chef U] [Ut: Kravprofil]",
+            "perspectives": [
+              "business",
+              "system"
+            ],
+            "ap": {
+              "roller": [
+                {
+                  "namn": "Rekryterande chef",
+                  "huki": "U"
+                }
+              ],
+              "output": "Kravprofil"
+            }
+          },
+          {
+            "id": "s3",
+            "sourceIndex": 2,
+            "type": "activity",
+            "text": "Annonsera tjänsten",
+            "laneId": "Användare",
+            "sourceText": "Annonsera tjänsten [Roll: HR-specialist U] [IT: Rekryteringssystemet] [Ut: Ansökningar]",
+            "perspectives": [
+              "business",
+              "system"
+            ],
+            "ap": {
+              "roller": [
+                {
+                  "namn": "HR-specialist",
+                  "huki": "U"
+                }
+              ],
+              "applikationer": [
+                "Rekryteringssystemet"
+              ],
+              "output": "Ansökningar"
+            }
+          },
+          {
+            "id": "s4",
+            "sourceIndex": 3,
+            "type": "activity",
+            "text": "Genomför urval",
+            "laneId": "Användare",
+            "sourceText": "Genomför urval [Roll: Rekryterande chef H] [Roll: HR-specialist K] [Krav: Likabehandling] [Ut: Slutkandidat]",
+            "perspectives": [
+              "business",
+              "system"
+            ],
+            "ap": {
+              "roller": [
+                {
+                  "namn": "Rekryterande chef",
+                  "huki": "H"
+                },
+                {
+                  "namn": "HR-specialist",
+                  "huki": "K"
+                }
+              ],
+              "krav": [
+                "Likabehandling"
+              ],
+              "output": "Slutkandidat"
+            }
+          },
+          {
+            "id": "s5",
+            "sourceIndex": 4,
+            "type": "activity",
+            "text": "Erbjud anställning",
+            "laneId": "Användare",
+            "sourceText": "Erbjud anställning [Roll: HR-specialist U] [Tid: Inom 5 dagar] [Ut: Anställningsavtal]",
+            "perspectives": [
+              "business",
+              "system"
+            ],
+            "ap": {
+              "roller": [
+                {
+                  "namn": "HR-specialist",
+                  "huki": "U"
+                }
+              ],
+              "tid": "Inom 5 dagar",
+              "output": "Anställningsavtal"
+            }
+          }
+        ],
+        "meta": {
+          "sourceText": "Rekrytering\nBehov av ny medarbetare [Ut: Behov fastställt] → Ta fram kravprofil [Roll: Rekryterande chef U] [Ut: Kravprofil] → Annonsera tjänsten [Roll: HR-specialist U] [IT: Rekryteringssystemet] [Ut: Ansökningar] → Genomför urval [Roll: Rekryterande chef H] [Roll: HR-specialist K] [Krav: Likabehandling] [Ut: Slutkandidat] → Erbjud anställning [Roll: HR-specialist U] [Tid: Inom 5 dagar] [Ut: Anställningsavtal]",
+          "origin": "rules",
+          "sourceFragments": [
+            "Behov av ny medarbetare [Ut: Behov fastställt]",
+            "Ta fram kravprofil [Roll: Rekryterande chef U] [Ut: Kravprofil]",
+            "Annonsera tjänsten [Roll: HR-specialist U] [IT: Rekryteringssystemet] [Ut: Ansökningar]",
+            "Genomför urval [Roll: Rekryterande chef H] [Roll: HR-specialist K] [Krav: Likabehandling] [Ut: Slutkandidat]",
+            "Erbjud anställning [Roll: HR-specialist U] [Tid: Inom 5 dagar] [Ut: Anställningsavtal]"
+          ],
+          "warnings": []
+        },
+        "diagramType": "affarsprocess"
+      }
+    }
+  ]
+}

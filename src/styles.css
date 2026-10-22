@@ -1,0 +1,1823 @@
+/**
+ * Arkitektens färger och ytor.
+ *
+ * EN LJUS APP. Menyn var en mörk marinblå platta med en indigoaccent, och den
+ * kombinationen drog blicken till navigeringen i stället för till diagrammet.
+ * Paletten här är därför nästan färglös – papper, grå linjer och EN dämpad blå
+ * som bara markerar det valda. Det som ska sticka ut på skärmen är ritytan.
+ *
+ * Accenten är mörk nog att bära vit text (kontrast ~6:1), så samma värde
+ * fungerar både som knappfärg och som textfärg mot ljus botten.
+ */
+:root {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --panel-2: #f8f9fb;
+  --border: #e4e7ec;
+  --border-strong: #cfd4dc;
+  --text: #101828;
+  --text-2: #475467;
+  --muted: #667085;
+
+  --accent: #1f5c9e;
+  --accent-mork: #17497e;
+  --accent-2: #2f77c4;
+  --accent-svag: #eef4fb;
+  --accent-kant: #b9d3ec;
+
+  /* Menyn: ljus, avgränsad med en linje i stället för en platta. */
+  --sidebar: #f7f8fa;
+  --sidebar-text: #344054;
+  --sidebar-hover: #edeff3;
+
+  /* AI-åtgärder får en EGEN ton. Det är appens enda icke-deterministiska väg
+     – allt annat ger samma resultat varje gång – och den skillnaden är värd en
+     egen färg i stället för att smälta ihop med de vanliga knapparna. */
+  --ai: #6b4aa0;
+  --ai-svag: #f4f0fa;
+  --ai-kant: #d7c9ec;
+
+  --skugga-1: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --skugga-2: 0 4px 14px rgba(16, 24, 40, 0.09);
+
+  font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--text); }
+/* ---- Shell ----
+   Menyn är LJUS. Den var en mörk marinblå platta, och en mörk spalt bredvid en
+   vit rityta drar blicken till sig hela tiden – den blev det starkaste på
+   skärmen fast den bara är vägen fram till arbetet. Nu bär typografi och
+   avstånd hierarkin, och det enda färgstarka i fönstret är diagrammet. */
+.ark-shell { display: flex; height: 100vh; }
+.ark-sidebar {
+  width: var(--ark-menybredd, 248px); flex-shrink: 0; background: var(--sidebar);
+  color: var(--sidebar-text); display: flex; flex-direction: column; gap: 4px;
+  padding: 14px 12px; overflow-y: auto;
+}
+/* Dragremsan mellan menyn och innehållet. Smal men träffbar. */
+.ark-sidebar-drag {
+  width: 5px; flex-shrink: 0; cursor: col-resize; background: var(--sidebar);
+  border-right: 1px solid var(--border);
+}
+.ark-sidebar-drag:hover { background: var(--accent-kant); }
+
+.ark-brand {
+  display: flex; gap: 10px; align-items: center; width: 100%; text-align: left;
+  background: none; border: 0; padding: 4px 6px 12px; cursor: pointer; font-family: inherit;
+  flex-shrink: 0;
+}
+.ark-brand-mark {
+  width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 17px; flex-shrink: 0;
+}
+.ark-brand-text { display: flex; flex-direction: column; min-width: 0; }
+.ark-brand-name { font-weight: 650; color: var(--text); font-size: 15px; }
+.ark-brand-sub {
+  font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ark-meny-ny { width: 100%; padding: 9px 12px; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+
+.ark-meny-nav { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; flex-shrink: 0; }
+.ark-navval, .ark-senasteval {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  background: none; border: 0; border-radius: 7px; cursor: pointer; font-family: inherit;
+  color: var(--sidebar-text); padding: 7px 9px; font-size: 13px;
+}
+.ark-navval:hover, .ark-senasteval:hover { background: var(--sidebar-hover); }
+.ark-navval.active, .ark-senasteval.active {
+  background: var(--accent-svag); color: var(--accent-mork); font-weight: 600;
+}
+.ark-navval-ikon {
+  width: 18px; text-align: center; color: var(--muted); font-size: 13px; flex-shrink: 0;
+}
+.ark-navval.active .ark-navval-ikon { color: var(--accent); }
+.ark-navval-namn, .ark-senasteval {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;
+}
+.ark-navval-antal {
+  margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 500;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 0 6px;
+}
+.ark-senasteval { font-size: 12.5px; color: var(--text-2); padding: 5px 9px; }
+
+.ark-meny-avdelning { display: flex; flex-direction: column; gap: 1px; margin-top: 18px; }
+.ark-meny-rubrik {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600;
+  color: var(--muted); padding: 0 9px 6px;
+}
+
+/* ---- Processträdet i menyn (läsläge) ----
+   Samma indelning som katalogen, men i menyns skala. Ljust som resten: raden
+   ska gå att skumma, inte lysa. */
+/* Trädet tar utrymmet som blir över OCH skrollar i sin egen ruta.
+   Utan `overflow` rann ett långt träd rakt ut ur sin box och ritades ovanpå
+   "Verktyg" längst ner – det såg ut som två menyer i samma spalt.
+   `min-height: 0` krävs för att en flex-ruta ska få krympa under sitt
+   innehåll; utan den ignoreras `overflow` och spillet är kvar. */
+.ark-tradet { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.ark-meny-filter {
+  width: 100%; margin: 0 0 8px; padding: 6px 9px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  font-size: 12.5px; font-family: inherit;
+}
+.ark-meny-filter::placeholder { color: var(--muted); }
+.ark-meny-filter:focus { outline: 2px solid var(--accent-kant); border-color: transparent; }
+
+/* Kategorin (t.ex. ett system eller en avdelning) är nivån mellan menyn och ärendetyperna.
+   Den ligger grundare in än en ärendetyp och är spärrad i versaler, så att de
+   tre nivåerna går att skilja åt utan att raden skriker. */
+.ark-meny-kategori { display: flex; flex-direction: column; margin: 2px 0 4px; }
+.ark-meny-kategori-titel {
+  display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
+  background: none; border: 0; cursor: pointer; padding: 5px 8px; border-radius: 6px;
+  color: var(--muted); font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; font-family: inherit;
+}
+.ark-meny-kategori-titel:hover { background: var(--sidebar-hover); color: var(--text-2); }
+/* Ärendetyperna hänger på kategorin: en svag linje i vänsterkanten binder ihop
+   dem, annars ser grenarna ut att ligga löst under rubriken. */
+.ark-meny-kategori > .ark-meny-gren {
+  border-left: 1px solid var(--border); margin-left: 12px; padding-left: 4px;
+}
+.ark-meny-gren { display: flex; flex-direction: column; margin: 1px 0 2px; }
+.ark-meny-arende {
+  display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
+  background: none; border: 0; cursor: pointer; padding: 5px 8px; border-radius: 6px;
+  color: var(--text-2); font-size: 12.5px; font-weight: 600; font-family: inherit;
+}
+.ark-meny-arende:hover { background: var(--sidebar-hover); color: var(--text); }
+.ark-meny-pil { color: var(--muted); font-size: 9px; width: 10px; }
+.ark-meny-antal { margin-left: auto; font-size: 10.5px; font-weight: 500; color: var(--muted); }
+.ark-meny-malgrupp { display: flex; flex-direction: column; margin: 2px 0 6px 14px; }
+.ark-meny-malgrupp-titel {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);
+  margin: 4px 0 2px 8px;
+}
+.ark-flow-menyval {
+  /* Flex, inte block: namnet ska kapas med ellips medan statusmärket till
+     höger alltid får plats. */
+  display: flex; align-items: center; gap: 6px; overflow: hidden; text-align: left;
+  padding: 4px 8px; border: 0; background: none; cursor: pointer; font-family: inherit;
+  color: var(--text-2); font-size: 12.5px; border-radius: 6px;
+  border-left: 2px solid var(--border);
+}
+.ark-meny-namn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ark-meny-agare { margin-left: auto; flex-shrink: 0; font-size: 10.5px; color: var(--muted); }
+.ark-meny-yta-agare { margin: 0 0 4px 8px; font-size: 11.5px; color: var(--text-2); }
+.ark-flow-menyval:hover { background: var(--sidebar-hover); color: var(--text); }
+.ark-flow-menyval.active {
+  background: var(--accent-svag); color: var(--accent-mork); font-weight: 600;
+  border-left-color: var(--accent);
+}
+.ark-meny-fastslagen {
+  margin-left: auto; font-size: 10px; font-weight: 600; color: #4b5563;
+  background: #e5e7eb; border: 1px solid #d1d5db; border-radius: 999px; padding: 0 6px;
+}
+.ark-meny-tomt { font-size: 11.5px; color: var(--muted); padding: 8px 9px; margin: 0; }
+
+.ark-sidebar-foot {
+  font-size: 10.5px; color: var(--muted); padding: 12px 9px 2px; margin-top: 10px;
+  border-top: 1px solid var(--border); flex-shrink: 0;
+}
+
+/* Huvudytan. Arbetsytan ligger underst och lever kvar; start, ny process och
+   katalogen ritas OVANPÅ den. Se AppShell: ett verktyg som avmonteras tar med
+   sig osparat arbete, och en dold ruta mäter noll pixlar. */
+.ark-content { flex: 1; min-width: 0; position: relative; }
+/* Egen staplingskontext (`isolation`): arbetsytans inre z-index – rubriken,
+   verktygsraden, ritytans flytande palett – hör hemma INUTI arbetsytan och får
+   aldrig konkurrera med överläggen ovanför den. */
+.ark-verktygsyta { position: absolute; inset: 0; isolation: isolate; z-index: 0; }
+.ark-verktygslager { position: absolute; inset: 0; }
+/* Ett DOLT verktygslager måste vara dolt HELA VÄGEN NER.
+   `visibility` ärvs, men ett barn kan sätta tillbaka `visible` – och React Flow
+   gör precis det på sina noder. Följden: öppnade man ett affärsprocess medan ett
+   flödesschema låg kvar i sitt lager ritades BÅDA processerna ovanpå varandra
+   på samma skärm. Regeln nedan tar tillbaka arvet; lagret är kvar och uppmätt,
+   så ritytans zoom överlever precis som förut. */
+.ark-verktygslager[aria-hidden="true"] * { visibility: hidden !important; }
+.ark-vy-overlay {
+  position: absolute; inset: 0; z-index: 10; background: var(--bg); overflow: auto;
+}
+/* Dold, men kvar och uppmätt. `visibility` bevarar både ritytans zoom och
+   katalogens skrollning; `display: none` hade nollställt båda. */
+.ark-verktygsyta.dold, .ark-vy-overlay.dold { visibility: hidden; pointer-events: none; }
+.ark-empty { display: grid; place-items: center; height: 100%; color: var(--muted); font-size: 13px; }
+
+/* ---- Startvyn: det första valet ---- */
+.ark-start { min-height: 100%; display: grid; place-items: center; padding: 48px 32px; }
+.ark-start-inner { width: 100%; max-width: 720px; }
+.ark-start-topp { text-align: center; margin-bottom: 34px; }
+.ark-start-rubrik { font-size: 30px; font-weight: 680; margin: 0 0 10px; letter-spacing: -0.4px; }
+.ark-start-underrubrik {
+  font-size: 14.5px; color: var(--text-2); margin: 0 auto; max-width: 520px; line-height: 1.55;
+}
+.ark-start-val { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ark-start-kort {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 7px; text-align: left;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  padding: 24px 22px; cursor: pointer; font-family: inherit; transition: all 0.14s;
+  box-shadow: var(--skugga-1);
+}
+.ark-start-kort:hover {
+  border-color: var(--accent-kant); box-shadow: var(--skugga-2); transform: translateY(-1px);
+}
+.ark-start-ikon {
+  width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--accent-svag); color: var(--accent); font-size: 19px; margin-bottom: 6px;
+}
+.ark-start-korttitel { font-size: 16px; font-weight: 650; color: var(--text); }
+.ark-start-korttext { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+.ark-start-kortfot { font-size: 12px; color: var(--accent); font-weight: 600; margin-top: 6px; }
+
+.ark-start-senaste { margin-top: 32px; }
+.ark-start-senastetitel {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted);
+  font-weight: 600; margin: 0 0 10px;
+}
+.ark-start-senastelista { display: flex; flex-wrap: wrap; gap: 8px; }
+.ark-start-senasteknapp {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 14px; font-size: 12.5px; color: var(--text-2); cursor: pointer;
+  font-family: inherit; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ark-start-senasteknapp:hover { border-color: var(--accent-kant); color: var(--accent-mork); }
+
+/* ---- Ny process ---- */
+.ark-ny { padding: 34px 32px 60px; }
+.ark-ny-inner { max-width: 760px; margin: 0 auto; }
+.ark-tillbaka {
+  background: none; border: 0; color: var(--muted); cursor: pointer; font-family: inherit;
+  font-size: 12.5px; padding: 4px 0; margin-bottom: 10px;
+}
+.ark-tillbaka:hover { color: var(--accent); }
+.ark-ny-rubrik { font-size: 24px; font-weight: 680; margin: 0 0 28px; letter-spacing: -0.3px; }
+.ark-ny-steg { margin-bottom: 30px; }
+.ark-ny-stegtitel {
+  display: flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 650;
+  margin: 0 0 12px;
+}
+.ark-ny-nummer {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent-svag); color: var(--accent-mork); font-size: 11.5px; font-weight: 700;
+  flex-shrink: 0;
+}
+.ark-ny-verktyg { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ark-ny-start { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ark-valkort {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 5px; text-align: left;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; cursor: pointer; font-family: inherit; transition: all 0.12s;
+}
+.ark-valkort:hover { border-color: var(--border-strong); background: var(--panel-2); }
+.ark-valkort.vald {
+  border-color: var(--accent); background: var(--accent-svag);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.ark-valkort-ikon {
+  font-size: 15px; color: var(--accent); width: 26px; height: 26px; border-radius: 7px;
+  display: grid; place-items: center; background: var(--accent-svag);
+}
+.ark-valkort.vald .ark-valkort-ikon { background: #fff; }
+.ark-valkort-titel { font-size: 13.5px; font-weight: 640; color: var(--text); }
+.ark-valkort-text { font-size: 12px; color: var(--text-2); line-height: 1.45; }
+.ark-ny-namn { font-size: 14px; padding: 10px 12px; }
+.ark-ny-text { min-height: 150px; margin-top: 14px; }
+.ark-ny-fot {
+  display: flex; align-items: center; gap: 18px; border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+.ark-btn--stor { padding: 10px 22px; font-size: 13.5px; font-weight: 600; }
+
+/* ---- Processkatalogen ---- */
+.ark-katalog { padding: 26px 30px 60px; max-width: 1180px; margin: 0 auto; }
+.ark-katalog-topp {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
+  margin-bottom: 20px;
+}
+.ark-katalog-rubrik { font-size: 22px; font-weight: 680; margin: 0 0 4px; letter-spacing: -0.3px; }
+.ark-katalog-underrubrik { font-size: 12.5px; color: var(--muted); margin: 0; }
+.ark-katalog-hjalp { font-size: 12px; color: var(--muted); margin: 4px 0 0; max-width: 70ch; }
+.ark-katalog-filter {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.ark-katalog-sok { flex: 1 1 240px; min-width: 200px; padding: 8px 12px; font-size: 13px; }
+
+/* Segmenterad väljare – som .ark-toggle men kompakt, för filterraden. */
+.ark-segment {
+  display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px;
+  overflow: hidden; background: var(--panel);
+}
+.ark-segment button {
+  border: 0; background: none; padding: 7px 12px; cursor: pointer; font-size: 12.5px;
+  color: var(--text-2); font-family: inherit; white-space: nowrap;
+}
+.ark-segment button + button { border-left: 1px solid var(--border); }
+.ark-segment button:hover { background: var(--panel-2); }
+.ark-segment button.active { background: var(--accent); color: #fff; font-weight: 600; }
+
+/* Ärendetyperna som chips: trädets andra nivå, utplattad så den går att läsa
+   på en rad i stället för att fällas ut gren för gren. */
+.ark-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 22px; }
+.ark-chip {
+  display: inline-flex; align-items: center; gap: 7px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 999px; padding: 5px 13px; font-size: 12.5px;
+  color: var(--text-2); cursor: pointer; font-family: inherit;
+}
+.ark-chip:hover { border-color: var(--border-strong); }
+.ark-chip.active {
+  background: var(--accent-svag); border-color: var(--accent-kant); color: var(--accent-mork);
+  font-weight: 600;
+}
+.ark-chip-antal { font-size: 11px; color: var(--muted); }
+.ark-chip.active .ark-chip-antal { color: var(--accent); }
+
+.ark-katalog-kategori { margin-bottom: 30px; }
+.ark-katalog-kategoritxt {
+  display: flex; align-items: center; gap: 9px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.7px; color: var(--muted); font-weight: 700; margin: 0 0 14px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.ark-katalog-antal { font-weight: 500; letter-spacing: 0; }
+.ark-katalog-arende { margin-bottom: 22px; }
+.ark-katalog-arendetxt {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 15px; font-weight: 650; margin: 0 0 12px; color: var(--text);
+}
+
+/* ---- Strukturen ändras där den syns: rubriker som går att döpa om, kort
+   som går att flytta. Knapparna är diskreta tills man pekar på raden – de ska
+   finnas när man söker dem, inte konkurrera med innehållet. ---- */
+.ark-grennamn-knapp {
+  border: none; background: none; cursor: pointer; color: var(--muted);
+  font-size: 13px; line-height: 1; padding: 2px 4px; border-radius: 6px; opacity: 0;
+  transition: opacity 0.12s, background 0.12s;
+}
+.ark-katalog-kategoritxt:hover .ark-grennamn-knapp,
+.ark-katalog-arendetxt:hover .ark-grennamn-knapp,
+.ark-grennamn-knapp:focus-visible { opacity: 1; }
+.ark-grennamn-knapp:hover { background: #eef0f5; color: var(--text); }
+.ark-grennamn-redigerar { display: inline-flex; align-items: center; gap: 10px; flex: 1; }
+.ark-grennamn-redigerar .ark-input { max-width: 320px; text-transform: none; letter-spacing: 0; }
+.ark-grennamn-hjalp {
+  font-size: 11.5px; font-weight: 400; color: var(--muted); text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ---- Brödsmulan och nivålistan: en nivå i taget i stället för hela
+   biblioteket utrullat. Raden är stor och lugn – den ska gå att träffa och
+   läsa, för det är den man arbetar i. ---- */
+.ark-smulor {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  padding: 0 0 14px; font-size: 13px;
+}
+.ark-smula {
+  border: none; background: none; padding: 4px 8px; border-radius: 7px;
+  font: inherit; color: var(--accent); cursor: pointer;
+}
+.ark-smula:hover:not(:disabled) { background: #eef0f5; }
+.ark-smula:disabled, .ark-smula--har { color: var(--text); font-weight: 600; cursor: default; }
+.ark-smulpil { color: var(--muted); }
+
+.ark-nivalista { display: flex; flex-direction: column; gap: 6px; }
+.ark-nivarad {
+  display: flex; align-items: center; gap: 6px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px; padding: 0 10px 0 0;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.ark-nivarad:hover { border-color: var(--border-strong); box-shadow: 0 2px 8px rgba(16,24,40,0.06); }
+.ark-nivarad.skriver { padding: 10px 14px; gap: 14px; }
+.ark-nivarad-knapp {
+  flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0;
+  border: none; background: none; font: inherit; text-align: left; cursor: pointer;
+  padding: 14px 4px 14px 16px; color: var(--text);
+}
+.ark-nivarad-titel { font-size: 15px; font-weight: 600; flex-shrink: 0; }
+.ark-nivarad-under {
+  color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; min-width: 0;
+}
+.ark-nivarad-antal {
+  margin-left: auto; flex-shrink: 0; font-size: 11.5px; color: var(--muted);
+  background: #f1f3f7; border-radius: 999px; padding: 2px 9px;
+}
+.ark-nivarad-pil { flex-shrink: 0; color: var(--muted); font-size: 16px; }
+.ark-nivarad-hjalp { font-size: 11.5px; color: var(--muted); }
+.ark-nivarad .ark-grennamn-knapp { opacity: 0; }
+.ark-nivarad:hover .ark-grennamn-knapp, .ark-nivarad .ark-grennamn-knapp:focus-visible { opacity: 1; }
+
+.ark-kort-hallare { position: relative; display: flex; }
+.ark-kort-hallare .ark-kort { flex: 1; }
+/* Flyttknappen står med NAMN på kortet, alltid synlig.
+   Den hette .ark-kort-flytta och var `opacity: 0` tills man råkade peka på
+   kortet – en funktion man inte kan se finns inte. Klassen är medvetet en
+   ANNAN nu: den gamla regeln finns kvar i webbläsare som håller en gammal
+   stilfil, och den hade gömt knappen igen (synpunkt 2026-09-07: "Den finns
+   inte!!!"). */
+.ark-kort-flytt {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #fff; border: 1px solid var(--border); border-radius: 999px;
+  padding: 3px 9px 3px 7px; font-size: 11px; font-weight: 600; font-family: inherit;
+  color: var(--muted); cursor: pointer; line-height: 1.2;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.ark-kort-flytt:hover, .ark-kort-flytt:focus-visible {
+  color: var(--accent); border-color: var(--accent); background: #f5f5ff;
+}
+
+.ark-flyttalager {
+  position: fixed; inset: 0; z-index: 40; background: rgba(16,24,40,0.28);
+  display: grid; place-items: center; padding: 24px;
+}
+.ark-flyttadialog {
+  width: 100%; max-width: 440px; background: #fff; border-radius: 12px;
+  border: 1px solid var(--border-strong); box-shadow: 0 18px 50px rgba(16,24,40,0.22);
+  padding: 20px 22px 18px; display: flex; flex-direction: column; gap: 6px;
+}
+/* Kostnadsfrågan kan komma ur rutinvyn – den ska ligga över allt. */
+.ark-kostnadslager { z-index: 2000; }
+/* Vidare instruktioner till AI – under AI-beskrivningen. */
+.ark-vidare { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-strong); display: flex; flex-direction: column; gap: 6px; }
+.ark-vidare-text { min-height: 90px; }
+.ark-kostnad-notis { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-strong); }
+.ark-flytta-rubrik { font-size: 16px; font-weight: 650; margin: 0 0 2px; }
+/* Knapp med ikon och text (t.ex. "Flytta i katalogen" i processens huvud). */
+.ark-btn--ikon-text { display: inline-flex; align-items: center; gap: 6px; }
+/* Var processen ligger NU – frågan man ställer sig innan man flyttar. */
+.ark-flytta-nu { font-size: 12.5px; color: var(--text); margin: 0 0 2px; }
+.ark-flytta-nu strong { font-weight: 650; }
+.ark-flytta-fot { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.ark-katalog-malgrupp { margin: 0 0 14px; }
+.ark-katalog-malgrupptxt {
+  font-size: 11.5px; font-weight: 600; color: var(--muted); margin: 0 0 8px;
+}
+.ark-kortrutnat {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px;
+}
+
+.ark-kort {
+  display: flex; flex-direction: column; gap: 7px; text-align: left; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; cursor: pointer;
+  font-family: inherit; transition: all 0.12s; position: relative;
+}
+.ark-kort:hover {
+  border-color: var(--accent-kant); box-shadow: var(--skugga-1); transform: translateY(-1px);
+}
+.ark-kort.aktiv { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.ark-kort-titel {
+  font-size: 13.5px; font-weight: 620; color: var(--text); line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  /* Plats åt flyttknappen i hörnet – den ligger ovanpå kortet. */
+  padding-right: 76px;
+}
+.ark-kort-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11.5px; color: var(--muted); }
+.ark-kort-vem { font-size: 11.5px; color: var(--text-2); font-weight: 500; }
+.ark-kort-verktyg {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
+  padding: 0 5px; font-size: 10.5px;
+}
+.ark-kort-fot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto;
+  padding-top: 4px;
+}
+.ark-kort-tid { font-size: 11px; color: var(--muted); }
+.ark-kort-aktiv {
+  position: absolute; top: -8px; right: 10px; background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+}
+.ark-katalog-kropp { min-height: 200px; }
+.ark-katalog-tomt {
+  display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px 20px;
+  color: var(--muted); font-size: 13px;
+}
+
+/* ---- Arbetsytan ----
+   Uppifrån och ner: rubriken (VAD arbetar jag med), verktygsraden (VAD kan jag
+   göra) och sedan ytan. Den 320 px breda spalten med sexton sektioner är borta;
+   innehållet bor i rullgardiner i raden. Se shell/Verktygsrad.tsx. */
+.ark-tool { display: flex; height: 100%; }
+.ark-tool-main { flex: 1; position: relative; min-width: 0; display: flex; flex-direction: column; }
+/* Rader under rubriken. Ritytan har egen position-kontext så att canvasens
+   `inset: 0` och panelerna mäts mot BILDEN, inte mot rubrikraden. */
+.ark-arbetsyta { flex: 1; display: flex; min-height: 0; }
+/* Ritytan är en EGEN stackningsnivå: det som ligger här (presentationsbilden
+   på z 40, inspektören på 50 …) stannar under verktygsraden och dess
+   rullgardiner. Utan isoleringen låg Granska- och Export-menyn bakom den
+   avskalade bilden – knappen tändes men ingen meny syntes (2026-10-13). */
+.ark-tool-stage { flex: 1; position: relative; min-height: 0; min-width: 0; isolation: isolate; }
+/* Den avskalade presentationsbilden täcker ritytan och skalas in i den. */
+.ark-ap-avskalad {
+  position: absolute; inset: 0; z-index: 40; display: flex; flex-direction: column;
+  background: #08213a; padding: 12px;
+}
+.ark-ap-avskalad-bild { flex: 1; min-height: 0; touch-action: none; }
+.ark-ap-avskalad-bild > svg { width: 100%; height: 100%; display: block; }
+.ark-ap-avskalad.redigerar [data-ark-nod] { cursor: grab; }
+.ark-ap-avskalad.redigerar [data-ark-nod]:hover { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.55)); }
+.ark-ap-avskalad-tips { flex: 0 0 auto; padding: 8px 4px 0; font-size: 12px; color: rgba(255, 255, 255, 0.7); text-align: center; }
+.ark-ap-avskalad-aterstall { margin-left: 12px; color: #fbbf24; }
+.ark-ap-avskalad .avsk-handtag { fill: #ffffff; stroke: #fbbf24; stroke-width: 2; opacity: 0.55; cursor: move; }
+.ark-ap-avskalad .avsk-handtag:hover { opacity: 1; r: 8.5; }
+/* Inspektören ovanpå den avskalade bilden – där ändras innehållet. */
+.ark-tool-stage .ark-ap-inspektor { z-index: 50; }
+
+/* ---- Verktygsraden ---- */
+.ark-vrad {
+  display: flex; align-items: center; gap: 4px; padding: 6px 10px; flex-shrink: 0;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  /* Över ritytan: rullgardinernas paneler fälls ner ÖVER diagrammet. */
+  position: relative; z-index: 20;
+}
+.ark-vrad-grupp { display: flex; align-items: center; gap: 3px; }
+.ark-vrad-grupp + .ark-vrad-grupp {
+  margin-left: 7px; padding-left: 10px; border-left: 1px solid var(--border);
+}
+.ark-vrad-hoger { margin-left: auto; display: flex; align-items: center; gap: 3px; }
+.ark-vrad-knapp {
+  display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid transparent;
+  border-radius: 7px; padding: 6px 10px; font-size: 12.5px; color: var(--text-2); cursor: pointer;
+  font-family: inherit; white-space: nowrap;
+}
+.ark-vrad-knapp:hover:not(:disabled) { background: var(--panel-2); border-color: var(--border); }
+.ark-vrad-knapp:disabled { opacity: 0.4; cursor: default; }
+.ark-vrad-knapp.aktiv {
+  background: var(--accent-svag); border-color: var(--accent-kant); color: var(--accent-mork);
+  font-weight: 600;
+}
+.ark-vrad-knapp.oppen { background: var(--panel-2); border-color: var(--border-strong); }
+.ark-vrad-knapp.ai { color: var(--ai); }
+.ark-vrad-knapp.ai:hover:not(:disabled) { background: var(--ai-svag); border-color: var(--ai-kant); }
+.ark-vrad-knapp.ikon { padding: 6px 9px; font-size: 15px; line-height: 1; }
+.ark-vrad-pil { font-size: 9px; color: var(--muted); }
+.ark-vrad-marke {
+  background: var(--accent); color: #fff; border-radius: 999px; font-size: 10px; font-weight: 700;
+  padding: 0 5px; min-width: 16px; text-align: center;
+}
+
+/* Rullgardinen: raden bär frågan, panelen svaret. */
+.ark-rullgardin { position: relative; }
+.ark-rullgardin-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; background: var(--panel);
+  border: 1px solid var(--border-strong); border-radius: 11px; box-shadow: var(--skugga-2);
+  padding: 14px; z-index: 60; max-height: 72vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ark-rullgardin-panel.hoger { left: auto; right: 0; }
+/* "Förenkla och presentera": knappen, Avbryt och kvittot under dem. */
+.ark-pres { display: flex; align-items: center; gap: 3px; }
+.ark-pres-topp { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+.ark-pres-anm { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--text-2); }
+.ark-rullgardin-del { display: flex; flex-direction: column; gap: 8px; }
+.ark-rullgardin-del + .ark-rullgardin-del {
+  margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.ark-rullgardin-del .ark-section-title { margin-bottom: 0; }
+.ark-rullgardin-del .ark-hint { margin-top: 0; }
+
+/* ---- Beskrivningspanelen: texten diagrammet kommer ur ---- */
+.ark-textdock {
+  width: 340px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
+  padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+}
+.ark-textdock-topp { display: flex; align-items: center; gap: 8px; }
+.ark-textdock-topp .ark-toggle { flex: 1; }
+.ark-textdock-text { flex: 0 0 auto; min-height: 230px; }
+.ark-palett-titel { flex: 1; font-size: 12.5px; }
+.ark-stang {
+  border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px;
+  padding: 4px 6px; border-radius: 6px; line-height: 1;
+}
+.ark-stang:hover { background: var(--panel-2); color: var(--text); }
+.ark-btn--bred { width: 100%; }
+
+/* ---- Rubriken: vilket diagram redigerar jag? ---- */
+.ark-flow-header {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px 7px 14px;
+  background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0;
+  /* Över verktygsraden: sparpanelen fälls ner ÖVER den. */
+  position: relative; z-index: 30;
+}
+.ark-flow-header-atgarder { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.ark-flow-header-atgarder .ark-btn { padding: 6px 14px; }
+.ark-flow-header-verktyg { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.ark-flow-header-pil { color: var(--border-strong); }
+.ark-flow-header-namn {
+  font-size: 14px; font-weight: 700; color: var(--text); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ark-flow-header-steg { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.ark-flow-header-status {
+  margin-left: auto; font-size: 11px; padding: 3px 9px; border-radius: 999px;
+  white-space: nowrap; border: 1px solid transparent;
+}
+.ark-flow-header-status.osparat { background: #fdf5e9; color: #7c4a03; border-color: #e6b980; }
+.ark-flow-header-status.sparat { background: #edf9f2; color: #14532d; border-color: #86c8a4; }
+.ark-flow-header-status.nytt { background: #f3f4f7; color: var(--muted); border-color: var(--border); }
+
+.ark-field-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.ark-textarea {
+  width: 100%; min-height: 190px; resize: vertical; padding: 10px; border: 1px solid var(--border);
+  border-radius: 8px; font-family: "Segoe UI", sans-serif; font-size: 12.5px; line-height: 1.5;
+  color: var(--text); background: #fcfcfd;
+}
+.ark-textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+.ark-btn {
+  padding: 8px 12px; border: 1px solid var(--border-strong); background: #fff; color: var(--text);
+  border-radius: 8px; font-size: 12.5px; cursor: pointer; font-weight: 500; transition: all 0.12s;
+}
+.ark-btn:hover { background: #f3f4f7; }
+.ark-btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ark-btn--primary:hover { background: #4338ca; }
+
+.ark-section { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 2px; }
+.ark-section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); margin-bottom: 8px; font-weight: 600; }
+.ark-toggle { display: flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+.ark-toggle button { flex: 1; border: 0; background: #fff; padding: 8px; cursor: pointer; font-size: 12.5px; color: var(--muted); }
+.ark-toggle button.active { background: var(--accent); color: #fff; font-weight: 600; }
+.ark-hint { font-size: 11.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.35; }
+/* Kvittens efter en åtgärd som annars kan se verkningslös ut. */
+.ark-hint--kvitto { color: #14532d; font-weight: 600; }
+.ark-size-row { display: flex; align-items: center; gap: 8px; }
+.ark-range { flex: 1; accent-color: var(--accent); }
+.ark-btn--icon { width: 30px; padding: 4px 0; text-align: center; font-size: 16px; line-height: 1; }
+.ark-size-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.ark-linkbtn { border: 0; background: none; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0; }
+.ark-linkbtn:hover { text-decoration: underline; }
+.ark-check { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 8px; }
+.ark-export-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.ark-trace-badge {
+  width: 100%; text-align: left; border: 1px solid var(--border-strong); background: #fff;
+  border-radius: 8px; padding: 9px 11px; font-size: 12px; cursor: pointer; font-weight: 500;
+}
+.ark-trace-badge.ok { border-color: #86c8a4; background: #edf9f2; color: #14532d; }
+.ark-trace-badge.warn { border-color: #e6b980; background: #fdf5e9; color: #7c4a03; }
+
+/* ---- Canvas ---- */
+.ark-canvas { position: absolute; inset: 0; }
+.react-flow__attribution { display: none; }
+
+/* Process nodes */
+.ark-node {
+  position: relative; width: 100%; height: 100%; border: 1.6px solid; padding: 6px 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 12px; text-align: center;
+}
+.ark-node-icon {
+  position: absolute; top: 5px; left: 6px; display: flex; opacity: 0.85; pointer-events: auto;
+}
+.ark-node-icon svg { display: block; }
+.ark-node-label { line-height: 1.25; font-weight: 500; }
+.ark-node-body { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.ark-node--event { padding: 4px; text-align: center; }
+.ark-node--event .ark-node-body { line-height: 1.15; }
+.ark-node--diamond {
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  border-radius: 0 !important;
+}
+.ark-gw-symbol {
+  position: absolute; top: 16%; left: 50%; transform: translateX(-50%);
+  font-weight: 700; line-height: 1; pointer-events: none;
+}
+.ark-node-diamond-inner { padding: 0 14px; font-size: 11px; margin-top: 6px; }
+.ark-node-input {
+  width: 100%; border: 0; background: transparent; text-align: center; resize: none;
+  font-family: inherit; font-size: 12px; color: inherit; outline: none; overflow: hidden;
+}
+/*
+  Kopplingspunkten är liten för att inte ta över bilden, men TRÄFFYTAN är stor:
+  ::before lägger en osynlig ring runt om. En 7 px prick krävde pixelprecision
+  för att börja dra en koppling – och missade man startade man i stället en
+  markering eller en panorering.
+*/
+.ark-handle {
+  width: 7px; height: 7px; background: #9aa3b5; border: 1px solid #fff;
+  transition: transform 0.08s, background 0.08s;
+}
+/*
+  Träffytan växer BARA UTÅT, aldrig in över objektet.
+  En ring runt om (inset: -7px) lade sig över nodens kant och innandöme, och då
+  tog kopplingspunkten emot klick som var menade för objektet – man kunde varken
+  markera eller flytta det. Punkterna sitter på kanten, så varje sida får växa
+  utåt och en gnutta i sidled, men noll inåt.
+*/
+.ark-handle::before { content: ""; position: absolute; border-radius: 999px; }
+.react-flow__handle-top.ark-handle::before { inset: -5px -3px 0 -3px; }
+.react-flow__handle-bottom.ark-handle::before { inset: 0 -3px -5px -3px; }
+.react-flow__handle-left.ark-handle::before { inset: -3px 0 -3px -5px; }
+.react-flow__handle-right.ark-handle::before { inset: -3px -5px -3px 0; }
+/* Peka på objektet → punkterna framträder, så man ser var draget börjar. */
+.react-flow__node:hover > .ark-handle,
+.react-flow__node:hover .ark-node > .ark-handle {
+  background: var(--accent); transform: scale(1.35);
+}
+.ark-handle:hover { background: var(--accent); transform: scale(1.9); }
+/*
+  Affärsprocessvyn: kopplingspunkterna är dolda tills man pekar på objektet (eller har
+  det valt). Objekten där är små symboler, och åtta prickar runt var och en
+  vägde tyngre än symbolerna själva – bilden såg ut som ett pärlband. De finns
+  kvar, precis lika dragbara, men bara när man siktar på dem.
+*/
+.ark-ap-nod .ark-handle { opacity: 0; transition: opacity 0.12s ease; }
+.ark-ap-nod:hover .ark-handle,
+.react-flow__node.selected .ark-ap-nod .ark-handle { opacity: 1; }
+
+/* BPMN pool */
+.ark-pool { position: relative; border-radius: 2px; pointer-events: none; background: transparent; }
+.ark-pool-label {
+  position: absolute; left: 0; top: 0; height: 100%; display: flex; align-items: center;
+  justify-content: center; font-weight: 700;
+}
+.ark-pool-label span {
+  writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap;
+  letter-spacing: 0.3px; text-transform: uppercase;
+}
+
+/* BPMN black box – mottagarpool utan modellerat innehåll */
+.ark-blackbox { position: relative; border-radius: 2px; pointer-events: none; background: transparent; }
+/*
+ * Deltagarnamnet skrivs VÅGRÄTT. En svart låda är ett lågt band – roterad text
+ * får inte plats på höjden utan svämmar ut och kolliderar med grannbandets
+ * etikett (det såg ut som "ANVÄNDAREHANDLÄGGARE" i ett sammanhängande stråk).
+ */
+.ark-blackbox-label {
+  position: absolute; left: 0; top: 0; height: 100%; display: flex; align-items: center;
+  padding-left: 12px; font-weight: 700;
+}
+.ark-blackbox-label span {
+  white-space: nowrap; letter-spacing: 0.3px; text-transform: uppercase;
+}
+
+/* BPMN data store – artefakt, inte flödesobjekt */
+.ark-datastore { pointer-events: none; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06); }
+/* Artefaktkanter kopplas programmatiskt – handtagen ska inte synas eller kunna greppas. */
+.ark-handle--hidden { opacity: 0; pointer-events: none; }
+
+/* Lane background */
+.ark-lane { position: relative; border-radius: 2px; pointer-events: none; }
+.ark-lane-header {
+  position: absolute; left: 0; top: 0; width: 100%; display: flex; align-items: center;
+  padding: 0 12px; font-weight: 600; font-size: 12.5px;
+}
+
+.ark-flow-check { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.ark-flow-list { list-style: none; margin: 8px 0 0; padding: 0; counter-reset: none; max-height: 220px; overflow-y: auto; }
+.ark-flow-list li { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 12px; }
+.ark-flow-n {
+  flex: 0 0 auto; min-width: 18px; height: 18px; border-radius: 9px; background: #eef1f5;
+  color: #475467; font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0 5px;
+}
+.ark-flow-list li.t-start .ark-flow-n { background: #d7f0e2; color: #14532d; }
+.ark-flow-list li.t-end .ark-flow-n { background: #fbdcda; color: #7f1d1d; }
+.ark-flow-list li.t-decision .ark-flow-n { background: #fdeccb; color: #7c4a03; }
+.ark-flow-label { flex: 1; color: #1f2937; }
+.ark-flow-type { flex: 0 0 auto; color: var(--muted); font-size: 11px; }
+
+.ark-bpmn-check { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.ark-bpmn-title { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ark-bpmn-list { margin: 8px 0 0; padding: 0 0 0 2px; list-style: none; font-size: 12px; }
+.ark-bpmn-list li { padding: 3px 0; line-height: 1.35; }
+.ark-bpmn-list li.err { color: #b42318; }
+.ark-bpmn-list li.warn { color: #b54708; }
+
+/* ---- Trace panel ---- */
+.ark-trace {
+  position: absolute; right: 16px; bottom: 16px; top: 16px; width: 420px; max-width: 46%;
+  background: #fff; border: 1px solid var(--border-strong); border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(16,24,40,0.18); display: flex; flex-direction: column; overflow: hidden;
+  z-index: 10;
+}
+.ark-trace-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.ark-pill { font-size: 11px; padding: 3px 8px; border-radius: 999px; margin-left: auto; }
+.ark-pill.ok { background: #edf9f2; color: #14532d; }
+.ark-pill.warn { background: #fdf5e9; color: #7c4a03; }
+.ark-x { border: 0; background: transparent; cursor: pointer; font-size: 14px; color: var(--muted); }
+.ark-trace-table { width: 100%; border-collapse: collapse; font-size: 12px; display: block; overflow-y: auto; }
+.ark-trace-table th { text-align: left; color: var(--muted); font-weight: 600; padding: 8px 12px; position: sticky; top: 0; background: #fff; }
+.ark-trace-table td { padding: 7px 12px; border-top: 1px solid var(--border); vertical-align: top; }
+.ark-trace-table td:nth-child(2) { max-width: 210px; }
+.ark-trace-table tr.row-warn td { background: #fdf5e9; }
+
+/* ---- Fält för AI-nyckel ---- */
+.ark-input {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+  font-family: inherit; font-size: 12.5px; color: var(--text); background: #fcfcfd;
+}
+.ark-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+select.ark-input { cursor: pointer; background: var(--panel); }
+
+/* Kategoriväljaren: lista + fritextruta när man skapar en ny. */
+.ark-kategorival { display: flex; flex-direction: column; gap: 6px; }
+.ark-kategorirad { display: flex; flex-direction: column; gap: 5px; }
+.ark-ny-kategoriEtikett { display: block; margin-top: 16px; margin-bottom: 5px; }
+.ark-error {
+  font-size: 12px; color: #b42318; background: #fef3f2; border: 1px solid #fda29b;
+  border-radius: 8px; padding: 8px 10px; margin: 0; line-height: 1.35;
+}
+
+/* ---- Mellanlager ---- */
+.ark-draft-badge {
+  width: 100%; display: flex; align-items: center; gap: 8px; text-align: left;
+  border: 1px solid var(--border-strong); background: #fff; border-radius: 8px;
+  padding: 9px 11px; font-size: 12px; cursor: pointer; font-weight: 500;
+}
+.ark-draft-badge span {
+  margin-left: auto; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--muted); background: #f1f3f7; border-radius: 999px; padding: 2px 8px;
+}
+.ark-draft-badge.ai { border-color: var(--ai-kant); background: var(--ai-svag); }
+.ark-draft-badge.ai span { background: var(--ai); color: #fff; }
+
+.ark-draft {
+  position: absolute; left: 16px; right: 16px; bottom: 16px; top: 16px; max-width: 860px;
+  background: #fff; border: 1px solid var(--border-strong); border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(16,24,40,0.18); display: flex; flex-direction: column;
+  overflow: hidden; z-index: 11;
+}
+.ark-draft-head {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.ark-draft-origin { font-size: 11.5px; color: var(--muted); }
+.ark-draft-head .ark-pill { margin-left: auto; }
+.ark-draft-hint { font-size: 11.5px; color: var(--muted); margin: 0; padding: 10px 14px 4px; }
+.ark-draft-rows { flex: 1; overflow-y: auto; padding: 6px 14px 12px; }
+
+.ark-draft-row {
+  display: grid; grid-template-columns: 34px auto 132px 1fr 150px auto;
+  align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--border);
+}
+.ark-draft-row.branch { background: #fbfbfe; }
+.ark-draft-row.branch .ark-draft-n { margin-left: 12px; }
+.ark-draft-n {
+  min-width: 22px; height: 20px; border-radius: 10px; background: #eef1f5; color: #475467;
+  font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center;
+  justify-content: center; padding: 0 6px;
+}
+.ark-draft-branch {
+  font-size: 10.5px; font-weight: 600; color: #7c4a03; background: #fdf5e9;
+  border-radius: 999px; padding: 2px 7px; white-space: nowrap;
+}
+.ark-draft-type, .ark-draft-text, .ark-draft-lane {
+  border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px; font-family: inherit;
+  font-size: 12.5px; color: var(--text); background: #fff; min-width: 0;
+}
+.ark-draft-type { grid-column: 3; }
+.ark-draft-text:focus, .ark-draft-lane:focus, .ark-draft-type:focus {
+  outline: 2px solid var(--accent); border-color: transparent;
+}
+.ark-draft-actions { display: flex; gap: 3px; }
+.ark-iconbtn {
+  width: 26px; height: 26px; border: 1px solid var(--border); background: #fff; border-radius: 6px;
+  cursor: pointer; font-size: 12px; line-height: 1; color: var(--muted); padding: 0;
+}
+.ark-iconbtn:hover:not(:disabled) { background: #f3f4f7; color: var(--text); }
+.ark-iconbtn:disabled { opacity: 0.35; cursor: default; }
+.ark-iconbtn.danger:hover { background: #fef3f2; color: #b42318; border-color: #fda29b; }
+.ark-draft-note {
+  grid-column: 2 / -1; font-size: 11px; color: var(--muted); font-style: italic;
+  padding: 0 0 4px 2px;
+}
+.ark-draft-foot { padding: 10px 14px; border-top: 1px solid var(--border); }
+
+/* ---- AI-knapp + alternativ-sektion ---- */
+.ark-btn--ai {
+  background: var(--ai); border-color: var(--ai); color: #fff; font-weight: 600;
+}
+.ark-btn--ai:hover:not(:disabled) { filter: brightness(1.1); background: var(--ai); }
+.ark-btn--ai:disabled { opacity: 0.65; cursor: default; }
+.ark-details { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.ark-details summary {
+  cursor: pointer; font-size: 12px; color: var(--muted); font-weight: 600; list-style: revert;
+}
+.ark-details[open] summary { margin-bottom: 8px; }
+.ark-details > *:not(summary) { margin-top: 6px; }
+.ark-hint code { background: #f1f3f7; border-radius: 4px; padding: 1px 4px; font-size: 11px; }
+
+/* ---- Flödesbibliotek ---- */
+.ark-store-kind {
+  float: right; text-transform: none; letter-spacing: 0; font-weight: 500;
+  font-size: 10.5px; color: var(--muted); background: #f1f3f7; border-radius: 999px;
+  padding: 1px 8px; cursor: help;
+}
+.ark-save-row { display: flex; gap: 6px; }
+.ark-save-row .ark-input { flex: 1; min-width: 0; }
+.ark-save-row .ark-btn { white-space: nowrap; }
+
+.ark-flow-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; align-items: flex-start; }
+.ark-flow-actions .ark-btn { width: 100%; }
+.ark-linkbtn.danger { color: #b42318; }
+.ark-flow-library { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.ark-flow-library li { display: flex; gap: 4px; align-items: stretch; }
+.ark-flow-library li.current .ark-flow-open { border-color: var(--accent); background: #f5f5ff; }
+.ark-flow-open {
+  flex: 1; min-width: 0; text-align: left; border: 1px solid var(--border); background: #fff;
+  border-radius: 7px; padding: 7px 9px; cursor: pointer; display: flex; flex-direction: column; gap: 1px;
+}
+.ark-flow-open:hover:not(:disabled) { background: #f3f4f7; }
+.ark-flow-open:disabled { opacity: 0.5; cursor: default; }
+.ark-flow-name {
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ark-flow-meta { font-size: 10.5px; color: var(--muted); }
+.ark-flow-library li.current .ark-flow-name { color: var(--accent); }
+.ark-flow-nu { color: var(--accent); }
+
+/* ---- Versionshistorik ---- */
+.ark-label-input { margin-top: 6px; font-size: 12px; }
+.ark-versions { margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.ark-versions-toggle {
+  width: 100%; text-align: left; border: 0; background: #fafbfc; padding: 7px 10px;
+  cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text);
+}
+.ark-versions-toggle:hover { background: #f3f4f7; }
+.ark-version-list {
+  list-style: none; margin: 0; padding: 0; max-height: 230px; overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+.ark-version-list li {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.ark-version-list li:last-child { border-bottom: 0; }
+.ark-version-list li.latest { background: #f5f5ff; }
+.ark-version-info { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.ark-version-id {
+  font-size: 10.5px; font-weight: 700; color: #475467; background: #eef1f5;
+  border-radius: 999px; padding: 1px 7px;
+}
+.ark-version-when { font-size: 11px; color: var(--muted); }
+.ark-version-label {
+  font-size: 11px; color: #14532d; background: #edf9f2; border-radius: 4px; padding: 1px 6px;
+  width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ark-version-meta { font-size: 10.5px; color: var(--muted); }
+.ark-btn--tiny { padding: 4px 9px; font-size: 11.5px; white-space: nowrap; }
+/* Huvudversionerna (x.0) ska gå att hitta i en lång lista av utkast. */
+.ark-version-id.huvud { color: #14532d; background: #d9f0e2; }
+
+/* ---- Statusar: utkast vs fastslagen ----
+   Samma märke används i sparraden, i versionslistan och i rubriken över
+   ritytan. EN uppsättning färger, så att "fastslagen" ser likadan ut var man
+   än möter den – annars blir grönt något man måste tolka på nytt varje gång. */
+.ark-status-pill {
+  font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 1px 8px;
+  white-space: nowrap; border: 1px solid transparent;
+}
+.ark-status-pill.utkast { background: #f3f4f7; color: #475467; border-color: var(--border); }
+.ark-status-pill.fastslagen { background: #edf9f2; color: #14532d; border-color: #86c8a4; }
+.ark-flow-header .ark-status-pill { font-size: 11px; padding: 3px 9px; }
+
+.ark-status-val { margin-top: 10px; }
+.ark-status-rad {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; flex-wrap: wrap;
+}
+.ark-status-etikett {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  color: var(--muted);
+}
+/* Fastslagna flöden märks i menyn – utkast är normalläget och märks inte. */
+.ark-meny-fastslagen {
+  margin-left: auto; font-size: 10px; font-weight: 700; color: #4b5563;
+  background: #e5e7eb; border-radius: 999px; padding: 0 6px; flex: none;
+}
+/* "ny" – upplagd de senaste 48 timmarna. SAMMA etikett som beteckningen
+   (3.0): samma form, färg och plats i radens högerkant. */
+.ark-meny-nymarke {
+  margin-left: auto; font-size: 10px; font-weight: 700; color: #14532d;
+  background: #d9f0e2; border-radius: 999px; padding: 0 6px; flex: none;
+}
+.ark-meny-nymarke + .ark-meny-fastslagen { margin-left: 5px; }
+
+/* ---- Dra och släpp i mellanlagret ---- */
+.ark-draft-n { cursor: grab; user-select: none; }
+.ark-draft-n:active { cursor: grabbing; }
+.ark-draft-row { position: relative; }
+.ark-draft-row.dragging { opacity: 0.4; }
+/* Släppindikator: en linje ovanför eller under raden man siktar på. */
+.ark-draft-row.drop-before::before,
+.ark-draft-row.drop-after::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 2px;
+  background: var(--accent); border-radius: 2px; pointer-events: none;
+}
+.ark-draft-row.drop-before::before { top: -1px; }
+.ark-draft-row.drop-after::after { bottom: -1px; }
+
+/* ---- Hjälplinjer vid linjering ---- */
+.ark-guide { background: #f43f5e; opacity: 0.85; pointer-events: none; }
+.ark-hint kbd {
+  background: #eef1f5; border: 1px solid var(--border-strong); border-bottom-width: 2px;
+  border-radius: 4px; padding: 0 5px; font-size: 10.5px; font-family: inherit; font-weight: 600;
+}
+
+/* Större träffyta på kopplingspunkterna – själva pricken förblir liten. */
+.ark-handle {
+  width: 9px; height: 9px; border: 1.5px solid #fff; background: #9aa3b5;
+}
+.ark-handle::after {
+  content: ""; position: absolute; inset: -7px; border-radius: 50%;
+}
+.react-flow__node:hover .ark-handle { background: var(--accent); }
+
+/* ---- Kantinspektör ---- */
+.ark-edge-inspector {
+  position: absolute; right: 16px; top: 16px; width: 250px; background: #fff;
+  border: 1px solid var(--border-strong); border-radius: 10px; padding: 10px 12px;
+  box-shadow: 0 8px 28px rgba(16,24,40,0.16); z-index: 12;
+}
+.ark-edge-head { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.ark-edge-head .ark-x { margin-left: auto; }
+.ark-edge-name {
+  font-size: 11.5px; color: var(--muted); margin: 4px 0 10px; line-height: 1.35;
+}
+.ark-edge-row { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.ark-edge-rowlabel { font-size: 11.5px; color: var(--muted); width: 34px; }
+.ark-iconbtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ark-edge-warn {
+  font-size: 11px; color: #7c4a03; background: #fdf5e9; border: 1px solid #e6b980;
+  border-radius: 6px; padding: 6px 8px; margin: 0 0 8px; line-height: 1.35;
+}
+.ark-edge-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.ark-btn--tiny.danger { border-color: #fda29b; color: #b42318; }
+.ark-btn--tiny.danger:hover:not(:disabled) { background: #fef3f2; }
+.ark-btn--tiny:disabled, .ark-linkbtn:disabled { opacity: 0.45; cursor: default; }
+/* Vald kant ska synas tydligt. */
+.react-flow__edge.selected .react-flow__edge-path { stroke: var(--accent) !important; stroke-width: 2.6 !important; }
+
+/* ---- Växeln: markera eller flytta vyn ---- */
+/* Två gester om samma musknapp kan inte gälla samtidigt, så valet syns här. */
+.ark-pekarval {
+  display: flex; align-items: center; gap: 2px;
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+  padding: 3px; box-shadow: 0 1px 4px rgba(16,24,40,0.1);
+}
+.ark-pekarknapp {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 1px solid transparent; border-radius: 6px;
+  padding: 4px 9px; font-size: 12.5px; font-weight: 600; color: var(--text);
+  cursor: pointer; white-space: nowrap;
+}
+.ark-pekarknapp:hover { background: #f2f4f7; }
+.ark-pekarknapp.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Affärsprocessens rityta har ingen verktygsrad att ligga i – där flyter växeln på samma
+   plats som flödesschemats rad, uppe till vänster. */
+.ark-pekarval-flytande { position: absolute; left: 12px; top: 12px; z-index: 12; }
+/* Pekaren i markeringsläget är ett KRYSS. Handen betyder "jag flyttar vyn",
+   och i markeringsläget flyttas ingenting – React Flows egen grab-hand satt
+   kvar och lovade fel sak. */
+.ark-canvas--markera .react-flow__pane { cursor: crosshair; }
+
+/* ---- Markering av flera objekt (dra en ram på tom yta i redigeringsläge) ---- */
+/* Ramen man drar. React Flows egen är prickad och blå; husets accentfärg
+   gör den till en del av appen i stället för en främmande låda. */
+.react-flow__selection {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+}
+/* Markerade objekt MÅSTE synas – annars vet man inte vad ett drag kommer att
+   flytta. Affärsprocessens objekt har redan sin egen ram (längre ned); det här är
+   flödesschemats rutor och datalager. */
+.react-flow__node.selected .ark-node {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ---- Dragbara ändpunkter på vald kant ---- */
+/* ---- Verktygsraden på ritytan ----
+   Samma gest som affärsprocessens palett: välj verktyg, klicka på ytan. Raden ligger PÅ
+   ritytan och inte i sidopanelen, för den hör till det man gör med musen just nu. */
+.ark-verktygsrad {
+  position: absolute; left: 12px; top: 12px; z-index: 12;
+  display: flex; align-items: center; gap: 8px;
+}
+.ark-verktygsknapp {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 11px; font-size: 12.5px; font-weight: 600; color: var(--text);
+  cursor: pointer; box-shadow: 0 1px 4px rgba(16,24,40,0.1);
+}
+.ark-verktygsknapp:hover { border-color: var(--accent); color: var(--accent); }
+.ark-verktygsknapp.active {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.ark-verktygsikon { font-size: 15px; line-height: 1; }
+/* Objektpaletten i samma rad – klicka en form, klicka sedan på ytan. */
+.ark-palett {
+  display: flex; align-items: center; gap: 3px; flex-wrap: wrap;
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+  padding: 3px; box-shadow: 0 1px 4px rgba(16,24,40,0.1);
+}
+.ark-palettknapp {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 1px;
+  border: 1px solid transparent; border-radius: 6px; background: none;
+  padding: 3px 5px; cursor: pointer; color: var(--muted);
+  font-size: 9px; font-weight: 600; line-height: 1.1; white-space: nowrap;
+}
+.ark-palettknapp:hover { border-color: var(--border); background: #f5f6f9; color: var(--text); }
+.ark-palettknapp.active {
+  border-color: var(--accent); background: #eef2ff; color: var(--accent);
+}
+.ark-verktygshjälp.fel {
+  background: #fdf5e9; border-color: #e6b980; color: #7c4a03; font-weight: 600;
+}
+.ark-verktygshjälp {
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+  padding: 5px 10px; font-size: 11.5px; color: var(--muted);
+  box-shadow: 0 1px 4px rgba(16,24,40,0.1);
+}
+/* Hela ytan får hårkors medan ett verktyg är aktivt – gesten är ett KLICK. */
+.ark-canvas.ark-verktyg-koppla .react-flow__pane,
+.ark-canvas.ark-verktyg-koppla .react-flow__node { cursor: crosshair !important; }
+/* Objektet man valt som kopplingens start. */
+.react-flow__node.ark-koppla-från { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 10px; }
+
+/* Etikettfältet på en koppling – öppnas med dubbelklick, som på ett objekt. */
+.ark-edge-label-edit { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.ark-edge-label-edit input {
+  width: 130px; padding: 3px 7px; font-size: 11.5px; font-family: inherit;
+  border: 1.5px solid var(--accent); border-radius: 5px; background: #fff;
+  color: var(--text); text-align: center; outline: none;
+  box-shadow: 0 1px 5px rgba(16,24,40,0.2);
+}
+.ark-edge-label-fel {
+  max-width: 190px; padding: 3px 7px; font-size: 10.5px; line-height: 1.3;
+  background: #fdf5e9; color: #7c4a03; border: 1px solid #e6b980; border-radius: 5px;
+  text-align: center;
+}
+/* Kopplingen visar att den går att dubbelklicka. */
+.ark-edge-hint { cursor: text; }
+
+.ark-endpoint-layer { position: absolute; inset: 0; pointer-events: none; z-index: 9; }
+/*
+  Ändpunkten ska gå att GREPPA. Den var 14 px och syntes bara när kanten var
+  markerad – missade man den tunna linjen fanns ingenting att ta i, och det
+  kändes som att kopplingen inte gick att dra alls. Nu 18 px, med en osynlig
+  träffyta på 26 px runt om (::before) så handen inte behöver vara exakt.
+*/
+.ark-endpoint {
+  position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+  border-radius: 50%; background: #fff; border: 3px solid var(--accent);
+  cursor: grab; pointer-events: auto; box-shadow: 0 1px 5px rgba(16,24,40,0.3);
+  touch-action: none; /* pekskärm: dra handtaget, panorera inte ritytan */
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.ark-endpoint::before {
+  content: ""; position: absolute; inset: -4px; border-radius: 50%;
+}
+.ark-endpoint:hover {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 4px rgba(79,70,229,0.22), 0 1px 5px rgba(16,24,40,0.3);
+}
+/*
+  De VALBARA kopplingspunkterna på objekten, medan en koppling är vald. Små och
+  diskreta: de ska visa var pilen KAN fästa utan att ta över bilden.
+*/
+/*
+  KLICKBARA. Punkten är liten för att inte ta över bilden, men träffytan är
+  dubbelt så stor (padding + negativ marginal) – ett val ska inte kräva
+  pixelprecision. Att dra ändpunkten funkar fortfarande, men klicket är vägen
+  som inte går att missa halvvägs.
+*/
+.ark-endpoint-val {
+  position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+  padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto;
+  display: flex; align-items: center; justify-content: center;
+}
+.ark-endpoint-val::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: #fff; border: 1.5px solid var(--accent); opacity: 0.45;
+  transition: transform 0.08s, opacity 0.08s;
+}
+.ark-endpoint-val:hover::before { transform: scale(1.9); opacity: 1; }
+/* Den punkt pilen sitter på nu – så man ser vad som är valt. */
+.ark-endpoint-val.vald::before {
+  opacity: 1; background: var(--accent); border-color: var(--accent); transform: scale(1.4);
+}
+.ark-endpoint.dragging { cursor: grabbing; background: var(--accent); transform: scale(1.25); }
+
+/* ---- Simbanornas ordning ---- */
+.ark-lane-order { padding: 4px 14px 10px; border-bottom: 1px solid var(--border); }
+.ark-lane-order-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--muted); font-weight: 600; margin-bottom: 6px;
+}
+.ark-lane-row { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.ark-lane-row .ark-draft-text { flex: 1; }
+
+/* ---- Automatiska slut-event ---- */
+.ark-auto-ends { padding: 8px 14px; border-bottom: 1px solid var(--border); }
+.ark-auto-end {
+  display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted);
+  background: #fafbfc; border: 1px solid var(--border); border-radius: 7px;
+  padding: 6px 9px; margin-bottom: 4px;
+}
+.ark-auto-end span { flex: 1; line-height: 1.35; }
+.ark-auto-end .ark-auto-end-tag {
+  flex: 0 0 auto; white-space: nowrap; font-weight: 600; color: var(--muted);
+}
+.ark-auto-end .ark-draft-text { flex: 1; }
+.ark-draft-recipient { max-width: 120px; }
+.ark-draft-row { grid-template-columns: 34px auto 132px 1fr 150px auto auto; }
+
+/* Dragghandtag för att ändra swimlane-höjd */
+.ark-lane-resize {
+  position: absolute; left: 0; right: 0; bottom: -4px; height: 9px;
+  cursor: ns-resize; pointer-events: auto; z-index: 1;
+}
+.ark-lane-resize:hover { background: rgba(79,70,229,0.25); }
+
+/* Etikett på routad kant (egen kanttyp) */
+.ark-edge-label {
+  font-size: 11px; background: #fff; border: 1px solid #d7dce4; border-radius: 3px;
+  padding: 1px 5px; color: #374151; white-space: nowrap;
+  /* Över kanternas svep (z 1) så etiketten inte ligger under en träffyta. */
+  z-index: 3;
+}
+/*
+  Etikett BREDVID strecket (affärsprocessvyn): ingen ruta och ingen ram – strecket ska
+  förbli ett streck. En vit skugga runt texten räcker för att den ska gå att
+  läsa när den råkar hamna på ett annat objekt.
+*/
+.ark-edge-label--bredvid {
+  background: none; border: none; padding: 0;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff;
+}
+
+/*
+  Etikettlagret (React Flows EdgeLabelRenderer) ligger i DOM före kanternas
+  SVG-svep och noderna. Utan egen z-index hamnade brytpunktshandtagen UNDER
+  kanternas 14 px osynliga träffyta – de syntes men gick inte att träffa, och
+  "dra i banan" var dött. Lagret själv släpper igenom pekaren (pointer-events:
+  none); bara handtagen och etiketterna tar emot den.
+*/
+.react-flow__edgelabel-renderer { z-index: 3; }
+
+/*
+  Dragbart handtag mitt på en koppling. Otydligt tills man för musen dit, tydligt
+  när en egen brytpunkt är satt. Positioneras via inline-transform (translate),
+  så hover-effekten får INTE röra transform – då hoppar handtaget ur läge.
+*/
+.ark-edge-waypoint {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: #fff; border: 1.5px solid var(--border-strong);
+  cursor: grab; opacity: 0.22;
+  transition: opacity 0.1s, box-shadow 0.1s, border-color 0.1s, background 0.1s;
+  z-index: 3; /* över kanternas träffytor – annars går handtaget inte att greppa */
+}
+.ark-edge-waypoint:hover {
+  opacity: 1; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,0.18);
+}
+.ark-edge-waypoint.set {
+  opacity: 1; border-color: var(--accent); background: #eef2ff;
+}
+.ark-edge-waypoint:active { cursor: grabbing; }
+/* Dragbara sträckor på en manuell väg: osynliga tills man pekar på dem. */
+.ark-edge-grepp--x { cursor: ew-resize; }
+.ark-edge-grepp--y { cursor: ns-resize; }
+.ark-edge-grepp:hover { stroke: rgba(79, 70, 229, 0.18); }
+
+/* Varning i en hint-rad (t.ex. när urklippet nekas). */
+.ark-hint--warn { color: #b45309; }
+
+/* ---- Mallen ---- */
+.ark-mall .ark-draft-rows { padding-bottom: 16px; }
+.ark-mall-steg { margin: 0 0 22px; }
+.ark-mall-rubrik {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 600; font-size: 13.5px; margin-bottom: 4px;
+}
+.ark-mall-nr {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+}
+.ark-mall-nr.liten { width: 16px; height: 16px; font-size: 9.5px; background: var(--border); color: var(--muted); }
+.ark-mall-forklaring { margin: 0 0 8px; font-size: 11.5px; color: var(--muted); }
+.ark-mall-bana { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.ark-mall-bana .ark-draft-text { flex: 1; }
+.ark-mall-forslag { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+.ark-chip {
+  border: 1px solid var(--border); background: #fff; border-radius: 12px;
+  padding: 2px 9px; font-size: 11.5px; cursor: pointer; color: var(--muted);
+}
+.ark-chip:hover { border-color: var(--accent); color: var(--accent); }
+.ark-mall-kolumner {
+  display: flex; gap: 6px; font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--muted); padding-bottom: 4px;
+}
+.ark-mall-kolumner span:first-child { flex: 1 1 160px; }
+.ark-mall-kolumner span { flex: 0 0 auto; min-width: 90px; }
+.ark-mall-rad {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  padding: 6px 0; border-bottom: 1px solid var(--border);
+}
+.ark-mall-rad .ark-draft-text { flex: 1 1 160px; min-width: 120px; }
+.ark-mall-rad select { font-size: 12px; padding: 4px 6px; }
+.ark-mall-rad.gren { padding-left: 18px; border-left: 2px solid var(--border); }
+.ark-mall-hjalp { flex-basis: 100%; font-size: 11px; color: var(--muted); }
+.ark-mall-fel { flex-basis: 100%; font-size: 11.5px; color: #b45309; }
+.ark-mall-gren { margin: 4px 0 8px 14px; padding-left: 8px; border-left: 2px solid var(--border); }
+.ark-mall-gren-huvud { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+.ark-mall-knappar { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.ark-mall-lista { margin: 12px 0 0; padding-left: 18px; font-size: 12px; color: #b45309; }
+.ark-mall-fot {
+  display: flex; gap: 10px; align-items: center;
+  padding: 10px 14px; border-top: 1px solid var(--border);
+}
+
+/* ---- AI-utvärdering ---- */
+.ark-review-rad { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.ark-review-topp { display: flex; gap: 8px; align-items: baseline; }
+.ark-review-märke {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
+  padding: 2px 6px; border-radius: 3px; border: 1px solid var(--border); white-space: nowrap;
+}
+.ark-review-märke.fel { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+.ark-review-märke.förslag { background: #f5f5ff; border-color: #c7d2fe; color: #4338ca; }
+.ark-review-märke.notering { background: #f8fafc; color: var(--muted); }
+.ark-review-motiv { margin: 6px 0 0; font-size: 12.5px; }
+.ark-review-steg { margin: 4px 0 0; font-size: 11.5px; color: var(--muted); }
+
+/* ---- Affärsprocess (ApCanvas + ApInspector) ---- */
+.ark-ap-nod { position: relative; }
+.ark-ap-nod svg { display: block; pointer-events: none; }
+.react-flow__node.selected .ark-ap-nod { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.ark-ap-ram { border: 1.5px solid; border-radius: 4px; position: relative; pointer-events: none; }
+.ark-ap-ram span { position: absolute; right: 8px; bottom: 6px; font-size: 11px; }
+.ark-ap-ref { font-size: 10.5px; font-style: italic; color: #6b7280; white-space: nowrap; width: 90px; }
+.ark-ap-inspektor { position: absolute; top: 12px; right: 12px; width: 300px; max-height: calc(100% - 24px); overflow-y: auto; background: var(--panel); border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14); z-index: 20; }
+.ark-ap-inspektor-huvud { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+.ark-ap-satgrupp { margin-top: 10px; }
+.ark-ap-satrad { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.ark-ap-falt--bred { flex: 1; width: 100%; }
+.ark-ap-huki { width: 52px; flex: 0 0 auto; }
+.ark-ap-etikett { display: block; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+/* Kommentar + signatur på samma rad under spara-knappen. */
+.ark-save-meta { display: flex; gap: 6px; margin-top: 6px; }
+.ark-save-meta .ark-label-input { flex: 1; margin-top: 0; }
+.ark-signatur-input { flex: 0 0 118px; }
+/* Textstorlek per objekt: A− [ 100 % ] A+ · Återställ */
+.ark-ap-textstorlek { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.ark-ap-textstorlek-varde {
+  min-width: 46px; text-align: center; font-size: 11.5px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Affärsprocesskontrollen (fas 6) ---- */
+/* Rutinen står som en RUTA I HÖGERKANTEN, i ritytans fulla höjd – processen
+   ska synas bredvid medan man läser, inte ligga gömd under en dialog. */
+.ark-ap-rutin { position: absolute; top: 12px; right: 12px; width: min(440px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow-y: auto; background: var(--panel); border: 1px solid var(--border-strong); border-radius: 10px; padding: 14px 18px; box-shadow: 0 12px 36px rgba(15, 23, 42, 0.2); z-index: 60; }
+.ark-ap-rutin-lista { margin: 10px 0 12px; padding: 0; list-style: none; font-size: 13.5px; line-height: 1.45; }
+/* Rutinen som guide: ett kort per moment, en linje som binder ihop dem. */
+.ark-rutin-framsteg { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.ark-rutin-matare { flex: 1; height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.ark-rutin-matare span { display: block; height: 100%; background: #2f9e6b; border-radius: 999px; transition: width 0.2s ease; }
+.ark-rutin-rakning { flex: none; font-weight: 600; }
+.ark-rutin-moment { position: relative; display: flex; gap: 10px; padding-bottom: 10px; }
+.ark-rutin-moment:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 0; width: 2px; background: var(--border); }
+.ark-rutin-moment.klar:not(:last-child)::before { background: #9ad3b6; }
+.ark-rutin-bock { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border-strong); background: var(--panel); color: var(--text-2); font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; z-index: 1; }
+.ark-rutin-bock:hover { border-color: #2f9e6b; }
+.ark-rutin-moment.aktuell .ark-rutin-bock { border-color: var(--accent); color: var(--accent); }
+.ark-rutin-moment.klar .ark-rutin-bock { background: #2f9e6b; border-color: #2f9e6b; color: #fff; }
+.ark-rutin-kropp { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--panel); }
+.ark-rutin-moment.aktuell .ark-rutin-kropp { border-color: var(--accent-kant); background: var(--accent-svag); box-shadow: 0 2px 8px rgba(31, 92, 158, 0.08); }
+.ark-rutin-moment.klar .ark-rutin-kropp { opacity: 0.6; }
+.ark-rutin-rad { display: flex; gap: 8px; align-items: flex-start; }
+.ark-rutin-ikon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; background: #eef1f5; color: var(--text-2); }
+.ark-rutin-ikon.navigera { background: #e6f0fb; color: #1f5c9e; }
+.ark-rutin-ikon.klicka { background: #f1ebfb; color: #6b3fb5; }
+.ark-rutin-ikon.skriv { background: #fdf2e0; color: #a05a07; }
+.ark-rutin-ikon.logga-in { background: #fbe9ec; color: #a8324a; }
+.ark-rutin-ikon.öppna { background: #e4f4f3; color: #18706b; }
+.ark-rutin-ikon.ladda-ner { background: #e6f5ec; color: #1c7a4b; }
+.ark-rutin-text { padding-top: 2px; }
+/* En klickväg: en bricka per klick, pilen ritas mellan dem. */
+.ark-rutin-stig { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; }
+.ark-rutin-bricka { background: var(--panel); border: 1px solid var(--border-strong); border-radius: 6px; padding: 1px 7px; font-size: 12.5px; }
+.ark-rutin-bricka:not(:last-child)::after { content: "›"; position: relative; left: 13px; margin-left: -4px; color: var(--muted); font-weight: 700; }
+.ark-rutin-bricka:not(:last-child) { margin-right: 14px; }
+.ark-rutin-kropp ul { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12.5px; }
+.ark-rutin-kropp ul.steg > li { position: relative; padding: 3px 0 3px 16px; color: var(--text-2); }
+.ark-rutin-kropp ul.steg > li::before { content: ""; position: absolute; left: 4px; top: 11px; width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); }
+.ark-rutin-kropp ul.val { display: flex; flex-wrap: wrap; gap: 6px; }
+.ark-rutin-kropp ul.val > li { background: var(--panel); border: 1px dashed var(--border-strong); border-radius: 999px; padding: 1px 10px; color: var(--text-2); }
+/* En upplysning är ingen uppgift – den ska inte se ut som ett moment man missat. */
+.ark-rutin-kropp ul.steg > li.upplysning { margin-top: 4px; padding: 6px 8px 6px 26px; background: #fff8e6; border: 1px solid #f1dca4; border-radius: 8px; color: #6b4e0a; }
+.ark-rutin-kropp ul.steg > li.upplysning::before { content: "i"; left: 8px; top: 7px; width: 13px; height: 13px; background: #d9a514; color: #fff; font-size: 9.5px; font-weight: 700; line-height: 13px; text-align: center; }
+/* Byggaren: samma kort som i läsningen, med fält i stället för text. */
+.ark-rutin-verktyg { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.ark-rutin-flikar { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+.ark-rutin-flikar button { border: 0; background: var(--panel); padding: 5px 12px; font-size: 12.5px; cursor: pointer; color: var(--text-2); }
+.ark-rutin-flikar button[aria-selected="true"] { background: var(--accent-svag); color: var(--accent-mork); font-weight: 600; }
+.ark-rutin-bygge .ark-rutin-bock { cursor: default; display: inline-flex; align-items: center; justify-content: center; }
+.ark-rutin-rad.under { margin-top: 6px; padding-left: 32px; }
+/* Fältet växer med texten – ett långt moment ska gå att läsa medan man skriver. */
+.ark-rutin-falt { flex: 1; min-width: 0; resize: none; field-sizing: content; line-height: 1.45; border: 1px solid transparent; border-radius: 6px; padding: 3px 6px; font: inherit; background: transparent; color: var(--text); }
+.ark-rutin-falt:hover { border-color: var(--border); }
+.ark-rutin-falt:focus { outline: none; border-color: var(--accent); background: var(--panel); }
+.ark-rutin-rad.under .ark-rutin-falt { font-size: 12.5px; color: var(--text-2); border-color: var(--border); background: var(--panel); }
+.ark-rutin-radknappar { flex: none; display: inline-flex; gap: 2px; opacity: 0.35; }
+.ark-rutin-rad:hover .ark-rutin-radknappar, .ark-rutin-rad:focus-within .ark-rutin-radknappar { opacity: 1; }
+.ark-rutin-radknappar button { border: 0; background: none; cursor: pointer; width: 22px; height: 24px; border-radius: 5px; color: var(--text-2); font-size: 13px; padding: 0; }
+.ark-rutin-radknappar button:hover:not(:disabled) { background: var(--sidebar-hover); }
+.ark-rutin-radknappar button:disabled { opacity: 0.3; cursor: default; }
+.ark-rutin-kropp > .ark-linkbtn { margin: 6px 0 0 32px; }
+.ark-rutin-nytt { width: 100%; border-style: dashed; }
+.ark-rutin-ai { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--accent-svag); border: 1px solid var(--accent-kant); font-size: 12.5px; line-height: 1.4; }
+.ark-rutin-fel { margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; background: #fdecec; border: 1px solid #f3b8b8; color: #8a1f1f; font-size: 12.5px; }
+.ark-ap-rutin-text { width: 100%; min-height: 280px; font-size: 13px; line-height: 1.45; white-space: pre; overflow-x: auto; }
+.ark-ap-rutin-knappar { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.ark-ap-kontroll { position: absolute; top: 12px; left: 12px; width: 340px; max-height: calc(100% - 24px); overflow-y: auto; background: var(--panel); border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px 14px; box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14); z-index: 20; }
+.ark-ap-kontrollista { margin: 8px 0 0; padding: 0; list-style: none; }
+.ark-ap-anmarkning { display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left; border: 0; background: none; cursor: pointer; padding: 6px 4px; font-size: 12.5px; line-height: 1.4; border-radius: 6px; color: var(--muted); }
+.ark-ap-anmarkning:hover { background: #f2f4f7; }
+.ark-ap-anmarkning span { flex: 0 0 auto; font-weight: 700; }
+.ark-ap-anmarkning.varning { color: #7c4a03; }
+.ark-ap-anmarkning.varning span { color: #b45309; }
+
+/* ---- Objektpaletten och infällbara paneler ---- */
+.ark-ap-palett { width: 168px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border); overflow-y: auto; padding: 10px 10px 16px; display: flex; flex-direction: column; gap: 4px; }
+.ark-ap-palett-lista { display: flex; flex-direction: column; gap: 4px; }
+.ark-ap-palettobjekt { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; border: 1px solid transparent; background: none; border-radius: 8px; padding: 4px 7px; font-size: 12.5px; color: var(--text); cursor: pointer; }
+.ark-ap-palettobjekt:hover { background: #f2f4f7; }
+.ark-ap-palettobjekt.active { border-color: var(--accent); background: #f5f5ff; font-weight: 600; }
+.ark-ap-palettobjekt svg { flex-shrink: 0; overflow: visible; }
+.ark-canvas--placerar .react-flow__pane, .ark-canvas--placerar .react-flow__node { cursor: crosshair !important; }
+
+/* ---- Figurförteckningen: faktarutan som säger vad symbolerna betyder ---- */
+.ark-figurlista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.ark-figur { display: flex; align-items: flex-start; gap: 9px; padding: 4px 2px; }
+.ark-figur + .ark-figur { border-top: 1px solid var(--border); }
+.ark-figur-ikon {
+  flex: 0 0 34px; display: flex; align-items: center; justify-content: center;
+  padding-top: 1px;
+}
+/* Formerna får sticka ut ur sin ruta – ikontyperna ritar utanför måttet. */
+.ark-figur-ikon svg { overflow: visible; }
+.ark-figur-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ark-figur-namn {
+  display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; font-weight: 600;
+  color: var(--text);
+}
+.ark-figur-antal {
+  font-size: 10px; font-weight: 600; color: var(--muted); background: var(--panel-2);
+  border-radius: 999px; padding: 0 5px; min-width: 15px; text-align: center;
+}
+.ark-figur-betydelse { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+
+/* ---- Ramar: en befintlig process berättad i bilder (tools/ramar) ---- */
+.ark-ramar { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ark-ramar-topp {
+  display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+  border-bottom: 1px solid var(--border); background: var(--panel);
+}
+.ark-ramar-namn { max-width: 300px; font-weight: 600; }
+.ark-ramar-process { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ark-ramar-stil { flex: 0 0 auto; width: auto; min-width: 0; }
+.ark-ramar-hoger { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.ark-ramar-osparad { font-size: 11.5px; color: #b54708; }
+.ark-ramar-kropp { flex: 1; display: flex; min-height: 0; }
+.ark-ramar-lista {
+  width: 230px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--sidebar);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.ark-ramar-lista ol { list-style: none; margin: 0; padding: 8px; overflow: auto; flex: 1; }
+.ark-ramar-rad {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font: inherit;
+  font-size: 12.5px; padding: 8px 10px; border: 1px solid transparent; border-radius: 8px;
+  background: none; cursor: pointer; color: var(--sidebar-text); margin-bottom: 2px;
+}
+.ark-ramar-rad:hover { background: var(--sidebar-hover); }
+.ark-ramar-rad.vald { background: var(--accent-svag); border-color: var(--accent-kant); color: var(--text); }
+.ark-ramar-nr {
+  width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; flex-shrink: 0;
+  background: #fff; border: 1px solid var(--border); font-size: 11px; font-weight: 600;
+}
+.ark-ramar-rubrik { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ark-ramar-antal { font-size: 11px; color: var(--muted); }
+.ark-ramar-listknappar { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-top: 1px solid var(--border); }
+.ark-ramar-listknappar .ark-btn { padding: 5px 9px; }
+.ark-ramar-yta { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.ark-ramar-lada {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px;
+  border-bottom: 1px solid var(--border); background: var(--panel);
+}
+.ark-ramar-verktyg {
+  padding: 6px 11px; border: 1px solid var(--border-strong); border-radius: 8px; background: #fff;
+  font: inherit; font-size: 12.5px; cursor: pointer; color: var(--text);
+}
+.ark-ramar-verktyg:hover { background: #f3f4f7; }
+.ark-ramar-verktyg.vald { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ark-ramar-skiljare { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+.ark-ramar-farg {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.ark-ramar-farg.vald { box-shadow: 0 0 0 2px var(--text); }
+.ark-ramar-egenfarg { width: 28px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; }
+.ark-ramar-val { display: flex; align-items: center; gap: 5px; font-size: 12.5px; cursor: pointer; }
+.ark-ramar-varning {
+  margin: 8px 12px 0; padding: 7px 10px; border-radius: 8px; font-size: 12px;
+  background: #fffaeb; border: 1px solid #fedf89; color: #93370d;
+}
+.ark-ramar-bild { flex: 1; min-height: 0; overflow: auto; background: #fff; padding: 12px; }
+.ark-ramar-bild.anpassa { overflow: hidden; }
+.ark-ramar-bild.anpassa svg { width: 100%; height: 100%; }
+.ark-ramar-bild.redigerar [data-ark-nod] { cursor: pointer; }
+.ark-ramar-bild.redigerar [data-ark-nod]:hover { filter: drop-shadow(0 0 4px rgba(31, 92, 158, 0.55)); }
+.ark-ramar-bild.redigerar .ark-ram-traffytor path { cursor: pointer; }
+.ark-ramar-bild.redigerar .ark-ram-traffytor path:hover { stroke: rgba(31, 92, 158, 0.22); }
+.ark-ramar-text {
+  display: grid; grid-template-columns: 260px 1fr; gap: 10px; padding: 10px 12px;
+  border-top: 1px solid var(--border); background: var(--panel);
+}
+.ark-ramar-text .ark-textarea { min-height: 54px; height: 54px; }
+.ark-ramar-ny { margin-bottom: 26px; }
+.ark-ramar-h2 { font-size: 14px; font-weight: 650; margin: 0 0 10px; }
+.ark-ramar-nyrad { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 10px; max-width: 900px; }
+.ark-ramar-presentation {
+  position: fixed; inset: 0; z-index: 1000; background: #fff; display: flex; flex-direction: column;
+}
+.ark-ramar-pytor { flex: 1; min-height: 0; display: flex; }
+.ark-ramar-pytor.vy-båda .ark-ramar-pbild + .ark-ramar-pbild { border-left: 1px solid var(--border); }
+.ark-ramar-pbild { flex: 1; min-width: 0; min-height: 0; padding: 24px; }
+.ark-ramar-pbild svg { width: 100%; height: 100%; }
+.ark-ramar-pscen { background: #f8fafc; }
+.ark-ramar-pfot {
+  display: flex; align-items: center; gap: 14px; padding: 14px 24px;
+  border-top: 1px solid var(--border); background: var(--panel-2);
+}
+.ark-ramar-ptext { flex: 1; display: flex; flex-direction: column; gap: 3px; font-size: 15px; }
+.ark-ramar-ptext span { font-size: 13.5px; color: var(--text-2); white-space: pre-wrap; }
+.ark-ramar-pnr { font-size: 12.5px; color: var(--muted); }
+
+/* Flikarna Flöde / Bild */
+.ark-ramar-flikar {
+  display: flex; gap: 2px; padding: 8px 12px 0; background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+}
+.ark-ramar-flikar button {
+  font: inherit; font-size: 13px; padding: 7px 18px; border: 1px solid transparent;
+  border-bottom: 0; border-radius: 8px 8px 0 0; background: none; cursor: pointer; color: var(--text-2);
+  margin-bottom: -1px;
+}
+.ark-ramar-flikar button:hover { color: var(--text); }
+.ark-ramar-flikar button.vald {
+  background: var(--panel); border-color: var(--border); color: var(--text); font-weight: 600;
+}
+.ark-ramar-lada--farg { border-top: 1px solid var(--border); border-bottom: 0; }
+.ark-ramar-tips { margin: 0; }
+.ark-ramar-bakgrund { width: auto; }
+.ark-ramar-kort { max-width: 180px; }
+.ark-ramar-prick { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; }
+.ark-ramar-inspektor {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 7px 12px; min-height: 46px;
+  border-bottom: 1px solid var(--border); background: var(--panel-2); font-size: 12.5px;
+}
+.ark-ramar-inspektor .ark-input { width: auto; flex: 1; min-width: 160px; }
+.ark-ramar-palett-hallare { position: relative; }
+.ark-ramar-palett {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: 420px; padding: 10px;
+  background: var(--panel); border: 1px solid var(--border-strong); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+}
+.ark-ramar-palett-grupp {
+  font-size: 11px; font-weight: 650; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.4px; margin: 6px 2px 4px;
+}
+.ark-ramar-palett-rutor { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.ark-ramar-palett-ruta {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px;
+  border: 1px solid transparent; border-radius: 8px; background: none; cursor: pointer;
+  font: inherit; font-size: 11px; color: var(--text-2);
+}
+.ark-ramar-palett-ruta:hover { background: var(--accent-svag); border-color: var(--accent-kant); }
+.ark-ramar-bild--scen { background: #eef2f6; }
+
+/* Scenen */
+.ark-scen-figur { transition: opacity 0.6s ease; }
+.ark-scen.redigerar .ark-scen-figur { cursor: pointer; }
+.ark-scen.redigerar.verktyg-flytta .ark-scen-figur { cursor: grab; }
+.ark-scen.redigerar .ark-scen-figur:hover { filter: drop-shadow(0 0 5px rgba(31, 92, 158, 0.55)); }
+.ark-scen-pulstraff { cursor: pointer; }
+.ark-scen-pulstraff:hover { stroke: rgba(31, 92, 158, 0.18); }
+.ark-scen-in { animation: ark-scen-in 0.6s ease both; }
+/* Figurerna verktyget kan kopplas till – pulserar svagt så att de syns. */
+.ark-scen-tand { animation: ark-scen-tand 1.4s ease-in-out infinite; }
+@keyframes ark-scen-tand { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.35; } }
+@keyframes ark-scen-in { from { opacity: 0; } to { opacity: 1; } }
+.ark-scen-bubbla { filter: drop-shadow(0 3px 6px rgba(16, 24, 40, 0.15)); }
+.ark-scen-textruta { filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3)); }
+.ark-scen.redigerar .ark-scen-textruta { cursor: move; }
+.ark-scen.redigerar.verktyg-textruta { cursor: text; }
+.ark-ramar-textrutetext { flex: 1; min-width: 220px; resize: vertical; font: inherit; }
+.ark-ramar-inspektor .ark-ramar-storlek { flex: 0 0 auto; min-width: 0; }
+.ark-ramar-flyttaval { align-items: center; }
+.ark-ramar-flyttaval button { white-space: nowrap; }
+.ark-ramar-flyttaval-etikett { font-size: 12px; color: var(--muted); padding: 0 6px 0 8px; white-space: nowrap; }
+.ark-ramar-fargrad { display: inline-flex; align-items: center; gap: 4px; }
+.ark-ramar-figurmarkering { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.ark-ramar-tabort { display: inline-flex; align-items: center; gap: 6px; }
+.ark-ramar-fargval { display: inline-flex; align-items: center; gap: 3px; }
+.ark-ramar-fargval-etikett { font-size: 12px; color: var(--muted); margin-right: 2px; }
+.ark-ramar-prick-knapp {
+  width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(15, 23, 42, 0.25); padding: 0; cursor: pointer;
+}
+.ark-ramar-prick-knapp.vald { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ark-ramar-fargval input[type="color"] { width: 24px; height: 22px; padding: 0; border: none; background: none; cursor: pointer; }
+
+/* Visningsfönstret (andra skärmen) */
+.ark-ramfonster { position: fixed; inset: 0; background: #0f172a; display: grid; place-items: center; }
+/* Flöde, Bild eller Båda – halva skärmen var. */
+.ark-ramfonster-ytor { position: fixed; inset: 0; display: flex; }
+.ark-ramfonster-yta { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.ark-ramfonster-yta > svg { width: 100%; height: 100%; }
+.ark-ramfonster.vy-båda .ark-ramfonster-yta + .ark-ramfonster-yta { border-left: 2px solid rgba(255, 255, 255, 0.12); }
+.ark-ramfonster-flode { background: #ffffff; }
+/* Den avskalade processbilden har egen mörk bakgrund – då ingen vit kant runt. */
+.ark-ramfonster-flode:has(> svg #avsk-bg) { background: #08213a; }
+
+/* Kontrollen */
+.ark-kontroll {
+  position: fixed; inset: 0; z-index: 900; background: rgba(15, 23, 42, 0.45); display: flex; justify-content: flex-end;
+}
+.ark-kontroll-panel {
+  width: min(560px, 100%); height: 100%; background: var(--panel); box-shadow: -8px 0 28px rgba(15, 23, 42, 0.2);
+  display: flex; flex-direction: column; gap: 18px; padding: 20px 22px; overflow-y: auto;
+}
+.ark-kontroll-huvud { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ark-kontroll-huvud h2 { margin: 0; font-size: 16px; }
+.ark-kontroll-blad { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.ark-kontroll-blad .ark-btn { font-size: 20px; padding: 16px 0; font-weight: 600; }
+.ark-kontroll-nr { font-size: 22px; font-weight: 700; text-align: center; min-width: 90px; }
+.ark-kontroll-nu { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; background: var(--panel-2); }
+.ark-kontroll-nu strong { display: block; font-size: 18px; margin-bottom: 6px; }
+.ark-kontroll-nu p { margin: 0; font-size: 15px; white-space: pre-wrap; color: var(--text-2); }
+.ark-kontroll-nasta { font-size: 13px; color: var(--muted); }
+.ark-kontroll-skarmar { display: flex; flex-direction: column; gap: 8px; }
+.ark-kontroll-skarm { display: flex; align-items: center; gap: 12px; }
+.ark-kontroll-skarm > span { min-width: 70px; font-weight: 600; }
+.ark-kontroll-oppna { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ark-ramfonster-rubrik {
+  position: fixed; left: 16px; bottom: 14px; padding: 6px 12px; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88); font-size: 13px; color: var(--text);
+}
+.ark-ramfonster .ark-empty { color: #cbd5e1; }
+
+/* Publicera i EA-portalen (tools/affarsprocess/Publicera.tsx). */
+.ark-publicera { max-width: 560px; max-height: calc(100vh - 48px); overflow-y: auto; }
+.ark-publicera .ark-section-title { margin-top: 10px; }
+.ark-btn--publicerad { color: var(--accent); border-color: var(--accent-kant, var(--accent)); }
+.ark-ea-trad {
+  max-height: 240px; overflow-y: auto; border: 1px solid var(--border-strong); border-radius: 8px;
+  padding: 4px 0; display: flex; flex-direction: column;
+}
+.ark-ea-rad {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left;
+  border: 0; background: none; font: inherit; font-size: 12.5px; padding: 4px 8px; cursor: pointer;
+  color: var(--text);
+}
+.ark-ea-rad:hover { background: #f5f5ff; }
+.ark-ea-rad.vald { background: var(--accent); color: #fff; }
+.ark-ea-rad.struktur { font-weight: 650; }
+.ark-ea-markor { font-size: 10.5px; opacity: 0.8; white-space: nowrap; }
+.ark-publicera-ny { display: grid; grid-template-columns: 110px 1fr; gap: 10px; }
+.ark-publicera-val { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.ark-publicera-text { min-height: 80px; resize: vertical; font-family: inherit; }
+.ark-publicera-saknas { margin: 4px 0 0; padding-left: 18px; }
+/* Avpublicera – längst till höger i foten, och knappen i bekräftelsen i fara-färg. */
+.ark-publicera-av { margin-left: auto; }
+.ark-btn--fara { background: #b42318; border-color: #b42318; color: #fff; }
+.ark-btn--fara:hover:not(:disabled) { background: #912018; border-color: #912018; }
+
+/* ---- Inloggning, konton och ytor ----
+   Ytan (gemensam katalog, Demo, Mina processer – core/behorighet.ts) avgör
+   vem som ser och ändrar en process. Varje yta har en egen DÄMPAD ton, samma
+   i menyn, katalogen, kortet och rubriken, så att man känner igen den utan att
+   läsa: blå = gemensamt, ockra = demo, grönt = mitt eget, grått = andras. */
+:root {
+  --yta-gemensam: #1f5c9e;
+  --yta-gemensam-svag: #eef4fb;
+  --yta-demo: #8a5a00;
+  --yta-demo-svag: #fdf5e6;
+  --yta-egen: #1d6b46;
+  --yta-egen-svag: #edf8f2;
+  --yta-andras: #475467;
+  --yta-andras-svag: #f2f4f7;
+}
+
+.ark-inloggning {
+  min-height: 100vh; display: grid; place-items: center; background: var(--bg);
+}
+.ark-inloggning-ruta {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--skugga-1); padding: 32px 36px; width: 340px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.ark-inloggning-ruta h1 { margin: 4px 0 0; font-size: 20px; }
+.ark-inloggning-ruta .ark-btn { text-decoration: none; margin-top: 8px; }
+.ark-inloggning-mark { width: 40px; height: 40px; font-size: 20px; }
+.ark-inloggning-fel {
+  color: #9b1c1c; background: #fdf0f0; border: 1px solid #f3c5c5; border-radius: 6px;
+  padding: 6px 10px; font-size: 12.5px; margin: 0;
+}
+.ark-inloggning-dev { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+
+.ark-konto {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
+  margin-top: auto; padding: 10px 9px 0; border-top: 1px solid var(--border); font-size: 12px;
+}
+.ark-konto + .ark-sidebar-foot { margin-top: 6px; border-top: 0; padding-top: 4px; }
+.ark-konto-namn { font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ark-konto-roll {
+  font-size: 10px; font-weight: 700; border-radius: 999px; padding: 0 6px;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text-2);
+}
+.ark-konto-roll.admin { background: var(--accent-svag); border-color: var(--accent-kant); color: var(--accent-mork); }
+.ark-konto-ut { margin-left: auto; font-size: 11.5px; }
+
+/* Menyn: en rubrik per yta, kategorierna under. */
+.ark-meny-yta { margin-bottom: 8px; }
+.ark-meny-yta-titel {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 11.5px; font-weight: 700; padding: 6px 8px 4px; margin-top: 4px;
+  border-left: 3px solid var(--yta-gemensam); color: var(--yta-gemensam);
+}
+.ark-meny-yta--demo .ark-meny-yta-titel { border-color: var(--yta-demo); color: var(--yta-demo); }
+.ark-meny-yta--egen .ark-meny-yta-titel { border-color: var(--yta-egen); color: var(--yta-egen); }
+.ark-meny-yta--andras .ark-meny-yta-titel { border-color: var(--yta-andras); color: var(--yta-andras); }
+.ark-meny-yta-status { display: inline-flex; gap: 4px; margin-left: auto; }
+.ark-meny-yta-fast, .ark-meny-yta-utkast {
+  font-size: 9.5px; font-weight: 600; border-radius: 999px; padding: 0 5px; border: 1px solid;
+}
+.ark-meny-yta-fast { background: #edf9f2; color: #14532d; border-color: #86c8a4; }
+.ark-meny-yta-utkast { background: #f3f4f7; color: #475467; border-color: var(--border); }
+
+/* Katalogen: en sektion per yta. */
+.ark-katalog-yta { margin-bottom: 22px; }
+.ark-katalog-yta-topp {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;
+  padding-left: 10px; border-left: 4px solid var(--yta-gemensam);
+}
+.ark-katalog-yta--demo .ark-katalog-yta-topp { border-color: var(--yta-demo); }
+.ark-katalog-yta--egen .ark-katalog-yta-topp { border-color: var(--yta-egen); }
+.ark-katalog-yta--andras .ark-katalog-yta-topp { border-color: var(--yta-andras); }
+.ark-katalog-yta-rubrik { font-size: 15px; margin: 0; }
+.ark-katalog-yta-status { display: inline-flex; gap: 5px; }
+.ark-katalog-yta-text { flex-basis: 100%; margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.ark-katalog-yta-agare { flex-basis: 100%; margin: 2px 0 0; font-size: 12.5px; font-weight: 500; color: var(--text-2); }
+.ark-smula--yta { color: var(--muted); }
+
+/* Ytans märke på kortet och i rubriken. */
+.ark-kort-yta, .ark-flow-header-yta {
+  border-radius: 4px; padding: 0 5px; font-size: 10.5px; font-weight: 600; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.ark-kort-yta--gemensam { background: var(--yta-gemensam-svag); color: var(--yta-gemensam); }
+.ark-kort-yta--demo { background: var(--yta-demo-svag); color: var(--yta-demo); }
+.ark-kort-yta--egen { background: var(--yta-egen-svag); color: var(--yta-egen); }
+.ark-kort-yta--andras { background: var(--yta-andras-svag); color: var(--yta-andras); }
+.ark-flow-header-yta { font-size: 11px; padding: 2px 7px; }
+
+/* Valet av yta i flyttdialogen och i "Ny process". */
+.ark-flytta-ytor { border: 0; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 6px; }
+.ark-flytta-yta {
+  display: flex; gap: 8px; align-items: flex-start; cursor: pointer; font-size: 13px;
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+}
+.ark-flytta-yta.vald { border-color: var(--accent-kant); background: var(--accent-svag); }
+.ark-flytta-yta input { margin-top: 3px; }
+
+/* En knapp man inte får använda ska SE ut så – Redigera i den gemensamma
+   katalogen för en användare var blå och klickbar till utseendet. Förklaringen
+   står i hovertexten. */
+.ark-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* "Öppna i Visualisering" när processen har flera visualiseringar. */
+.ark-visualiseringar { display: flex; flex-direction: column; gap: 2px; padding: 4px; }
+.ark-visualisering-val {
+  display: flex; justify-content: space-between; gap: 10px; text-align: left; width: 100%;
+  background: none; border: 0; border-radius: 6px; padding: 7px 9px; cursor: pointer;
+  font: inherit; font-size: 13px; color: var(--text);
+}
+.ark-visualisering-val:hover { background: var(--sidebar-hover); }
+
+/* Inställningar (src/shell/Installningar.tsx) */
+.ark-installning-rubrik { font-size: 13px; margin: 12px 0 2px; }
+.ark-installning-val { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; cursor: pointer; }
+.ark-konto-installningar { margin-left: auto; }
+.ark-konton-tabell { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 13px; }
+.ark-konton-tabell td { padding: 4px 6px; border-top: 1px solid var(--border, #e5e7eb); vertical-align: middle; }
+.ark-konton-nytt { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }

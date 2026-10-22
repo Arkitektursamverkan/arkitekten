@@ -1,0 +1,84 @@
+name: Release
+
+# Publicerar avbilden när en versionstagg pushas:
+#   git tag v0.1.0 && git push origin v0.1.0
+# → ghcr.io/<ägare>/arkitekten:0.1.0, :0.1 och :latest.
+# Förhandsversioner (v0.2.0-rc.1) får bara sin egen tagg, aldrig :latest.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  image:
+    name: Publicera arkitekten
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version ur taggen
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Avbildens namn
+        id: name
+        # GHCR-namn ska vara gemener; ägaren är det inte alltid.
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/arkitekten" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Taggar och etiketter
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.name.outputs.image }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          flavor: |
+            latest=auto
+          labels: |
+            org.opencontainers.image.licenses=EUPL-1.2
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          push: true
+          build-args: APP_VERSION=${{ steps.version.outputs.version }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=arkitekten
+          cache-to: type=gha,mode=max,scope=arkitekten
+
+  github-release:
+    name: GitHub-release
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release med genererade anteckningar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=""
+          case "$GITHUB_REF_NAME" in *-*) flags="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag $flags
