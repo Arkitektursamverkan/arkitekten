@@ -9,7 +9,7 @@
  * drag-and-drop) inte fungerade trots gröna enhetstester.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { DraftPanel } from "./DraftPanel";
 import { normalizeOrder, type ProcessDraft } from "@/core/draft";
@@ -57,7 +57,7 @@ function dra(handtag: HTMLElement, till: number) {
 
 describe("DraftPanel – dra och släpp", () => {
   let draft: ProcessDraft;
-  let onChange: ReturnType<typeof vi.fn>;
+  let onChange: Mock<(draft: ProcessDraft) => void>;
 
   beforeEach(() => {
     draft = normalizeOrder(textToDraft(TEXT));

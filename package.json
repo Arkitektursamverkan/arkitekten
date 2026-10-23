@@ -29,12 +29,12 @@
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.1.2",
     "happy-dom": "^21.0.3",
     "playwright-core": "^1.64.1",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11",
-    "vitest": "^2.1.8"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   },
   "repository": {
     "type": "git",

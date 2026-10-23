@@ -87,11 +87,12 @@ const besked = () => screen.getByText(/Sparningen blir|Inget nytt att spara/).te
 
 beforeEach(() => {
   lager = minnesLager();
-  vi.spyOn(window, "confirm").mockReturnValue(true);
+  vi.stubGlobal("confirm", vi.fn(() => true));
 });
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("statusvalet i sparraden", () => {
@@ -202,7 +203,7 @@ describe("statusvalet i sparraden", () => {
   it("REGRESSION: att fastslå bekräftas, och ett Avbryt sparar ingenting", async () => {
     // Huvudversionen är det andra hänvisar till och går inte att skriva om.
     // Utan bekräftelsen skapades den av ett felklick i en toggle.
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+    vi.stubGlobal("confirm", vi.fn(() => false));
     const { onSaved } = await visa();
     välj("Fastslagen");
     spara();
@@ -211,7 +212,8 @@ describe("statusvalet i sparraden", () => {
   });
 
   it("en vanlig utkastsparning frågar inte om något", async () => {
-    const bekräfta = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const bekräfta = vi.fn(() => true);
+    vi.stubGlobal("confirm", bekräfta);
     const { onSaved } = await visa();
     spara();
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
