@@ -14,6 +14,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { läsSymbolstil, sättSymbolstil } from "@/tools/affarsprocess/symbolstil";
 import { sättOrganisation } from "@/core/organisation";
+import { OrgMärke, useUtseende } from "./OrgMarke";
 import { InstallningarKnapp } from "./Installningar";
 import { BytLösenordKnapp, LokalInloggning } from "./LokalaKonton";
 import {
@@ -130,6 +131,7 @@ export function Inloggningsgrind({ children }: { children: ReactNode }) {
 function Inloggningsruta({ läge, fel, förstaKonto = false }: { läge: Inloggningsläge; fel?: string; förstaKonto?: boolean }) {
   const [namn, setNamn] = useState("");
   const [roll, setRoll] = useState("user");
+  const utseende = useUtseende();
   // Tillbaka till samma process efter inloggningen – hash:en når aldrig servern
   // av sig själv, så hela adressen skickas med.
   const tillbaka = encodeURIComponent(location.pathname + location.search + location.hash);
@@ -137,9 +139,9 @@ function Inloggningsruta({ läge, fel, förstaKonto = false }: { läge: Inloggni
   return (
     <div className="ark-inloggning">
       <div className="ark-inloggning-ruta">
-        <div className="ark-brand-mark ark-inloggning-mark">A</div>
+        <OrgMärke utseende={utseende} className="ark-inloggning-mark" />
         <h1>Arkitekten</h1>
-        <p className="ark-hint">Processritaren</p>
+        <p className="ark-hint">{utseende.namn ? `Processritaren · ${utseende.namn}` : "Processritaren"}</p>
         {fel && <p className="ark-inloggning-fel">{fel}</p>}
         {läge === "lokal" ? (
           <LokalInloggning förstaKonto={förstaKonto} />

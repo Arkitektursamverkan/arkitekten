@@ -68,6 +68,7 @@ import { läsStilar, valdStil, väljStil } from "./symbolstilar";
 import { Inloggningsspärr, Kontofel, Kontolager, somAnvändare, utåt } from "./konton";
 import { exempelpaket, importera } from "./innehallspaket.mjs";
 import { organisation, organisationUrMiljö, sättOrganisation } from "../src/core/organisation";
+import { skapaUtseende, type UtseendeKälla } from "./utseende";
 import {
   ärAdmin,
   kanLäsa,
@@ -120,6 +121,8 @@ export interface BryggOptioner {
   laddaAi: () => Promise<AiModuler>;
   /** Claude Code-brevlådan (`ARK_UTVECKLARLAGE=1`). Av i drift. */
   utvecklarläge: boolean;
+  /** Organisationens namn, logotyp och färg (server/utseende.ts). Utbytbar i tester. */
+  utseende?: UtseendeKälla;
 }
 
 export type Hanterare = (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>;
@@ -167,6 +170,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
       // Organisationens namn (portalbanan) gäller också serverns egna tolkningar.
       sättOrganisation(organisationUrMiljö(process.env));
       const { root, flowsDir, ramarDir, logg: log, utvecklarläge } = o;
+      const utseende = o.utseende ?? skapaUtseende(process.env, eaKonfigUrMiljö());
       const dir = o.arkDir;
       const requestPath = path.join(dir, REQUEST);
       const responsePath = path.join(dir, RESPONSE);
@@ -448,6 +452,27 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
           if (url === "/auth/logout") {
             const rensa = kaka(SESSION_KAKA, "", { maxÅlder: 0, säker: säkerKaka });
             omdirigera(res, auth.läge === "entra" && !saknas.length ? utloggningsUrl(auth) : "/", [rensa]);
+            return;
+          }
+
+          // --- Organisationens utseende: inloggningssidan visar det, så det nås utan session.
+          if (url === "/utseende" && req.method === "GET") {
+            json(res, 200, { ok: true, utseende: await utseende.utseende() });
+            return;
+          }
+          if (url === "/utseende/logo" && req.method === "GET") {
+            const logo = await utseende.logo();
+            if (!logo) {
+              json(res, 404, { ok: false, error: "Ingen logotyp." });
+              return;
+            }
+            res.statusCode = 200;
+            res.setHeader("content-type", logo.typ);
+            // En SVG som öppnas direkt får inte köra skript på Arkitektens adress.
+            res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+            res.setHeader("x-content-type-options", "nosniff");
+            res.setHeader("cache-control", "public, max-age=300");
+            res.end(logo.data);
             return;
           }
 

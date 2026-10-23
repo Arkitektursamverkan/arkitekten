@@ -67,6 +67,7 @@ import { RAMAR_CHANGED, getRamStore } from "@/core/ram-store";
 import type { RamserieSammanfattning } from "@/core/ram";
 import type { Yta } from "@/core/behorighet";
 import { Kontorad, useAnvändare } from "./Inloggning";
+import { OrgMärke, useUtseende } from "./OrgMarke";
 
 /** Menyns bredd minns mellan sessioner – den som drar ut den vill ha den kvar. */
 const BREDD_NYCKEL = "ark.menybredd";
@@ -139,6 +140,7 @@ export function AppShell() {
     window.addEventListener(RAMAR_CHANGED, läs);
     return () => window.removeEventListener(RAMAR_CHANGED, läs);
   }, []);
+  const utseende = useUtseende();
   const [bredd, setBredd] = useState(() => {
     const sparad = Number(localStorage.getItem(BREDD_NYCKEL));
     return Number.isFinite(sparad) && sparad >= MIN_BREDD
@@ -367,10 +369,12 @@ export function AppShell() {
       <KostnadsDialog />
       <nav className="ark-sidebar">
         <button className="ark-brand" onClick={() => setVy("start")} title="Till startsidan">
-          <span className="ark-brand-mark">A</span>
+          <OrgMärke utseende={utseende} />
           <span className="ark-brand-text">
             <span className="ark-brand-name">Arkitekten</span>
-            <span className="ark-brand-sub">Processritaren</span>
+            <span className="ark-brand-sub" title={utseende.namn}>
+              {utseende.kortnamn ?? utseende.namn ?? "Processritaren"}
+            </span>
           </span>
         </button>
 
