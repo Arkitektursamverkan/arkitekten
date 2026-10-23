@@ -1,12 +1,16 @@
 /**
- * REGRESSION: bokstaven på en HUKI-koppling förklarade sig inte.
+ * REGRESSION: en HUKI-koppling förklarade sig inte.
  *
  * "U" bredvid en gul roll säger ingenting för den som inte kan modelleringsreglerna
- * utantill. Förklaringen fanns (`relationHint`) men satt bara på det osynliga
- * svepet längs strecket – etiketten själv hade `pointer-events: none` och
- * ingen titel alls, så det man faktiskt pekar på var stumt (synpunkt 2026-09-04).
+ * utantill. Förklaringen fanns (`relationHint`) men satt där pekaren inte kom
+ * åt den – det man faktiskt pekade på var stumt (synpunkt 2026-09-04).
  *
- * Ett webbläsartest och inte ett enhetstest: felet var att etiketten inte gick
+ * Bokstaven skrivs numera inte ut alls (beslut 2026-09-07, `apRelationEtikett`):
+ * ansvarslinjen bär betydelsen med sin färg. Då är STRECKET det man pekar på,
+ * och förklaringen måste sitta där – på ett svep som tar emot pekaren längs
+ * linjen.
+ *
+ * Ett webbläsartest och inte ett enhetstest: felet var att förklaringen inte gick
  * att PEKA PÅ, och det syns bara i en riktig layout.
  */
 
@@ -21,36 +25,54 @@ describe.skipIf(!chromium)("hovertext på affärsprocessens kopplingar", () => {
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
     const { page } = rigg;
-    for (const sel of [".ark-meny-kategori-titel", ".ark-meny-arende"]) {
-      for (let varv = 0; varv < 4; varv++) {
-        const stängda = page.locator(`${sel}:has(.ark-meny-pil:text-is("▸"))`);
-        const antal = await stängda.count();
-        if (!antal) break;
-        for (let i = 0; i < antal; i++) await stängda.nth(0).click().catch(() => {});
-        await page.waitForTimeout(150);
-      }
-    }
-    // Sista flödet i menyn är en affärsprocess (kategorin ligger sist).
-    await page.locator(".ark-flow-menyval").last().click();
+    // Exempelpaketets affärsprocess, öppnad ur menyn (sökningen fäller ut grenen).
+    await page.fill(".ark-meny-filter", "Rekrytering");
+    await page.locator(".ark-flow-menyval", { hasText: "Rekrytering" }).click();
     await page.waitForSelector(".ark-ap-nod", { timeout: 20_000 });
+    await page.waitForTimeout(600);
   }, 90_000);
 
   afterAll(async () => {
     await rigg?.stäng();
   });
 
-  it("HUKI-bokstaven bär sin egen förklaring och går att peka på", async () => {
-    const bokstav = rigg.page.locator(".ark-edge-label").filter({ hasText: /^[HUKI]$/ }).first();
-    expect(await bokstav.count()).toBe(1);
+  it("HUKI-strecket bär sin förklaring och går att peka på", async () => {
+    const { page } = rigg;
+    // En punkt mitt på varje svep med en HUKI-förklaring, i skärmkoordinater.
+    const svep = await page.evaluate(() =>
+      [...document.querySelectorAll<SVGPathElement>("path.ark-edge-hint")]
+        .map((p) => {
+          const titel = p.querySelector("title")?.textContent ?? "";
+          const pt = p.getPointAtLength(p.getTotalLength() / 2);
+          const s = new DOMPoint(pt.x, pt.y).matrixTransform(p.getScreenCTM()!);
+          return { titel, pekare: getComputedStyle(p).pointerEvents, x: s.x, y: s.y };
+        })
+        .filter((s) => /^[HUKI] – /.test(s.titel)),
+    );
+    expect(svep.length, "ingen HUKI-koppling bär en förklaring").toBeGreaterThan(0);
+    // "U – Utför: ”Rekryterande chef” utför ”Ta fram kravprofil”"
+    for (const s of svep) {
+      expect(s.titel).toMatch(/^[HUKI] – (Huvudansvar|Utför|Konsulteras|Informeras): /);
+      // Träffytan ligger på STRECKET – annars äter svepet klick i hela sin ruta.
+      expect(s.pekare).toBe("stroke");
+    }
 
-    const titel = await bokstav.getAttribute("title");
-    // "U – Utför: ”Ekonom” utför ”Läser in filen i PM”"
-    expect(titel).toMatch(/^[HUKI] – (Huvudansvar|Utför|Konsulteras|Informeras): /);
-
-    // Utan pekbarhet visas ingen hovertext hur rätt den än är.
+    // Utan pekbarhet visas ingen hovertext hur rätt den än är: mitt på
+    // strecket ska det översta elementet vara ett svep med en HUKI-förklaring.
+    const träffar = await page.evaluate(
+      (punkter) =>
+        punkter.map(({ x, y }) => {
+          const el = document.elementFromPoint(x, y);
+          return el?.matches("path.ark-edge-hint")
+            ? (el.querySelector("title")?.textContent ?? "")
+            : "";
+        }),
+      svep.map(({ x, y }) => ({ x, y })),
+    );
     expect(
-      await bokstav.evaluate((el) => getComputedStyle(el).pointerEvents),
-    ).not.toBe("none");
-    await bokstav.hover(); // ska inte kastas: elementet tar emot pekaren
+      träffar.filter((t) => /^[HUKI] – /.test(t)).length,
+      "ingen HUKI-förklaring går att peka på",
+    ).toBeGreaterThan(0);
+    expect(rigg.fel).toEqual([]);
   });
 });
