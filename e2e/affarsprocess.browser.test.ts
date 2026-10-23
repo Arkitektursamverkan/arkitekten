@@ -59,14 +59,16 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
         return { x: Math.round(s.x), y: Math.round(s.y) };
       }, id);
 
-    // En HUKI-koppling känns igen på sin blå färg. Ta den LÄNGSTA – tidigare
-    // tester har flyttat ett par objekt, och en koppling vars två ändar nästan
-    // ligger på varandra säger ingenting om kopplingspunkter.
+    // En HUKI-koppling känns igen på hovertexten ("U – Utför: …"), inte på
+    // färgen – den kommer ur installationens symbolstil. Ta den LÄNGSTA –
+    // tidigare tester har flyttat ett par objekt, och en koppling vars två
+    // ändar nästan ligger på varandra säger ingenting om kopplingspunkter.
     const kant = await page.evaluate(() => {
       let bäst: { id: string; x: number; y: number; längd: number } | null = null;
       for (const g of [...document.querySelectorAll<SVGGElement>(".react-flow__edge")]) {
         const p = g.querySelector(".react-flow__edge-path") as SVGPathElement | null;
-        if (!p || !getComputedStyle(p).stroke.includes("47, 111, 181")) continue;
+        const titel = g.querySelector("path.ark-edge-hint title")?.textContent ?? "";
+        if (!p || !/^[HUKI] – /.test(titel)) continue;
         const längd = p.getTotalLength();
         if (bäst && längd <= bäst.längd) continue;
         const pt = p.getPointAtLength(längd * 0.5);
@@ -328,15 +330,17 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
   /**
    * REGRESSION: rollkopplingen ritades med bara bokstaven "U" och ingen
    * förklaring någonstans på ytan – den som inte kan modelleringsreglerna kunde inte ta
-   * reda på vad den betydde. Hovertexten ska sitta på HELA kopplingens bana,
-   * inte bara på den lilla bokstaven.
+   * reda på vad den betydde. Hovertexten ska sitta på HELA kopplingens bana.
+   * Bokstaven skrivs numera inte ut alls – ansvarslinjerna skiljs åt med färg
+   * (beslut 2026-09-07, se `apRelationEtikett`) – så hovertexten är det enda
+   * stället där innebörden står i klartext.
    */
   it("kopplingen bär en hovertext som förklarar HUKI-bokstaven", async () => {
     const { page } = rigg;
     const etiketter = await page.evaluate(() =>
-      [...document.querySelectorAll(".ark-edge-label")].map((e) => e.textContent ?? ""),
+      [...document.querySelectorAll(".ark-edge-label")].map((e) => (e.textContent ?? "").trim()),
     );
-    expect(etiketter, "ingen HUKI-bokstav på ytan").toContain("U");
+    expect(etiketter.filter((t) => /^[HUKI]$/.test(t)), "HUKI-bokstaven ritas ut igen").toEqual([]);
 
     const svep = await page.evaluate(() =>
       [...document.querySelectorAll("path.ark-edge-hint")].map((p) => ({
@@ -455,6 +459,8 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
   it("affärsprocesskontrollen listar anmärkningar och klick markerar objektet", async () => {
     const { page } = rigg;
     // Exempelprocessen har roller men inga beskrivningar → kontrollen ger råd.
+    // Märket bor i rullgardinen "Granska".
+    await page.getByRole("button", { name: /^Granska/ }).click();
     const badge = page.locator(".ark-trace-badge");
     expect(await badge.textContent()).toContain("Affärsprocesskontroll");
     await badge.click();
@@ -470,6 +476,8 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
   it("paletten placerar en roll med klick-klick och öppnar inspektören", async () => {
     const { page } = rigg;
     const före = await page.locator(".ark-ap-nod").count();
+    // Paletten är infälld tills man öppnar den.
+    await page.getByRole("button", { name: "▧ Objekt" }).click();
     await page.locator(".ark-ap-palettobjekt", { hasText: "Roll" }).first().click();
     // Klicka strax under en aktivitet – satelliten hängs på närmaste utförare.
     const akt = page.locator('.react-flow__node[data-id="s2"]');
@@ -491,53 +499,64 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
 
   it("panelerna går att fälla in och ut", async () => {
     const { page } = rigg;
-    // Objektpaletten.
-    await page.locator(".ark-ap-palett .ark-panel-hopfall").click();
+    // Objektpaletten: verktygsradens "▧ Objekt" fäller ut, ✕ fäller in.
+    const objekt = page.getByRole("button", { name: "▧ Objekt" });
+    if (!(await page.locator(".ark-ap-palett").count())) await objekt.click();
+    await page.locator('.ark-ap-palett .ark-stang[title="Stäng objektpaletten"]').click();
     expect(await page.locator(".ark-ap-palett").count()).toBe(0);
-    await page.locator(".ark-panel-utfall", { hasText: "Objekt" }).click();
+    await objekt.click();
     expect(await page.locator(".ark-ap-palett").count()).toBe(1);
-    // Huvudpanelen.
-    await page.locator(".ark-tool-panel .ark-panel-hopfall").click();
-    expect(await page.locator(".ark-tool-panel").count()).toBe(0);
-    await page.locator(".ark-panel-utfall", { hasText: "Beskrivning" }).click();
-    expect(await page.locator(".ark-tool-panel").count()).toBe(1);
+    // Beskrivningen (texten processen kommer ur), likadant.
+    const beskrivning = page.getByRole("button", { name: "✎ Beskrivning" });
+    if (!(await page.locator(".ark-textdock").count())) await beskrivning.click();
+    await page.locator('.ark-textdock .ark-stang[title="Stäng beskrivningen"]').click();
+    expect(await page.locator(".ark-textdock").count()).toBe(0);
+    await beskrivning.click();
+    expect(await page.locator(".ark-textdock").count()).toBe(1);
     expect(rigg.fel).toEqual([]);
   });
 
   /**
    * Krav: "bryt ut de olika flödena och lägg dessa i en meny för sig
    * alternativt under dess huvudförälder". Menyn är navigeringen: ett klick på
-   * ett flöde byter verktyg OCH öppnar flödet.
+   * ett flöde öppnar det i sitt eget verktyg. Trädet visas i läsläget – i
+   * redigeringen döljs det, så testet lämnar redigeringen först.
    */
-  it("flödena listas i menyn under sitt verktyg och går att öppna därifrån", async () => {
+  it("flödena listas i menyn under sin kategori och går att öppna därifrån", async () => {
     const { page } = rigg;
-    const val = page.locator(".ark-flow-menyval");
-    expect(await val.count(), "inga flöden i menyn").toBeGreaterThan(0);
+    await page.getByRole("button", { name: "✓ Klar" }).click();
+    const kategori = page.locator(".ark-meny-kategori-titel", { hasText: "Exempel" });
+    await kategori.waitFor({ timeout: 10_000 });
+    // Varje kategori visar sitt antal.
+    expect(await kategori.textContent()).toMatch(/Exempel\s*2/);
 
-    // Varje verktyg med bibliotek har en egen växlare med sitt antal.
-    const växlare = await page.locator(".ark-flow-toggle").allInnerTexts();
-    expect(växlare.length).toBeGreaterThanOrEqual(1);
-    expect(växlare.every((t) => /\d+ flöden/.test(t))).toBe(true);
-
-    // Öppna en affärsprocess ur menyn: verktyget byts och flödet laddas.
-    const namn = (await val.allInnerTexts()).find((t) => t.startsWith("2.1.0"));
-    expect(namn, "hittade ingen affärsprocess i menyn").toBeTruthy();
-    await page.locator(".ark-flow-menyval", { hasText: namn! }).click();
-    await page.waitForTimeout(1200);
-
-    expect(await page.locator(".ark-tool-item.active .ark-tool-name").textContent()).toContain(
-      "Affärsprocess",
-    );
-    const panelnamn = await page.locator(".ark-tool-panel input").first().inputValue();
-    expect(panelnamn).toBe(namn);
-    expect(await page.locator(".ark-ap-nod").count()).toBeGreaterThan(0);
+    // Sökningen fäller ut de grenar som har träffar. Exempelpaketets
+    // affärsprocess: verktyget byts och flödet laddas.
+    await page.fill(".ark-meny-filter", "Rekrytering");
+    await page.locator(".ark-flow-menyval", { hasText: "Rekrytering" }).click();
+    await page.waitForSelector(".ark-ap-nod", { timeout: 10_000 });
+    expect(await page.locator(".ark-navval.active").innerText()).toContain("Rekrytering");
+    expect(await page.locator(".ark-tool-main").innerText()).toContain("Genomför urval");
     expect(rigg.fel).toEqual([]);
   });
 
-  it("kan byta tillbaka till flödesschemat utan fel", async () => {
+  it("kan byta till en systemprocess ur menyn utan fel", async () => {
     const { page } = rigg;
-    await page.getByRole("button", { name: /Systemprocess/ }).click();
+    await page.fill(".ark-meny-filter", "Beställ behörighet");
+    await page.locator(".ark-flow-menyval", { hasText: "Beställ behörighet" }).click();
     await page.waitForSelector(".react-flow__node-process", { timeout: 10_000 });
+    // Det andra verktyget ligger kvar monterat i ett dolt lager (aria-hidden).
+    // Huvudet i det SYNLIGA lagret säger vilket verktyg som visar flödet …
+    const aktivt = page.locator('.ark-verktygslager:not([aria-hidden="true"])');
+    expect(await aktivt.locator(".ark-flow-header-verktyg").textContent()).toContain("Systemprocess");
+    // … och affärsprocessen syns inte under det (båda ritades förr ovanpå varandra).
+    const synligaAp = await page.evaluate(
+      () =>
+        [...document.querySelectorAll(".ark-ap-nod")].filter((e) =>
+          e.checkVisibility({ visibilityProperty: true }),
+        ).length,
+    );
+    expect(synligaAp).toBe(0);
     expect(rigg.fel).toEqual([]);
   });
 });
