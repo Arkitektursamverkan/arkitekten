@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+// @vitest-environment happy-dom
 /**
  * Ramens lager ovanpå exportens SVG – för båda familjerna, ur riktiga flöden.
  *
