@@ -219,7 +219,9 @@ export function DraftPanel({ draft, onChange, onClose }: DraftPanelProps) {
         {ordered.steps.map((step, i) => (
           <div
             key={step.id}
-            ref={(el) => rowRefs.current.set(step.id, el)}
+            ref={(el) => {
+              rowRefs.current.set(step.id, el);
+            }}
             className={[
               "ark-draft-row",
               step.branchOf ? "branch" : "",
