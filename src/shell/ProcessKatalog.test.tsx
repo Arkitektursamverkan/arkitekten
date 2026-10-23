@@ -63,7 +63,10 @@ function rita(flöden: FlowSummary[] = FLÖDEN) {
   return öppnade;
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 /**
  * Katalogen visade hela biblioteket utrullat – alla samlingar, alla grenar,
@@ -361,7 +364,8 @@ it("ett namnbyte på en STOR gren frågar först", () => {
     category: "Demo",
   }));
   const onDöpOmGren = vi.fn();
-  const fråga = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const fråga = vi.fn(() => false);
+  vi.stubGlobal("confirm", fråga);
   render(
     <ProcessKatalog
       flöden={många}
