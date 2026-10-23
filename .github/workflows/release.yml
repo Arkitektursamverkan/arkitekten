@@ -35,7 +35,7 @@ jobs:
         # GHCR-namn ska vara gemener; ägaren är det inte alltid.
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/arkitekten" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - uses: docker/login-action@v3
         with:
