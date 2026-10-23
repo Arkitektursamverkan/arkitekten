@@ -11,7 +11,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, objektPositioner, startaAppen } from "./harness";
+import { findChromium, objektPositioner, startaAppen } from "./harness";
 
 const chromium = findChromium();
 
@@ -67,7 +67,6 @@ async function draRam(page: Awaited<ReturnType<typeof startaAppen>>["page"], a: 
 
 describe.skipIf(!chromium)("markera flera objekt med en ram", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   /** Fäller ut menyn hela vägen ner till flödesraderna (som lager-testet). */
   async function fällUtMenyn() {
@@ -97,7 +96,7 @@ describe.skipIf(!chromium)("markera flera objekt med en ram", () => {
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   /** Två objekt som ligger bredvid varandra, med plats runt om att dra i. */
@@ -219,7 +218,6 @@ describe.skipIf(!chromium)("markera flera objekt med en ram", () => {
  */
 describe.skipIf(!chromium)("markera flera affärsprocessobjekt med en ram", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
@@ -241,7 +239,7 @@ describe.skipIf(!chromium)("markera flera affärsprocessobjekt med en ram", () =
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("ramen markerar alla objekt den nuddar", async () => {

@@ -9,13 +9,12 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen } from "./harness";
+import { findChromium, startaAppen } from "./harness";
 
 const chromium = findChromium();
 
 describe.skipIf(!chromium)("katalogens strukturknappar", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
     // Katalogen är monterad hela tiden men dold tills man öppnar den – vänta
@@ -34,7 +33,7 @@ describe.skipIf(!chromium)("katalogens strukturknappar", () => {
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("flyttknappen syns på kortet utan att man först pekar på det", async () => {
@@ -79,7 +78,6 @@ describe.skipIf(!chromium)("katalogens strukturknappar", () => {
  */
 describe.skipIf(!chromium)("flytta från den öppna processen", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
@@ -99,7 +97,7 @@ describe.skipIf(!chromium)("flytta från den öppna processen", () => {
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("knappen står i huvudet och öppnar samma dialog", async () => {

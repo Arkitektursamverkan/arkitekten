@@ -17,6 +17,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["e2e/**/*.browser.test.ts"],
+    // Exempelpaketet i en tillfällig installation, en kopia per rigg – se e2e/testdata.ts.
+    globalSetup: ["e2e/testdata.ts"],
     // Testerna delar en webbläsare och en app-instans, och de bygger vidare på
     // varandras tillstånd (banan förstoras, sedan minskas). Kör dem i ordning.
     fileParallelism: false,

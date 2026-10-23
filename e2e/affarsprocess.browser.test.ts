@@ -12,7 +12,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, startaAppen } from "./harness";
+import { AFFARSPROCESS_EXEMPEL, findChromium, startaAppen } from "./harness";
 
 const chromium = findChromium();
 
@@ -20,11 +20,9 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
 
   beforeAll(async () => {
-    rigg = await startaAppen();
-    // Flödesschemat har INGEN diagramtypsväljare – typen är ett eget verktyg.
-    expect(await rigg.page.getByRole("button", { name: "Affärsprocess" }).count()).toBe(1);
-    await rigg.page.getByRole("button", { name: /Affärsprocess/ }).click();
-    await rigg.page.waitForSelector(".ark-ap-nod", { timeout: 10_000 });
+    // Affärsprocess är ett eget verktyg: det väljs när processen skapas, och
+    // flödesschemat har ingen diagramtypsväljare.
+    rigg = await startaAppen({ ny: { verktyg: "Affärsprocess", text: AFFARSPROCESS_EXEMPEL } });
   }, 90_000);
 
   afterAll(async () => {

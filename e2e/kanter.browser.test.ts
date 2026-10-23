@@ -11,21 +11,20 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen, väljFormat } from "./harness";
+import { findChromium, startaAppen, SYSTEMPROCESS_EXEMPEL, väljFormat } from "./harness";
 
 const chromium = findChromium();
 
 describe.skipIf(!chromium)("kanter och banbyte i riktig webbläsare", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
-    rigg = await startaAppen();
+    rigg = await startaAppen({ ny: { verktyg: "Systemprocess", text: SYSTEMPROCESS_EXEMPEL } });
   }, 90_000);
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("REGRESSION: Ja/Nej följer med sidhänvisningen när grenen korsar ett snitt", async () => {

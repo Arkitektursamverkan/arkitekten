@@ -10,7 +10,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, startaAppen, väljFormat } from "./harness";
+import { findChromium, startaAppen, SYSTEMPROCESS_EXEMPEL, väljFormat } from "./harness";
 import { compileDraft } from "@/core/draft";
 import { filterByPerspective } from "../src/tools/flowchart/perspective";
 import { textToDraft } from "../src/tools/flowchart/parser/toDraft";
@@ -19,10 +19,8 @@ import { renderSvg } from "../src/tools/flowchart/export/svg";
 
 const chromium = findChromium();
 
-const EXAMPLE = `Felanmälan ny
-Fel uppkommer → Medarbetare → Startar Portalen → Väljer ny felanmälan från startsidan → Fyller i formulär för felanmälan → Väljer skicka in formuläret för felanmälan → Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att felanmälan har inkommit
-
-Felanmälan inkommer i SP-listan "Incident" → Power Automate flödet "INC nytt ärende" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
+/** Samma text som riggen skapar processen ur. */
+const EXAMPLE = SYSTEMPROCESS_EXEMPEL;
 
 /** Y-koordinater för vågräta segment (längre än 30 px) i en path. */
 function horisontellaYn(d: string): number[] {
@@ -38,7 +36,7 @@ function horisontellaYn(d: string): number[] {
 describe.skipIf(!chromium)("paritet canvas ↔ export", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
   beforeAll(async () => {
-    rigg = await startaAppen();
+    rigg = await startaAppen({ ny: { verktyg: "Systemprocess", text: SYSTEMPROCESS_EXEMPEL } });
     // Jämförelsen ställer skärmen mot en export i WORD-format – då måste
     // skärmen också stå i Word. Formatet väljs uttryckligen och hänger inte
     // på vilket format appen råkar ha som förval (det är Fri sedan ett beslut,

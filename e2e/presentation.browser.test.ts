@@ -8,13 +8,12 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen } from "./harness";
+import { findChromium, startaAppen } from "./harness";
 
 const chromium = findChromium();
 
 describe.skipIf(!chromium)("processer i kategorin Presentation", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   async function öppna(sök: string) {
     await rigg.page.getByRole("button", { name: /Processkatalog/ }).first().click();
@@ -31,7 +30,7 @@ describe.skipIf(!chromium)("processer i kategorin Presentation", () => {
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testet ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testet ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("REGRESSION: öppnas avskalad – och FÖRBLIR avskalad i redigeringsläget, där rutorna går att dra", async () => {

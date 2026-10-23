@@ -11,18 +11,18 @@
 
 import fs from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen } from "./harness";
+import { findChromium, startaAppen } from "./harness";
 
 const chromium = findChromium();
-const ramarFingeravtryck = () => (fs.existsSync("ramar") ? fs.readdirSync("ramar").sort().join(",") : "");
+const ramarFingeravtryck = (dir: string) => (fs.existsSync(dir) ? fs.readdirSync(dir).sort().join(",") : "");
 
 describe.skipIf(!chromium)("Ramar – bildfliken", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
-  const ramarFöre = ramarFingeravtryck();
+  let ramarFöre = "";
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
+    ramarFöre = ramarFingeravtryck(rigg.data.ramarDir);
     const { page } = rigg;
     page.on("dialog", (d) => void d.accept());
     await page.setViewportSize({ width: 1920, height: 1080 });
@@ -38,8 +38,8 @@ describe.skipIf(!chromium)("Ramar – bildfliken", () => {
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testet ändrade flows/").toBe(flödenFöre);
-    expect(ramarFingeravtryck(), "testet sparade en ramserie").toBe(ramarFöre);
+    if (rigg) expect(rigg.flöden(), "testet ändrade flows/").toBe(rigg.flödenFöre);
+    if (rigg) expect(ramarFingeravtryck(rigg.data.ramarDir), "testet sparade en ramserie").toBe(ramarFöre);
   });
 
   async function mitt(id: string) {

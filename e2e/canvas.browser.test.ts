@@ -27,11 +27,11 @@ import {
   draBana,
   gömdaObjekt,
   findChromium,
-  flödenFingeravtryck,
   grabbartHandtag,
   draObjekt,
   läsVy,
   startaAppen,
+  SYSTEMPROCESS_EXEMPEL,
   väljFormat,
 } from "./harness";
 
@@ -39,10 +39,9 @@ const chromium = findChromium();
 
 describe.skipIf(!chromium)("ritytan i en riktig webbläsare", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
-    rigg = await startaAppen();
+    rigg = await startaAppen({ ny: { verktyg: "Systemprocess", text: SYSTEMPROCESS_EXEMPEL } });
     // Banhöjder, kamera och sidindelning mäts i det SIDBRUTNA läget – det är
     // där felen satt. Formatet väljs uttryckligen: appens förval är Fri, och
     // i en enda mycket bred del ligger banhandtagen utzoomade utom räckhåll.
@@ -53,7 +52,7 @@ describe.skipIf(!chromium)("ritytan i en riktig webbläsare", () => {
     await rigg?.stäng();
     // Testerna klickar aldrig "Spara". Skulle de börja göra det vore det
     // de riktiga sparade flödena som skrevs över.
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("appen ritar ett diagram utan fel i konsolen", async () => {
@@ -178,7 +177,7 @@ describe.skipIf(!chromium)("kopplingar och ångra i en riktig webbläsare", () =
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
 
   beforeAll(async () => {
-    rigg = await startaAppen();
+    rigg = await startaAppen({ ny: { verktyg: "Systemprocess", text: SYSTEMPROCESS_EXEMPEL } });
     await väljFormat(rigg.page, "Fri");
   }, 90_000);
   afterAll(async () => await rigg?.stäng());
@@ -230,12 +229,13 @@ describe.skipIf(!chromium)("kopplingar och ångra i en riktig webbläsare", () =
 describe.skipIf(!chromium)("mallen i en riktig webbläsare", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
   beforeAll(async () => {
-    rigg = await startaAppen();
+    rigg = await startaAppen({ ny: { verktyg: "Systemprocess", text: SYSTEMPROCESS_EXEMPEL } });
   }, 90_000);
   afterAll(async () => await rigg?.stäng());
 
   it("mallen går att öppna och vägrar bygga innan den är ifylld", async () => {
-    await rigg.page.getByRole("button", { name: /Fyll i mall/ }).click();
+    // Mallen ligger i verktygsraden ("▦ Mall").
+    await rigg.page.getByRole("button", { name: /▦ Mall/ }).click();
     await rigg.page.waitForSelector(".ark-mall");
     const skapa = rigg.page.getByRole("button", { name: /Skapa flödet/ });
     await expect.poll(() => skapa.isDisabled()).toBe(true);

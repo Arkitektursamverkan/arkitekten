@@ -16,14 +16,13 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen } from "./harness";
+import { findChromium, startaAppen } from "./harness";
 
 const chromium = findChromium();
 const KANT = "s_1890dd5d->s_2a1e704f";
 
 describe.skipIf(!chromium)("affärsprocess: sista sträckan in i målet", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
@@ -40,7 +39,7 @@ describe.skipIf(!chromium)("affärsprocess: sista sträckan in i målet", () => 
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testet ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testet ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("REGRESSION: 'Byter annonstyp' gick in genom målets satelliter och sista sträckan gick inte att flytta", async () => {
