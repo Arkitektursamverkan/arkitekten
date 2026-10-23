@@ -17,7 +17,7 @@ import path from "node:path";
 
 const ROT = path.resolve(__dirname, "..");
 const KATALOGER = ["src", "server", "scripts", "e2e", "docs", ".github", "innehallspaket", "kontrakt"];
-const FILER = ["README.md", "CLAUDE.md", "index.html", "package.json", "Dockerfile", ".env.example", ".gitignore", ".dockerignore", "vite.config.ts"];
+const FILER = ["README.md", "CLAUDE.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "index.html", "package.json", "Dockerfile", ".env.example", ".gitignore", ".dockerignore", "vite.config.ts"];
 /** Den här filen måste kunna nämna det den spärrar. */
 const UNDANTAG = new Set(["server/neutralitet.test.ts"]);
 
