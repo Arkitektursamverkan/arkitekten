@@ -140,12 +140,15 @@ describe.skipIf(!chromium)("markera flera objekt med en ram", () => {
     );
 
     // …och nu FLYTTAS de tillsammans. Draget tas i mitten av det första
-    // objektet – där markeringens egen dragruta ligger.
+    // objektet – där markeringens egen dragruta ligger. Det går VÅGRÄTT: ett
+    // lodrätt drag i ett flödesschema är ett banbyte med egna regler (ett
+    // objekt ensamt i sin bana kan bli kvar), och det är inte markeringen
+    // det här testet gäller.
     const före = await objektPositioner(rigg.page);
     await rigg.page.mouse.move(a.x + a.w / 2, a.y + a.h / 2);
     await rigg.page.mouse.down();
     for (let i = 1; i <= 12; i++) {
-      await rigg.page.mouse.move(a.x + a.w / 2, a.y + a.h / 2 + i * 5);
+      await rigg.page.mouse.move(a.x + a.w / 2 + i * 5, a.y + a.h / 2);
       await rigg.page.waitForTimeout(10);
     }
     await rigg.page.mouse.up();
