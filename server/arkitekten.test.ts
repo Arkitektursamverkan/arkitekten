@@ -104,6 +104,15 @@ describe("hälsan och bryggan", () => {
   });
 });
 
+describe("organisationens utseende", () => {
+  it("nås utan session – inloggningssidan visar det – och saknas logotyp blir det 404", async () => {
+    const res = await fetch(`${bas}/__ark/utseende`);
+    expect(res.status).toBe(200);
+    expect((await res.json()).ok).toBe(true);
+    expect((await fetch(`${bas}/__ark/utseende/logo`)).status).toBe(404);
+  });
+});
+
 describe("symbolstilen", () => {
   it("standardstilen gäller tills en administratör väljer en annan, och en trasig fil stoppar inget", async () => {
     expect((await (await fetch(`${bas}/__ark/symbolstil`)).json()).stil.id).toBe("neutral");

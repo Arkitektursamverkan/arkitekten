@@ -71,8 +71,11 @@ body { background: var(--bg); color: var(--text); }
 }
 .ark-brand-mark {
   width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
-  background: var(--accent); color: #fff; font-weight: 700; font-size: 17px; flex-shrink: 0;
+  background: var(--ark-org-farg, var(--accent)); color: #fff; font-weight: 700; font-size: 17px; flex-shrink: 0;
 }
+/* Organisationens logotyp (shell/OrgMarke.tsx) i märkets ruta. */
+.ark-brand-mark--logo { background: none; overflow: hidden; }
+.ark-brand-mark--logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .ark-brand-text { display: flex; flex-direction: column; min-width: 0; }
 .ark-brand-name { font-weight: 650; color: var(--text); font-size: 15px; }
 .ark-brand-sub {
