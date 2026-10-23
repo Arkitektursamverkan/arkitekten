@@ -10,6 +10,14 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # Avbilden följer Nodes LTS-linje (jämna versioner). Dependabot föreslår
+      # alltid senaste huvudversionen, även udda versioner utan långtidsstöd
+      # (t.ex. 25). Ett byte av LTS görs därför för hand, samtidigt som
+      # node-version i .github/workflows/ci.yml; mindre uppdateringar och
+      # säkerhetsrättelser inom 24-slim kommer som vanligt.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
