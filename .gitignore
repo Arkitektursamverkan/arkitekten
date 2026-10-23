@@ -33,7 +33,7 @@ Rita flödesschema/Input/*.docx
 /konton.json
 # Installationens egna skript och tester (t.ex. en organisations husstil),
 # monterade hit av driftrepot – aldrig i produktens git.
-/.lokalt/
+/.lokalt
 /Input/
 /Rita flödesschema/Input/
 
