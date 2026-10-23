@@ -15,7 +15,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, startaAppen } from "./harness";
+import { findChromium, startaAppen, öppnaUrMenyn } from "./harness";
 
 const chromium = findChromium();
 
@@ -26,8 +26,7 @@ describe.skipIf(!chromium)("hovertext på affärsprocessens kopplingar", () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
     const { page } = rigg;
     // Exempelpaketets affärsprocess, öppnad ur menyn (sökningen fäller ut grenen).
-    await page.fill(".ark-meny-filter", "Rekrytering");
-    await page.locator(".ark-flow-menyval", { hasText: "Rekrytering" }).click();
+    await öppnaUrMenyn(page, "Rekrytering");
     await page.waitForSelector(".ark-ap-nod", { timeout: 20_000 });
     await page.waitForTimeout(600);
   }, 90_000);

@@ -63,6 +63,31 @@ export function findChromium(): string | null {
   return null;
 }
 
+/**
+ * Finns flödet i testinstallationen? Exempelpaketet har bara neutrala
+ * processer; tester som gäller en installations egna kräver ARK_E2E_INNEHALL
+ * (e2e/testdata.ts) och hoppar annars över. Läses när testfilen samlas in –
+ * globalSetup har då redan lagt mallen i ordning.
+ */
+export function harFlöde(id: string): boolean {
+  const rot = process.env.ARK_E2E_ROT;
+  return !!rot && existsSync(join(mallkatalog(rot), "flows", `${id}.json`));
+}
+
+/**
+ * Öppnar ett flöde ur sidomenyns träd, som en användare gör. Sökfältet fäller
+ * ut grenarna med träffar, så testet behöver inte veta var i trädet flödet
+ * ligger – och väljer det vid NAMN, inte "första" eller "sista" raden, som
+ * pekar på något annat så fort katalogen har fler processer.
+ */
+export async function öppnaUrMenyn(page: Page, namn: string): Promise<void> {
+  await page.fill(".ark-meny-filter", namn);
+  await page.locator(".ark-flow-menyval", { hasText: namn }).first().click();
+}
+
+/** Rubrikens tillägg när ett test hoppar över för att innehållet saknas. */
+export const KRÄVER_INNEHÅLL = " (hoppar över: kräver ARK_E2E_INNEHALL med installationens flöden)";
+
 /* -------------------------------------------------------------------- */
 /* Dev-server + sida                                                    */
 /* -------------------------------------------------------------------- */

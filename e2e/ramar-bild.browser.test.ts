@@ -11,12 +11,14 @@
 
 import fs from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, startaAppen } from "./harness";
+import { findChromium, harFlöde, KRÄVER_INNEHÅLL, startaAppen } from "./harness";
 
 const chromium = findChromium();
+// Gäller en installations egen process – aldrig i repot (invariant 12).
+const innehåll = harFlöde("ap-demo-uthyrning-ordinarie");
 const ramarFingeravtryck = (dir: string) => (fs.existsSync(dir) ? fs.readdirSync(dir).sort().join(",") : "");
 
-describe.skipIf(!chromium)("Ramar – bildfliken", () => {
+describe.skipIf(!chromium || !innehåll)(`Ramar – bildfliken${innehåll ? "" : KRÄVER_INNEHÅLL}`, () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
   let ramarFöre = "";
 

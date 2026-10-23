@@ -14,25 +14,13 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, startaAppen } from "./harness";
+import { findChromium, startaAppen, öppnaUrMenyn } from "./harness";
 
 const chromium = findChromium();
 
 describe.skipIf(!chromium)("arbetsytans lager", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
 
-  /** Fäller ut menyn hela vägen ner till flödesraderna. */
-  async function fällUtMenyn() {
-    for (const sel of [".ark-meny-kategori-titel", ".ark-meny-arende"]) {
-      for (let varv = 0; varv < 4; varv++) {
-        const stängda = rigg.page.locator(`${sel}:has(.ark-meny-pil:text-is("▸"))`);
-        const antal = await stängda.count();
-        if (!antal) break;
-        for (let i = 0; i < antal; i++) await stängda.nth(0).click().catch(() => {});
-        await rigg.page.waitForTimeout(150);
-      }
-    }
-  }
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
@@ -46,13 +34,11 @@ describe.skipIf(!chromium)("arbetsytans lager", () => {
     const { page } = rigg;
 
     // 1. Ett flödesschema (React Flow) …
-    await fällUtMenyn();
-    await page.locator(".ark-flow-menyval").first().click();
+    await öppnaUrMenyn(page, "Beställ behörighet");
     await page.waitForSelector(".react-flow__node-pool", { timeout: 20_000 });
 
     // 2. … och sedan en affärsprocess, som monterar ett ANDRA lager.
-    await fällUtMenyn();
-    await page.locator(".ark-flow-menyval").last().click();
+    await öppnaUrMenyn(page, "Rekrytering");
     await page.waitForSelector(".ark-ap-nod", { timeout: 20_000 });
 
     const lager = await page.evaluate(() =>

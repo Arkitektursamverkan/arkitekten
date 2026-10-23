@@ -11,7 +11,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, objektPositioner, startaAppen } from "./harness";
+import { findChromium, objektPositioner, startaAppen, öppnaUrMenyn } from "./harness";
 
 const chromium = findChromium();
 
@@ -68,25 +68,12 @@ async function draRam(page: Awaited<ReturnType<typeof startaAppen>>["page"], a: 
 describe.skipIf(!chromium)("markera flera objekt med en ram", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
 
-  /** Fäller ut menyn hela vägen ner till flödesraderna (som lager-testet). */
-  async function fällUtMenyn() {
-    for (const sel of [".ark-meny-kategori-titel", ".ark-meny-arende"]) {
-      for (let varv = 0; varv < 4; varv++) {
-        const stängda = rigg.page.locator(`${sel}:has(.ark-meny-pil:text-is("▸"))`);
-        const antal = await stängda.count();
-        if (!antal) break;
-        for (let i = 0; i < antal; i++) await stängda.nth(0).click().catch(() => {});
-        await rigg.page.waitForTimeout(150);
-      }
-    }
-  }
 
   beforeAll(async () => {
     // Appen börjar i katalogen; ett flöde måste öppnas innan det finns en
     // rityta att dra ramar på.
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
-    await fällUtMenyn();
-    await rigg.page.locator(".ark-flow-menyval").first().click();
+    await öppnaUrMenyn(rigg.page, "Beställ behörighet");
     await rigg.page.waitForSelector(".react-flow__node-process", { timeout: 20_000 });
     // Ett öppnat flöde visas i LÄSLÄGE, där vänsterdraget panorerar. Ramen hör
     // till redigeringsläget – det är hela poängen med gesten.
@@ -224,17 +211,7 @@ describe.skipIf(!chromium)("markera flera affärsprocessobjekt med en ram", () =
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
-    for (const sel of [".ark-meny-kategori-titel", ".ark-meny-arende"]) {
-      for (let varv = 0; varv < 4; varv++) {
-        const stängda = rigg.page.locator(`${sel}:has(.ark-meny-pil:text-is("▸"))`);
-        const antal = await stängda.count();
-        if (!antal) break;
-        for (let i = 0; i < antal; i++) await stängda.nth(0).click().catch(() => {});
-        await rigg.page.waitForTimeout(150);
-      }
-    }
-    // Sista menyvalet är en affärsprocess (samma väg som lager-testet tar).
-    await rigg.page.locator(".ark-flow-menyval").last().click();
+    await öppnaUrMenyn(rigg.page, "Rekrytering");
     await rigg.page.waitForSelector(".ark-ap-nod", { timeout: 20_000 });
     await rigg.page.getByRole("button", { name: "✎ Redigera" }).click();
     await rigg.page.waitForTimeout(700);

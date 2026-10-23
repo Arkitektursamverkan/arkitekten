@@ -12,7 +12,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { AFFARSPROCESS_EXEMPEL, findChromium, startaAppen } from "./harness";
+import { AFFARSPROCESS_EXEMPEL, findChromium, startaAppen, öppnaUrMenyn } from "./harness";
 
 const chromium = findChromium();
 
@@ -532,8 +532,7 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
 
     // Sökningen fäller ut de grenar som har träffar. Exempelpaketets
     // affärsprocess: verktyget byts och flödet laddas.
-    await page.fill(".ark-meny-filter", "Rekrytering");
-    await page.locator(".ark-flow-menyval", { hasText: "Rekrytering" }).click();
+    await öppnaUrMenyn(page, "Rekrytering");
     await page.waitForSelector(".ark-ap-nod", { timeout: 10_000 });
     expect(await page.locator(".ark-navval.active").innerText()).toContain("Rekrytering");
     expect(await page.locator(".ark-tool-main").innerText()).toContain("Genomför urval");
@@ -542,8 +541,7 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
 
   it("kan byta till en systemprocess ur menyn utan fel", async () => {
     const { page } = rigg;
-    await page.fill(".ark-meny-filter", "Beställ behörighet");
-    await page.locator(".ark-flow-menyval", { hasText: "Beställ behörighet" }).click();
+    await öppnaUrMenyn(page, "Beställ behörighet");
     await page.waitForSelector(".react-flow__node-process", { timeout: 10_000 });
     // Det andra verktyget ligger kvar monterat i ett dolt lager (aria-hidden).
     // Huvudet i det SYNLIGA lagret säger vilket verktyg som visar flödet …
