@@ -5,7 +5,7 @@
 # Inga nycklar byggs in: allt kommer ur miljön när containern startar.
 
 # ── Bygge ──────────────────────────────────────────────────────────────────────
-FROM node:22-slim AS builder
+FROM node:24-slim AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -13,7 +13,7 @@ COPY . .
 RUN npm run build && npm prune --omit=dev
 
 # ── Drift ──────────────────────────────────────────────────────────────────────
-FROM node:22-slim AS runtime
+FROM node:24-slim AS runtime
 
 # Release-arbetsflödet skickar taggen (t.ex. 0.1.0); den syns i /health.
 ARG APP_VERSION=dev
