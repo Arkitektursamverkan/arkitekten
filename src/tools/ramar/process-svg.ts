@@ -36,7 +36,7 @@ export function processSvg(flöde: SavedFlow, stil: RamStil = "verktyg"): string
     return renderApSvg(lo, { textScale });
   }
   const v = flöde.view ?? defaultVy;
-  const vy = filterByPerspective(compileDraft(flöde.draft), v.perspective);
+  const vy = ritadModell(flöde);
   const lo = layoutModel(vy, {
     pageWidth: null,
     pageHeight: null,
@@ -45,6 +45,15 @@ export function processSvg(flöde: SavedFlow, stil: RamStil = "verktyg"): string
     spacing: v.spacing ?? 1,
   });
   return renderSvg(vy, lo, (v.colorMode as ColorMode) ?? "type", v.textScale ?? 1);
+}
+
+/**
+ * Flödesschemats modell SÅ SOM DEN RITAS: filtrerad genom flödets perspektiv
+ * (förvalt affärsperspektivet, som döljer bland annat besluten). Ramarnas
+ * markeringar kan bara gälla det som står i bilden.
+ */
+export function ritadModell(flöde: SavedFlow) {
+  return filterByPerspective(compileDraft(flöde.draft), (flöde.view ?? defaultVy).perspective);
 }
 
 const defaultVy: NonNullable<SavedFlow["view"]> = {

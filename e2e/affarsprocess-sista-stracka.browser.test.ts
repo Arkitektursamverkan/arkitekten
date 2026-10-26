@@ -16,14 +16,15 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen } from "./harness";
+import { findChromium, harFlöde, KRÄVER_INNEHÅLL, startaAppen } from "./harness";
 
 const chromium = findChromium();
+// Gäller en installations egen process – aldrig i repot (invariant 12).
+const innehåll = harFlöde("ap-2-2-1-uthyrning-ordinarie");
 const KANT = "s_1890dd5d->s_2a1e704f";
 
-describe.skipIf(!chromium)("affärsprocess: sista sträckan in i målet", () => {
+describe.skipIf(!chromium || !innehåll)(`affärsprocess: sista sträckan in i målet${innehåll ? "" : KRÄVER_INNEHÅLL}`, () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
@@ -31,7 +32,8 @@ describe.skipIf(!chromium)("affärsprocess: sista sträckan in i målet", () => 
     await rigg.page.waitForTimeout(500);
     await rigg.page.fill(".ark-katalog-sok", "2.2.1");
     await rigg.page.waitForTimeout(600);
-    await rigg.page.locator(".ark-kort").first().click();
+    // Sökningen träffar också processens presentation ("… (presentation)").
+    await rigg.page.locator(".ark-kort").filter({ hasNotText: "(presentation)" }).first().click();
     await rigg.page.waitForSelector(".ark-ap-nod", { timeout: 20_000 });
     // Ett flöde öppnas LÅST (visning) – handtagen finns bara i redigeringen.
     await rigg.page.getByRole("button", { name: /Redigera/ }).first().click();
@@ -40,7 +42,7 @@ describe.skipIf(!chromium)("affärsprocess: sista sträckan in i målet", () => 
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testet ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testet ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("REGRESSION: 'Byter annonstyp' gick in genom målets satelliter och sista sträckan gick inte att flytta", async () => {

@@ -11,11 +11,12 @@
  * över med ett tydligt meddelande om ingen Chromium finns på maskinen.
  */
 
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createServer, type ViteDevServer } from "vite";
 import { chromium, type Browser, type Page } from "playwright-core";
+import { mallkatalog } from "./testdata";
 
 /* -------------------------------------------------------------------- */
 /* Chromium                                                             */
@@ -62,6 +63,31 @@ export function findChromium(): string | null {
   return null;
 }
 
+/**
+ * Finns flödet i testinstallationen? Exempelpaketet har bara neutrala
+ * processer; tester som gäller en installations egna kräver ARK_E2E_INNEHALL
+ * (e2e/testdata.ts) och hoppar annars över. Läses när testfilen samlas in –
+ * globalSetup har då redan lagt mallen i ordning.
+ */
+export function harFlöde(id: string): boolean {
+  const rot = process.env.ARK_E2E_ROT;
+  return !!rot && existsSync(join(mallkatalog(rot), "flows", `${id}.json`));
+}
+
+/**
+ * Öppnar ett flöde ur sidomenyns träd, som en användare gör. Sökfältet fäller
+ * ut grenarna med träffar, så testet behöver inte veta var i trädet flödet
+ * ligger – och väljer det vid NAMN, inte "första" eller "sista" raden, som
+ * pekar på något annat så fort katalogen har fler processer.
+ */
+export async function öppnaUrMenyn(page: Page, namn: string): Promise<void> {
+  await page.fill(".ark-meny-filter", namn);
+  await page.locator(".ark-flow-menyval", { hasText: namn }).first().click();
+}
+
+/** Rubrikens tillägg när ett test hoppar över för att innehållet saknas. */
+export const KRÄVER_INNEHÅLL = " (hoppar över: kräver ARK_E2E_INNEHALL med installationens flöden)";
+
 /* -------------------------------------------------------------------- */
 /* Dev-server + sida                                                    */
 /* -------------------------------------------------------------------- */
@@ -70,7 +96,36 @@ export interface Rigg {
   page: Page;
   /** Fel som webbläsaren rapporterat sedan sidan laddades. */
   fel: string[];
+  /** Riggens egna kataloger – en kopia av exempelinstallationen (e2e/testdata.ts). */
+  data: { flowsDir: string; ramarDir: string };
+  /**
+   * Flödenas fingeravtryck när riggen lämnade över sidan (efter att en ny
+   * process skapats – den sparas direkt). Testerna klickar aldrig Spara, så
+   * det ska vara detsamma när de är klara.
+   */
+  flödenFöre: string;
+  /** Flödenas fingeravtryck nu. */
+  flöden: () => string;
   stäng: () => Promise<void>;
+}
+
+/**
+ * En egen installation för riggen, kopierad ur mallen som globalSetup lagt i
+ * ordning. Vite-servern läser katalogerna ur miljön när den startar, så de
+ * pekas om här – före createServer.
+ */
+function egenInstallation(): Rigg["data"] {
+  const rot = process.env.ARK_E2E_ROT;
+  if (!rot) throw new Error("ARK_E2E_ROT saknas – kör testerna med npm run test:browser");
+  const dir = mkdtempSync(join(rot, "rigg-"));
+  cpSync(mallkatalog(rot), dir, { recursive: true });
+  const data = { flowsDir: join(dir, "flows"), ramarDir: join(dir, "ramar") };
+  process.env.FLOWS_DIR = data.flowsDir;
+  process.env.RAMAR_DIR = data.ramarDir;
+  process.env.STILAR_DIR = join(dir, "stilar");
+  process.env.ARK_DIR = join(dir, ".ark");
+  process.env.ARK_KONTON = join(dir, "konton.json");
+  return data;
 }
 
 /**
@@ -80,21 +135,64 @@ export interface Rigg {
  * vara igång: testet ska ge samma svar oavsett vad som körs på maskinen. Vites
  * riktiga config används, så ark-bryggan finns med och flödena läses från disk.
  */
+/**
+ * Exempeltexterna som verktygen hade inlästa när appen öppnade mitt i
+ * flödesschemat. Appen börjar numera i startvyn, så riggen skapar processen
+ * själv – genom vyn "Ny process", som en användare gör – och sparar den aldrig.
+ */
+export const SYSTEMPROCESS_EXEMPEL = `Felanmälan ny
+Fel uppkommer → Medarbetare → Startar Portalen → Väljer ny felanmälan från startsidan → Fyller i formulär för felanmälan → Väljer skicka in formuläret för felanmälan → Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att felanmälan har inkommit
+
+Felanmälan inkommer i SP-listan "Incident" → Power Automate flödet "INC nytt ärende" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
+
+export const AFFARSPROCESS_EXEMPEL = `Rekrytera medarbetare
+Behov av rekrytering uppstår → Skapa kravprofil [Roll: Rekryterande chef U] [Krav: Kompetensbaserad rekrytering] → Annonsera tjänst [Roll: HR U] [IT: ReachMee] [Ut: Ansökningar] → Genomför urval [Roll: Rekryterande chef H, HR K] [Krav: Öka mångfald] (↓ Om kandidat godkänd → Lämna anställningserbjudande [Roll: Rekryterande chef U] [Tid: Inom 5 dagar]) → Avsluta rekrytering [IT: ReachMee]`;
+
+export interface NyProcessVal {
+  verktyg: "Systemprocess" | "Affärsprocess";
+  /** Hela beskrivningen; första raden blir processens namn. */
+  text: string;
+  /** Hur processen börjar – rubriken på valkortet i "Ny process". */
+  start?: "Beskriv i text" | "Fyll i en mall" | "Börja från tomt";
+}
+
 export interface StartOptions {
   /**
-   * Selektorn riggen väntar på innan den lämnar över sidan. Standard är en
-   * processnod, alltså "ett diagram är uppritat". Sedan appen börjar med
-   * startvyn behöver den som själv navigerar dit kunna vänta på något annat –
-   * t.ex. menyn.
+   * Selektorn riggen väntar på innan den lämnar över sidan. Standard är
+   * menyns kategorirader, alltså "katalogen är inläst"; med `ny` eller
+   * `process` är det ett uppritat diagram.
    */
   väntaPå?: string;
+  /** Skapa en ny (osparad) process och lämna över den i redigeringsläget. */
+  ny?: NyProcessVal;
+  /** Öppna ett sparat flöde via dess länk (`#/process/<id>`) – i läsläge. */
+  process?: string;
 }
+
+/** Skapar en process genom vyn "Ny process". Den sparas inte. */
+export async function skapaNyProcess(page: Page, val: NyProcessVal): Promise<void> {
+  const [namn, ...rader] = val.text.split("\n");
+  const start = val.start ?? "Beskriv i text";
+  await page.getByRole("button", { name: /Ny process/ }).first().click();
+  await page.locator(".ark-ny-verktyg .ark-valkort", { hasText: val.verktyg }).click();
+  await page.fill(".ark-ny-namn", namn);
+  await page.locator(".ark-ny-start .ark-valkort", { hasText: start }).click();
+  if (start === "Beskriv i text") await page.fill(".ark-ny-text", rader.join("\n"));
+  await page.getByRole("button", { name: "Skapa process" }).click();
+}
+
+/** Vad ett diagram i respektive verktyg ritar – det riggen väntar på. */
+const NODKLASS: Record<NyProcessVal["verktyg"], string> = {
+  Systemprocess: ".react-flow__node-process",
+  Affärsprocess: ".ark-ap-nod",
+};
 
 export async function startaAppen(
   opts: StartOptions = {},
 ): Promise<Rigg & { server: ViteDevServer; browser: Browser }> {
   const exe = findChromium();
   if (!exe) throw new Error("ingen Chromium hittad");
+  const data = egenInstallation();
 
   /**
    * Egen port, och `strictPort: false` som uttryckligt undantag från
@@ -124,12 +222,31 @@ export async function startaAppen(
     if (m.type() === "error" && !m.text().includes("404")) fel.push(`CONSOLE: ${m.text()}`);
   });
 
-  await page.goto(url, { waitUntil: "networkidle" });
-  await page.waitForSelector(opts.väntaPå ?? ".react-flow__node-process", { timeout: 20_000 });
+  const adress = opts.process ? `${url}#/process/${encodeURIComponent(opts.process)}` : url;
+  await page.goto(adress, { waitUntil: "networkidle" });
+  // Menyn först: då är katalogen inläst, och "Ny process" vet vilka namn som är tagna.
+  await page.waitForSelector(".ark-meny-kategori-titel", { timeout: 20_000 });
+  const antalFöre = readdirSync(data.flowsDir).length;
+  if (opts.ny) await skapaNyProcess(page, opts.ny);
+  const väntaPå =
+    opts.väntaPå ??
+    (opts.ny ? NODKLASS[opts.ny.verktyg] : opts.process ? ".react-flow__node" : ".ark-meny-kategori-titel");
+  await page.waitForSelector(väntaPå, { timeout: 20_000 });
+  // En ny process sparas när den skapas. Vänta in filen, så att den ingår i
+  // fingeravtrycket – annars ser den ut som något testet ändrat.
+  if (opts.ny) {
+    const t0 = Date.now();
+    while (readdirSync(data.flowsDir).length === antalFöre && Date.now() - t0 < 10_000) {
+      await page.waitForTimeout(100);
+    }
+  }
 
   return {
     page,
     fel,
+    data,
+    flödenFöre: flödenFingeravtryck(data.flowsDir),
+    flöden: () => flödenFingeravtryck(data.flowsDir),
     server,
     browser,
     stäng: async () => {
@@ -269,9 +386,13 @@ export async function draObjekt(
   return { id: mål.id, före, efter: await läs() };
 }
 
-/** Byter sidformat via knappraden. */
+/** Byter sidformat – det ligger under rullgardinen Vy i verktygsraden. */
 export async function väljFormat(page: Page, etikett: string): Promise<void> {
-  await page.locator(".ark-toggle button", { hasText: new RegExp(`^${etikett}$`) }).first().click();
+  const vy = page.locator(".ark-rullgardin", { has: page.locator("button.ark-vrad-knapp", { hasText: /^Vy/ }) });
+  const knapp = vy.locator("button.ark-vrad-knapp").first();
+  if ((await knapp.getAttribute("aria-expanded")) !== "true") await knapp.click();
+  await vy.locator(".ark-toggle button", { hasText: new RegExp(`^${etikett}$`) }).first().click();
+  await page.keyboard.press("Escape"); // stäng panelen, så att den inte ligger över ritytan
   await page.waitForTimeout(700); // in-ramningen är animerad
 }
 
@@ -320,13 +441,13 @@ export async function draBana(
   await page.waitForTimeout(700); // låt in-ramningen animera klart
 }
 
-/** Fingeravtryck av flows/ – testerna får aldrig ändra de sparade flödena. */
-export function flödenFingeravtryck(): string {
-  if (!existsSync("flows")) return "";
-  return readdirSync("flows")
+/** Fingeravtryck av en flödeskatalog – testerna får aldrig ändra de sparade flödena. */
+export function flödenFingeravtryck(dir: string): string {
+  if (!existsSync(dir)) return "";
+  return readdirSync(dir)
     .sort()
     .map((f) => {
-      const s = statSync(join("flows", f));
+      const s = statSync(join(dir, f));
       return `${f}:${s.size}:${s.mtimeMs}`;
     })
     .join("|");

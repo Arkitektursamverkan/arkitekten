@@ -8,18 +8,20 @@
 
 import fs from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen } from "./harness";
+import { findChromium, harFlöde, KRÄVER_INNEHÅLL, startaAppen } from "./harness";
 
 const chromium = findChromium();
-const ramarFingeravtryck = () => (fs.existsSync("ramar") ? fs.readdirSync("ramar").sort().join(",") : "");
+// Gäller en installations egen process – aldrig i repot (invariant 12).
+const innehåll = harFlöde("ap-demo-uthyrning-ordinarie");
+const ramarFingeravtryck = (dir: string) => (fs.existsSync(dir) ? fs.readdirSync(dir).sort().join(",") : "");
 
-describe.skipIf(!chromium)("Ramar – kontrollen och skärmarna", () => {
+describe.skipIf(!chromium || !innehåll)(`Ramar – kontrollen och skärmarna${innehåll ? "" : KRÄVER_INNEHÅLL}`, () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
-  const ramarFöre = ramarFingeravtryck();
+  let ramarFöre = "";
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
+    ramarFöre = ramarFingeravtryck(rigg.data.ramarDir);
     const { page } = rigg;
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.getByRole("button", { name: /Visualisering/ }).first().click();
@@ -37,8 +39,8 @@ describe.skipIf(!chromium)("Ramar – kontrollen och skärmarna", () => {
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testet ändrade flows/").toBe(flödenFöre);
-    expect(ramarFingeravtryck(), "testet sparade en ramserie").toBe(ramarFöre);
+    if (rigg) expect(rigg.flöden(), "testet ändrade flows/").toBe(rigg.flödenFöre);
+    if (rigg) expect(ramarFingeravtryck(rigg.data.ramarDir), "testet sparade en ramserie").toBe(ramarFöre);
   });
 
   it("REGRESSION: en skärm visar flöde och bild på halva skärmen var – och kontrollen byter vy och bläddrar", async () => {

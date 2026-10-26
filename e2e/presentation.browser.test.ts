@@ -8,20 +8,22 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen } from "./harness";
+import { findChromium, harFlöde, KRÄVER_INNEHÅLL, startaAppen } from "./harness";
 
 const chromium = findChromium();
+// Gäller en installations egen process – aldrig i repot (invariant 12).
+const innehåll = harFlöde("ap-demo-uthyrning-ordinarie") && harFlöde("ap-2-2-1-uthyrning-ordinarie");
 
-describe.skipIf(!chromium)("processer i kategorin Presentation", () => {
+describe.skipIf(!chromium || !innehåll)(`processer i kategorin Presentation${innehåll ? "" : KRÄVER_INNEHÅLL}`, () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   async function öppna(sök: string) {
     await rigg.page.getByRole("button", { name: /Processkatalog/ }).first().click();
     await rigg.page.waitForTimeout(500);
     await rigg.page.fill(".ark-katalog-sok", sök);
     await rigg.page.waitForTimeout(600);
-    await rigg.page.locator(".ark-kort").first().click();
+    // Sökningen träffar också en process egen presentation ("… (presentation)").
+    await rigg.page.locator(".ark-kort").filter({ hasNotText: "(presentation)" }).first().click();
     await rigg.page.waitForTimeout(1500);
   }
 
@@ -31,7 +33,7 @@ describe.skipIf(!chromium)("processer i kategorin Presentation", () => {
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testet ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testet ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("REGRESSION: öppnas avskalad – och FÖRBLIR avskalad i redigeringsläget, där rutorna går att dra", async () => {

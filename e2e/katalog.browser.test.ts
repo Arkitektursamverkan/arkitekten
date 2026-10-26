@@ -9,13 +9,12 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen } from "./harness";
+import { findChromium, startaAppen, öppnaUrMenyn } from "./harness";
 
 const chromium = findChromium();
 
 describe.skipIf(!chromium)("katalogens strukturknappar", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
     // Katalogen är monterad hela tiden men dold tills man öppnar den – vänta
@@ -34,7 +33,7 @@ describe.skipIf(!chromium)("katalogens strukturknappar", () => {
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("flyttknappen syns på kortet utan att man först pekar på det", async () => {
@@ -79,27 +78,17 @@ describe.skipIf(!chromium)("katalogens strukturknappar", () => {
  */
 describe.skipIf(!chromium)("flytta från den öppna processen", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
-    for (const sel of [".ark-meny-kategori-titel", ".ark-meny-arende"]) {
-      for (let varv = 0; varv < 4; varv++) {
-        const stängda = rigg.page.locator(`${sel}:has(.ark-meny-pil:text-is("▸"))`);
-        const antal = await stängda.count();
-        if (!antal) break;
-        for (let i = 0; i < antal; i++) await stängda.nth(0).click().catch(() => {});
-        await rigg.page.waitForTimeout(150);
-      }
-    }
-    await rigg.page.locator(".ark-flow-menyval").first().click();
+    await öppnaUrMenyn(rigg.page, "Beställ behörighet");
     await rigg.page.waitForSelector(".react-flow__node-process", { timeout: 20_000 });
     await rigg.page.waitForTimeout(400);
   }, 90_000);
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("knappen står i huvudet och öppnar samma dialog", async () => {

@@ -7,48 +7,49 @@
  *  - kopplingarna ska svänga MJUKT (`Input/exempel_process.png`). Räta
  *    vinklar var det som skilde bilderna mest när man lade dem bredvid
  *    varandra (synpunkt 2026-09-07: "Kopplingarna är inte rundade och snygga").
- *  - HUKI-bokstaven "U" är förvalet och skrivs inte ut. SVG-exporten följde
+ *  - HUKI-bokstaven skrivs inte ut (färgen bär betydelsen). SVG-exporten följde
  *    den regeln; canvasen skrev ut råvärdet och satte ett "U" mitt i klustret.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, startaAppen } from "./harness";
+import { findChromium, startaAppen, öppnaUrMenyn } from "./harness";
 
 const chromium = findChromium();
 
 describe.skipIf(!chromium)("affärsprocessens kopplingar på skärmen", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
-    // Katalogen är monterad hela tiden men dold tills man öppnar den – vänta
-    // på menyn och gå in via knappen, som en användare gör.
+    // Exempelpaketets affärsprocess, öppnad ur menyn (sökningen fäller ut grenen).
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
-    await rigg.page.getByRole("button", { name: /Processkatalog/ }).first().click();
-    await rigg.page.waitForTimeout(500);
-    await rigg.page.fill(".ark-katalog-sok", "4.4.1");
-    await rigg.page.waitForTimeout(600);
-    await rigg.page.locator(".ark-kort").first().click();
+    await öppnaUrMenyn(rigg.page, "Rekrytering");
     await rigg.page.waitForSelector(".ark-ap-nod", { timeout: 20_000 });
     await rigg.page.waitForTimeout(1200);
   }, 90_000);
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
-  /** Kanternas path-data, per färg (HUKI är blå, IT-stödet svart). */
+  /**
+   * Kanternas path-data med sorten ur hovertexten. Färgerna kommer ur
+   * installationens symbolstil, så testet känner igen sorten på det den
+   * BETYDER: "U – Utför: …" är HUKI, "Samverkar med: …" är IT-stödet.
+   */
   const banor = () =>
     rigg.page.evaluate(() =>
-      [...document.querySelectorAll<SVGPathElement>("path.react-flow__edge-path")].map((p) => ({
-        d: p.getAttribute("d") ?? "",
-        stroke: getComputedStyle(p).stroke,
-      })),
+      [...document.querySelectorAll<SVGGElement>(".react-flow__edge")].map((g) => {
+        const titel = g.querySelector("path.ark-edge-hint title")?.textContent ?? "";
+        return {
+          d: g.querySelector("path.react-flow__edge-path")?.getAttribute("d") ?? "",
+          sort: /^[HUKI] – /.test(titel) ? "huki" : titel.startsWith("Samverkar med") ? "it" : "",
+        };
+      }),
     );
 
   it("HUKI-strecken svänger mjukt, inte i räta vinklar", async () => {
-    const blå = (await banor()).filter((b) => b.stroke.includes("83, 161, 210"));
+    const blå = (await banor()).filter((b) => b.sort === "huki");
     expect(blå.length, "hittade inga HUKI-kopplingar").toBeGreaterThan(0);
     // Varje knä är en båge (A), aldrig ett rätt L.
     const utanBåge = blå.filter((b) => b.d.includes("L") && !b.d.includes("A"));
@@ -66,8 +67,8 @@ describe.skipIf(!chromium)("affärsprocessens kopplingar på skärmen", () => {
       const punkter = [...d.matchAll(/(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)/g)].map((m) => +m[1]);
       return punkter[punkter.length - 1];
     };
-    const blå = alla.filter((b) => b.stroke.includes("83, 161, 210")).map((b) => stamX(b.d));
-    const svart = alla.filter((b) => b.stroke.includes("32, 32, 32")).map((b) => stamX(b.d));
+    const blå = alla.filter((b) => b.sort === "huki").map((b) => stamX(b.d));
+    const svart = alla.filter((b) => b.sort === "it").map((b) => stamX(b.d));
     expect(blå.length && svart.length, "saknar antingen HUKI eller IT-stöd").toBeTruthy();
     // Ingen blå stam får sammanfalla med en svart – då ritas den ena ovanpå
     // den andra och bilden får en enda linje där förlagan har två.
@@ -146,10 +147,10 @@ describe.skipIf(!chromium)("affärsprocessens kopplingar på skärmen", () => {
     await page.waitForTimeout(600);
   });
 
-  it("bokstaven U skrivs inte ut – förvalet får ingen bokstav", async () => {
+  it("HUKI-bokstaven skrivs inte ut – färgen bär betydelsen", async () => {
     const etiketter = await rigg.page.$$eval(".ark-edge-label", (n) =>
       n.map((e) => e.textContent?.trim() ?? ""),
     );
-    expect(etiketter).not.toContain("U");
+    expect(etiketter.filter((t) => /^[HUKI]$/.test(t))).toEqual([]);
   });
 });

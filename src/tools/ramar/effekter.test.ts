@@ -10,7 +10,6 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { SavedFlow } from "@/core/flow-store";
-import { compileDraft } from "@/core/draft";
 import { compileAp } from "@/core/affarsprocess";
 import {
   RAM_KANT_ATTR,
@@ -21,7 +20,7 @@ import {
   type Ram,
 } from "@/core/ram";
 import { läggPåRam, pulsStreck, väglängd } from "./effekter";
-import { processSvg } from "./process-svg";
+import { processSvg, ritadModell } from "./process-svg";
 
 const läs = (fil: string) => JSON.parse(fs.readFileSync(`flows/${fil}`, "utf8")) as SavedFlow;
 const filer = fs.existsSync("flows") ? fs.readdirSync("flows").filter((f) => f.endsWith(".json")) : [];
@@ -45,7 +44,9 @@ describe.skipIf(!fd)("flödesschemat", () => {
   it("märker varje objekt och varje synlig sekvenskoppling med stabil nyckel", () => {
     const rot = parse(svg);
     const noder = new Set(Array.from(rot.querySelectorAll(`[${RAM_NOD_ATTR}]`)).map((e) => e.getAttribute(RAM_NOD_ATTR)));
-    const modell = compileDraft(flöde.draft);
+    // Modellen SÅ SOM DEN RITAS – perspektivet döljer bland annat besluten,
+    // och det som inte står i bilden kan inte märkas.
+    const modell = ritadModell(flöde);
     for (const n of modell.nodes) expect(noder).toContain(n.id);
     const kanter = new Set(Array.from(rot.querySelectorAll(`[${RAM_KANT_ATTR}]`)).map((e) => e.getAttribute(RAM_KANT_ATTR)));
     expect(kanter.size).toBeGreaterThan(0);

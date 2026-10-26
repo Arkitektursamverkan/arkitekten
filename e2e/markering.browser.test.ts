@@ -11,7 +11,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { findChromium, flödenFingeravtryck, objektPositioner, startaAppen } from "./harness";
+import { findChromium, objektPositioner, startaAppen, öppnaUrMenyn } from "./harness";
 
 const chromium = findChromium();
 
@@ -67,27 +67,13 @@ async function draRam(page: Awaited<ReturnType<typeof startaAppen>>["page"], a: 
 
 describe.skipIf(!chromium)("markera flera objekt med en ram", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
-  /** Fäller ut menyn hela vägen ner till flödesraderna (som lager-testet). */
-  async function fällUtMenyn() {
-    for (const sel of [".ark-meny-kategori-titel", ".ark-meny-arende"]) {
-      for (let varv = 0; varv < 4; varv++) {
-        const stängda = rigg.page.locator(`${sel}:has(.ark-meny-pil:text-is("▸"))`);
-        const antal = await stängda.count();
-        if (!antal) break;
-        for (let i = 0; i < antal; i++) await stängda.nth(0).click().catch(() => {});
-        await rigg.page.waitForTimeout(150);
-      }
-    }
-  }
 
   beforeAll(async () => {
     // Appen börjar i katalogen; ett flöde måste öppnas innan det finns en
     // rityta att dra ramar på.
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
-    await fällUtMenyn();
-    await rigg.page.locator(".ark-flow-menyval").first().click();
+    await öppnaUrMenyn(rigg.page, "Beställ behörighet");
     await rigg.page.waitForSelector(".react-flow__node-process", { timeout: 20_000 });
     // Ett öppnat flöde visas i LÄSLÄGE, där vänsterdraget panorerar. Ramen hör
     // till redigeringsläget – det är hela poängen med gesten.
@@ -97,7 +83,7 @@ describe.skipIf(!chromium)("markera flera objekt med en ram", () => {
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   /** Två objekt som ligger bredvid varandra, med plats runt om att dra i. */
@@ -141,12 +127,15 @@ describe.skipIf(!chromium)("markera flera objekt med en ram", () => {
     );
 
     // …och nu FLYTTAS de tillsammans. Draget tas i mitten av det första
-    // objektet – där markeringens egen dragruta ligger.
+    // objektet – där markeringens egen dragruta ligger. Det går VÅGRÄTT: ett
+    // lodrätt drag i ett flödesschema är ett banbyte med egna regler (ett
+    // objekt ensamt i sin bana kan bli kvar), och det är inte markeringen
+    // det här testet gäller.
     const före = await objektPositioner(rigg.page);
     await rigg.page.mouse.move(a.x + a.w / 2, a.y + a.h / 2);
     await rigg.page.mouse.down();
     for (let i = 1; i <= 12; i++) {
-      await rigg.page.mouse.move(a.x + a.w / 2, a.y + a.h / 2 + i * 5);
+      await rigg.page.mouse.move(a.x + a.w / 2 + i * 5, a.y + a.h / 2);
       await rigg.page.waitForTimeout(10);
     }
     await rigg.page.mouse.up();
@@ -219,21 +208,10 @@ describe.skipIf(!chromium)("markera flera objekt med en ram", () => {
  */
 describe.skipIf(!chromium)("markera flera affärsprocessobjekt med en ram", () => {
   let rigg: Awaited<ReturnType<typeof startaAppen>>;
-  const flödenFöre = flödenFingeravtryck();
 
   beforeAll(async () => {
     rigg = await startaAppen({ väntaPå: ".ark-meny-kategori-titel" });
-    for (const sel of [".ark-meny-kategori-titel", ".ark-meny-arende"]) {
-      for (let varv = 0; varv < 4; varv++) {
-        const stängda = rigg.page.locator(`${sel}:has(.ark-meny-pil:text-is("▸"))`);
-        const antal = await stängda.count();
-        if (!antal) break;
-        for (let i = 0; i < antal; i++) await stängda.nth(0).click().catch(() => {});
-        await rigg.page.waitForTimeout(150);
-      }
-    }
-    // Sista menyvalet är en affärsprocess (samma väg som lager-testet tar).
-    await rigg.page.locator(".ark-flow-menyval").last().click();
+    await öppnaUrMenyn(rigg.page, "Rekrytering");
     await rigg.page.waitForSelector(".ark-ap-nod", { timeout: 20_000 });
     await rigg.page.getByRole("button", { name: "✎ Redigera" }).click();
     await rigg.page.waitForTimeout(700);
@@ -241,7 +219,7 @@ describe.skipIf(!chromium)("markera flera affärsprocessobjekt med en ram", () =
 
   afterAll(async () => {
     await rigg?.stäng();
-    expect(flödenFingeravtryck(), "testerna ändrade flows/").toBe(flödenFöre);
+    if (rigg) expect(rigg.flöden(), "testerna ändrade flows/").toBe(rigg.flödenFöre);
   });
 
   it("ramen markerar alla objekt den nuddar", async () => {
