@@ -1,15 +1,25 @@
+# Månadsvis, och mindre uppdateringar samlade i en pull request per
+# paketsystem: varje pull request kör CI, och Actions-minuterna är begränsade.
+# Nya huvudversioner kommer var för sig. Säkerhetsuppdateringar kommer som
+# förut, direkt.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
+    groups:
+      sma-uppdateringar:
+        update-types: ["minor", "patch"]
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
+    groups:
+      sma-uppdateringar:
+        update-types: ["minor", "patch"]
     ignore:
       # Avbilden följer Nodes LTS-linje (jämna versioner). Dependabot föreslår
       # alltid senaste huvudversionen, även udda versioner utan långtidsstöd
@@ -21,5 +31,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
+    groups:
+      sma-uppdateringar:
+        update-types: ["minor", "patch"]
