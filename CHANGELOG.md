@@ -7,8 +7,13 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- (inget än)
+
+## 0.3.1 – 2026-10-26
+
 - Webbläsartesterna (`npm run test:browser`) går igen i en ren klon: de kör mot exempelpaketet i en egen tillfällig installation per rigg och följer dagens gränssnitt. Tester som gäller en installations egna processer hoppar över, utom när `ARK_E2E_INNEHALL` pekar ut installationens innehåll (det läggs då in i den tillfälliga kopian). e2e/ typkontrolleras (`tsconfig.e2e.json`) före körningen.
 - Ramarnas test jämför med flödesschemat så som det ritas (perspektivet döljer besluten) – det föll när `flows/` innehöll exempelpaketet.
+- Beroendena uppdaterade: @anthropic-ai/sdk 0.137, happy-dom 21.0.4 och tsx 4.23.15.
 
 ## 0.3.0 – 2026-10-23
 
