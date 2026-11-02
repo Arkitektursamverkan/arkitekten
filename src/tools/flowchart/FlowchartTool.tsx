@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   clearPositions,
+  allLanes,
   compileDraft,
   removeEdge,
   resetEdgeSides,
@@ -48,7 +49,7 @@ import type { NyProcessBegäran, VerktygsProps } from "@/shell/tools";
 import { ärNyBegäran } from "@/shell/begaran";
 import { FlowHeader } from "@/shell/FlowHeader";
 import { FlyttaKnapp } from "@/shell/FlyttaKnapp";
-import type { EdgeSide, NodeType, Perspective, TextPlacement } from "@/core/model";
+import type { EdgeSide, NodeType, Perspective, ProcessModel, TextPlacement } from "@/core/model";
 import { TYPE_LABEL, type ColorMode } from "./theme";
 import { FlowLibrary, type FlowLibraryHandle } from "./FlowLibrary";
 import { requestClaudeCodeDraft } from "./ai/bridge";
@@ -182,6 +183,9 @@ export function FlowchartTool({
   const [colorMode, setColorMode] = useState<ColorMode>("type");
   const [locked, setLocked] = useState(false);
   const [regenKey, setRegenKey] = useState(0);
+  /** Banor man dragit objekt ut ur i den här redigeringen – de ritas även tomma. */
+  const [behållnaBanor, setBehållnaBanor] = useState<ReadonlySet<string>>(new Set());
+  const filteredRef = useRef<ProcessModel | null>(null);
   const [showTrace, setShowTrace] = useState(false);
   const [showDraft, setShowDraft] = useState(false);
   const [showMall, setShowMall] = useState(false);
@@ -229,6 +233,7 @@ export function FlowchartTool({
   // Skalets meny markerar det flöde som redigeras – oavsett var det öppnades.
   useEffect(() => {
     meddelaAktivtFlöde(flowId);
+    setBehållnaBanor(new Set());
   }, [flowId]);
   /**
    * Samma id som en ref: AI-svaret kommer minuter efter att tolkningen
@@ -490,11 +495,16 @@ export function FlowchartTool({
    * upp den nya banan runt sig.
    */
   const onLaneChange = useCallback((id: string, laneId: string) => {
-    setDraft((d) =>
-      d.steps.some((s) => s.id === id)
-        ? updateStep(d, id, { laneId, position: null })
-        : setAutoLane(d, id, laneId),
-    );
+    const m = filteredRef.current;
+    const förra = m?.nodes.find((n) => n.id === id)?.laneId ?? m?.dataStores.find((ds) => ds.id === id)?.laneId;
+    if (förra) setBehållnaBanor((b) => new Set(b).add(förra));
+    // allLanes: en bana som bara fanns genom sina steg står kvar i modellen när den töms.
+    setDraft((d) => {
+      const med = { ...d, lanes: allLanes(d) };
+      return d.steps.some((s) => s.id === id)
+        ? updateStep(med, id, { laneId, position: null })
+        : setAutoLane(med, id, laneId);
+    });
   }, []);
 
   /**
@@ -599,6 +609,12 @@ export function FlowchartTool({
 
   const model = useMemo(() => compileDraft(draft), [draft]);
   const filtered = useMemo(() => filterByPerspective(model, perspective), [model, perspective]);
+  filteredRef.current = filtered;
+  /** Det som ritas på ytan. Bara här står tömda banor kvar – bilder och export läser `filtered`. */
+  const ritad = useMemo(
+    () => (behållnaBanor.size ? filterByPerspective(model, perspective, behållnaBanor) : filtered),
+    [model, perspective, behållnaBanor, filtered],
+  );
   /**
    * Figurförteckningen läser den FILTRERADE modellen – den bild som faktiskt
    * ritas. I verksamhetsvyn är systemstegen dolda, och då ska faktarutan inte
@@ -1596,7 +1612,7 @@ export function FlowchartTool({
               HÄR inne, så att de positioneras mot bilden och inte mot rubriken. */}
           <div className="ark-tool-stage">
             <FlowCanvas
-              model={filtered}
+              model={locked || läser ? filtered : ritad}
               locked={locked || läser}
               pageFormat={pageFormat}
               scale={scale}

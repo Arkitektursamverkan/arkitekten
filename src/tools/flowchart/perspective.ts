@@ -8,7 +8,15 @@
 
 import type { Perspective, ProcessModel } from "@/core/model";
 
-export function filterByPerspective(model: ProcessModel, p: Perspective): ProcessModel {
+/**
+ * `behållBanor` är banor som ritas även tomma: den man just dragit ut sista
+ * objektet ur ska stå kvar i redigeringen. Bilder och export skickar aldrig med den.
+ */
+export function filterByPerspective(
+  model: ProcessModel,
+  p: Perspective,
+  behållBanor?: ReadonlySet<string>,
+): ProcessModel {
   const keep = new Set(
     model.nodes.filter((n) => n.perspectives.includes(p)).map((n) => n.id),
   );
@@ -82,7 +90,9 @@ export function filterByPerspective(model: ProcessModel, p: Perspective): Proces
     // verksamhetsvyn sin slutnod. Banans perspektiv styr i praktiken redan vilka
     // noder som överlever (via `laneDefaultPerspectives`); tomma banor faller
     // bort på `laneUsed` som förut.
-    swimlanes: model.swimlanes.filter((l) => laneUsed.has(l.id)),
+    swimlanes: model.swimlanes
+      .filter((l) => laneUsed.has(l.id) || behållBanor?.has(l.id))
+      .map((l) => (laneUsed.has(l.id) ? l : { ...l, ritasTom: true })),
   };
 }
 

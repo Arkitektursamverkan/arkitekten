@@ -254,6 +254,8 @@ export interface MessageFlow {
 }
 
 export interface Swimlane {
+  /** Tom bana som ändå ritas: man har just dragit ut sista objektet i redigeringen. Sparas inte. */
+  ritasTom?: boolean;
   id: string;
   /** Visningsnamn, t.ex. "Användare", "Automatisering", "Ärendelagring". */
   title: string;
