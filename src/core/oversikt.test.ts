@@ -26,8 +26,8 @@ interface Fil {
   draft: ProcessDraft;
 }
 
-/** Innehållet (flows/) ligger inte i git – i en ren klon hoppas testerna över. */
-const HAR_FLÖDEN = fs.existsSync(KATALOG);
+/** Testerna läser en viss installations flöden, som inte ligger i git. Utan dem, som i en ren klon eller med bara exempelpaketet, hoppas de över. */
+const HAR_FLÖDEN = fs.existsSync(path.join(KATALOG, "avvikelse-byt-avdelning.json"));
 
 function alla(): Fil[] {
   if (!HAR_FLÖDEN) return [];

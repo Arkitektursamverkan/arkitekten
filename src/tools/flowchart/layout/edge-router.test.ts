@@ -337,8 +337,8 @@ describe("REGRESSION: pilspetsen möter alltid porten längs portens axel", () =
   // segmentet kom in i sidled, och pilspetsen (orient=auto) pekade åt höger
   // in i en topp-port. Rättad tre gånger på symptomnivå; nu är riktningen en
   // INVARIANT i routern och låst här, över alla riktiga flöden och format.
-  // Innehållet (flows/) ligger inte i git – i en ren klon hoppas testet över.
-  it.skipIf(!existsSync("flows"))("gäller varje kant i exempel- och sparade flöden, i alla format", async () => {
+  // Flödena ligger inte i git. Utan dem, som i en ren klon eller med bara exempelpaketet, hoppas testet över.
+  it.skipIf(!existsSync("flows/felanmalan-ny.json"))("gäller varje kant i exempel- och sparade flöden, i alla format", async () => {
     const fs = await import("node:fs");
     const { compileDraft } = await import("@/core/draft");
     const { filterByPerspective } = await import("@/tools/flowchart/perspective");

@@ -32,6 +32,8 @@ function ögonblicksbild(): Record<string, string> {
 
 /** Innehållet (flows/) ligger inte i git – i en ren klon hoppas testerna över. */
 const HAR_FLÖDEN = fs.existsSync("flows");
+/** Processnumreringen finns bara i en installations egna flöden, inte i exempelpaketet. */
+const HAR_NUMRERADE = HAR_FLÖDEN && fs.readdirSync("flows").some((f) => f.includes("uthyrning-av-nyproduktion"));
 
 const FÖRE = ögonblicksbild();
 
@@ -60,7 +62,7 @@ describe("flödestjänsten", () => {
     expect(new Set(d.flows.map((f: { familj: string }) => f.familj))).toContain("affarsprocess");
   });
 
-  it.skipIf(!HAR_FLÖDEN)("bygger en scen för en affärsprocess", async () => {
+  it.skipIf(!fs.existsSync("flows/ap-2-1-0-kohantering.json"))("bygger en scen för en affärsprocess", async () => {
     const d = await (await fetch(`${bas}/api/flows/ap-2-1-0-kohantering/scen`)).json();
     expect(d.ok).toBe(true);
     expect(d.scen.format).toBe("ark-scen");
@@ -93,7 +95,7 @@ describe("flödestjänsten", () => {
    * EA-portalen. Härleds det fel finns kopplingen inte, och en process visar
    * inget flödesschema utan att något går sönder synligt.
    */
-  it.skipIf(!HAR_FLÖDEN)("härleder processprefixet ur namnet", async () => {
+  it.skipIf(!HAR_NUMRERADE)("härleder processprefixet ur namnet", async () => {
     const d = await (await fetch(`${bas}/api/flows`)).json();
     const ap = d.flows.filter((f: { familj: string }) => f.familj === "affarsprocess");
     expect(ap.length).toBeGreaterThan(0);

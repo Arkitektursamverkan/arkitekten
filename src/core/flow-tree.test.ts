@@ -13,8 +13,8 @@ import {
 } from "./flow-tree";
 import { flowActor, flowFamily, type FlowSummary } from "./flow-store";
 
-/** Innehållet (flows/) ligger inte i git – i en ren klon hoppas testerna över. */
-const HAR_FLÖDEN = fs.existsSync(path.resolve(__dirname, "../../flows"));
+/** Testerna läser en viss installations flöden, som inte ligger i git. Utan dem, som i en ren klon eller med bara exempelpaketet, hoppas de över. */
+const HAR_FLÖDEN = fs.existsSync(path.resolve(__dirname, "../../flows/avvikelse-byt-avdelning.json"));
 
 /** Menyn ska stämma med de VERKLIGA flödena, inte med påhittade exempel. */
 function riktigaFlöden(): FlowSummary[] {
