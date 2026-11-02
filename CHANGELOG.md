@@ -7,6 +7,10 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- (inget än)
+
+## 0.3.2 – 2026-11-02
+
 - Systemprocess: banan man drar ut sista objektet ur står kvar under redigeringen, så att bytet syns och objektet går att dra tillbaka. Tomma banor visas inte i färdiga bilder.
 - `@anthropic-ai/sdk` 1.x (API-versionen 2026-10-21) och elkjs 0.12.1.
 
