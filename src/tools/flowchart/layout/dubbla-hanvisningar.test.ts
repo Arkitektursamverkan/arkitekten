@@ -15,8 +15,8 @@ const optioner = (skala: number) => ({
   spacing: 1,
 });
 
-// Innehållet (flows/) ligger inte i git – i en ren klon hoppas testerna över.
-describe.skipIf(!fs.existsSync("flows"))("dubbla sidhänvisningar", () => {
+// Testerna läser en viss installations flöde, som inte ligger i git. Utan det hoppas de över.
+describe.skipIf(!fs.existsSync("flows/avvikelse-byt-avdelning.json"))("dubbla sidhänvisningar", () => {
   /**
    * REGRESSION: regeln fanns bara inuti skriptet som skapade avvikelseflödena.
    * "Byt avdelning/enhet" ändrades efteråt i appen (Nej-kanten drogs om), snittet
