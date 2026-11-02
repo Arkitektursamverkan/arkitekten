@@ -2,12 +2,14 @@
 # paketsystem: varje pull request kör CI, och Actions-minuterna är begränsade.
 # Nya huvudversioner kommer var för sig. Säkerhetsuppdateringar kommer som
 # förut, direkt.
+# Inga automatiska rebaser: varje rebase kör CI igen. Vid konflikt: "@dependabot rebase".
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "monthly"
+    rebase-strategy: "disabled"
     open-pull-requests-limit: 5
     groups:
       sma-uppdateringar:
@@ -16,6 +18,7 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    rebase-strategy: "disabled"
     open-pull-requests-limit: 5
     groups:
       sma-uppdateringar:
@@ -32,6 +35,7 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    rebase-strategy: "disabled"
     open-pull-requests-limit: 5
     groups:
       sma-uppdateringar:
