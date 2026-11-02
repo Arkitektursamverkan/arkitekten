@@ -1390,7 +1390,7 @@ function makePool(
   };
 }
 
-/** Lanes i ordning; behåller bara de som faktiskt har noder. */
+/** Lanes i ordning; behåller bara de som har noder, eller ska ritas tomma i redigeringen. */
 function orderedLanes(model: ProcessModel) {
   // Datalager är inte noder men bor ändå i en lane – utan dem här försvinner
   // en lane som bara innehåller artefakter, och artefakterna hamnar utanför bild.
@@ -1398,7 +1398,7 @@ function orderedLanes(model: ProcessModel) {
     ...model.nodes.map((n) => n.laneId),
     ...model.dataStores.map((ds) => ds.laneId),
   ]);
-  return model.swimlanes.filter((l) => usedLanes.has(l.id)).sort((a, b) => a.order - b.order);
+  return model.swimlanes.filter((l) => usedLanes.has(l.id) || l.ritasTom).sort((a, b) => a.order - b.order);
 }
 
 /**

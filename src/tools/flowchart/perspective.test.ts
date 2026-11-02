@@ -119,6 +119,16 @@ describe("filterByPerspective – bevarar kantegenskaper", () => {
     expect(vy.swimlanes.every((l) => bebodda.has(l.id))).toBe(true);
   });
 
+  it("REGRESSION: banan man drog ut sista objektet ur står kvar i redigeringen", () => {
+    // Banan försvann, så objektet hamnade på samma plats på skärmen och det såg
+    // ut som att draget inte gjort något. Utan listan ritas tomma banor inte.
+    const modell = compileDraft(draft);
+    const tom = { ...modell.swimlanes[0], id: "Tom", title: "Tom" };
+    const medTom = { ...modell, swimlanes: [...modell.swimlanes, tom] };
+    expect(filterByPerspective(medTom, "system").swimlanes.some((l) => l.id === "Tom")).toBe(false);
+    expect(filterByPerspective(medTom, "system", new Set(["Tom"])).swimlanes.some((l) => l.id === "Tom")).toBe(true);
+  });
+
   it("påverkar inte kanter utan valda sidor", () => {
     const model = compileDraft(draft);
     const vy = filterByPerspective(model, "system");
