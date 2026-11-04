@@ -106,3 +106,48 @@ export async function packaZip(
   }
   return ut;
 }
+
+async function inflate(data: Uint8Array): Promise<Uint8Array> {
+  const ström = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(ström).arrayBuffer());
+}
+
+/**
+ * Packar upp ett arkiv (sökväg → innehåll). Läser den centrala katalogen, så
+ * poster med "data descriptor" (storleken efter datat) går också bra.
+ * Klarar okomprimerat och deflate – det andra program skriver. Kastar ett
+ * begripligt fel för en fil som inte är ett zip-arkiv.
+ */
+export async function läsZip(arkiv: Uint8Array): Promise<Record<string, Uint8Array>> {
+  const dv = new DataView(arkiv.buffer, arkiv.byteOffset, arkiv.byteLength);
+  let slut = -1;
+  for (let i = arkiv.length - 22; i >= Math.max(0, arkiv.length - 22 - 0xffff); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) {
+      slut = i;
+      break;
+    }
+  }
+  if (slut < 0) throw new Error("Filen är inte ett zip-arkiv.");
+  const antal = dv.getUint16(slut + 10, true);
+  let pos = dv.getUint32(slut + 16, true);
+  const avkod = new TextDecoder();
+  const ut: Record<string, Uint8Array> = {};
+  for (let i = 0; i < antal; i++) {
+    if (dv.getUint32(pos, true) !== 0x02014b50) throw new Error("Arkivets katalog är trasig.");
+    const metod = dv.getUint16(pos + 10, true);
+    const packadStorlek = dv.getUint32(pos + 20, true);
+    const namnLängd = dv.getUint16(pos + 28, true);
+    const extraLängd = dv.getUint16(pos + 30, true);
+    const kommentarLängd = dv.getUint16(pos + 32, true);
+    const lokal = dv.getUint32(pos + 42, true);
+    const namn = avkod.decode(arkiv.subarray(pos + 46, pos + 46 + namnLängd));
+    pos += 46 + namnLängd + extraLängd + kommentarLängd;
+    if (namn.endsWith("/")) continue;
+    const start = lokal + 30 + dv.getUint16(lokal + 26, true) + dv.getUint16(lokal + 28, true);
+    const data = arkiv.subarray(start, start + packadStorlek);
+    if (metod === 0) ut[namn] = data.slice();
+    else if (metod === 8) ut[namn] = await inflate(data);
+    else throw new Error(`Okänd komprimering i ${namn}.`);
+  }
+  return ut;
+}

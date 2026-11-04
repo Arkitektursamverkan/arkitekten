@@ -312,6 +312,35 @@ parser, AI-brygga, historik och lagring. Plan och symbolkatalog:
   placerat objekt automatiskt – det ritar om flödet och ser ut som att objekt
   försvinner (produktägarens uttryckliga krav).
 
+## BMT-export (.bmt)
+
+Knappen **BMT (.bmt)** under Export → Som fil i affärsprocessverktyget
+(`tools/affarsprocess/bmt-export.ts`, byggaren `tools/affarsprocess/bmt.ts`):
+ett modellarkiv (zip med XML) som ett modelleringsverktyg med samma metod
+läser in. Produkten NÄMNER INTE det verktyget (`server/neutralitet.test.ts`).
+
+- **Allt repositoryspecifikt kommer ur MALLEN** – en vanlig modellexport ur
+  mål-repositoryt som installationen pekar ut med `ARK_BMT_MALL`
+  (`server/bmt-mall.ts`, läses vid varje begäran). XML-namnrymden, språket,
+  skaparen, beskrivningstypen, profilen (`config.xml`) och schemana tas
+  ordagrant ur den (`inställningarUrMall`). Utan mall visas ingen knapp
+  (`bmtMall` i `/__ark/status`). En fil utan profil, scheman och skapare gick
+  inte att läsa in (provat 2026-11-04).
+- **Webbläsaren bygger filen**: `/__ark/bmt/mall` → `läsZip` →
+  `byggBmt` → nedladdning. Zip och UUID v5 är egen kod (`core/zip.ts`,
+  `core/namn-id.ts`) – inga beroenden.
+- **Stabila id:n** (invariant 2): allt härleds ur flödets och objektens id:n,
+  så en ny export uppdaterar modellen i stället för att kopiera. Roller,
+  intressenter, IT-stöd, arkiv och platser är gemensamma objekt per NAMN.
+  Byt aldrig `RYMD` i bmt.ts – då blir varje export en kopia.
+- **Vägarna är skärmens**: `apRelationsVäg` (layout-affarsprocess.ts) är EN
+  plats för SVG-exporten och BMT-exporten. Ändpunkterna flyttas bara till
+  målets mindre ikonrutor (`tillKant`).
+- Metoden översätts rakt: FLOW, HUKI → RACI_*, IT-stöd/arkiv →
+  INTERRELATES_WITH (pilen vänd), krav/tid → ADRESSES. Kravets rutin blir en
+  numrerad lista i beskrivningen, och checklistor lyfts först
+  (`lyftUtChecklistor`). Skript utan appen: `scripts/exportera-bmt.mts`.
+
 ## Publicering i EA-portalen
 
 Knappen **Publicera i EA-portalen** i affärsprocessens huvud

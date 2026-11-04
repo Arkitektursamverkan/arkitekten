@@ -84,6 +84,7 @@ import { PresentationsKnapp } from "@/tools/ramar/PresentationsKnapp";
 import { PubliceraKnapp } from "./Publicera";
 import { useBehörighet } from "@/shell/behorighet-hook";
 import { ÖppnaVisualisering } from "@/tools/ramar/OppnaVisualisering";
+import { laddaNerBmt, useBmtMall } from "./bmt-export";
 
 const PAGE_ORDER: PageFormatId[] = ["word", "free", "wide", "a4l"];
 
@@ -466,6 +467,31 @@ export function ApTool({
   );
 
   const slug = (exportModel.title || "process").replace(/\s+/g, "_").toLowerCase();
+
+  // BMT-exporten (bmt-export.ts): bara när installationen har en mall.
+  const bmtMall = useBmtMall();
+  const [bmtArbetar, setBmtArbetar] = useState(false);
+  const [bmtFel, setBmtFel] = useState<string | null>(null);
+  const exporteraBmt = useCallback(async () => {
+    setBmtArbetar(true);
+    setBmtFel(null);
+    try {
+      await laddaNerBmt(
+        {
+          draft: exportDraft,
+          flödeId: sparatFlöde?.id ?? null,
+          namn: flowName || exportModel.title || "Process",
+          // Fastslagen version: dess sparning. Det jag ser: sparningen, om inget är ändrat sedan.
+          sparad: exporterarFastslagen ? fastslagen!.version.savedAt : dirty ? undefined : sparatFlöde?.savedAt,
+        },
+        `${slug}.bmt`,
+      );
+    } catch (e) {
+      setBmtFel(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBmtArbetar(false);
+    }
+  }, [exportDraft, sparatFlöde, flowName, exportModel.title, exporterarFastslagen, fastslagen, dirty, slug]);
 
   // ---- Direktredigering på ytan (fas 5).
   const [valdNod, setValdNod] = useState<string | null>(null);
@@ -908,7 +934,18 @@ export function ApTool({
                     >
                       Mellanlager JSON
                     </button>
+                    {bmtMall && (
+                      <button
+                        className="ark-btn"
+                        onClick={() => void exporteraBmt()}
+                        disabled={bmtArbetar}
+                        title="Modellarkiv att läsa in i modelleringsverktyget (Import content). En ny export av samma process uppdaterar modellen där."
+                      >
+                        {bmtArbetar ? "Bygger …" : "BMT (.bmt)"}
+                      </button>
+                    )}
                   </div>
+                  {bmtFel && <p className="ark-hint ark-hint--warn">{bmtFel}</p>}
                 </RullgardinDel>
               </Rullgardin>
             </>

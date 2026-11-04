@@ -10,14 +10,8 @@
  */
 
 import type { ApRelationKind } from "@/core/affarsprocess";
-import { apPortPunkt, type ApLayout } from "./layout-affarsprocess";
-import {
-  labelBesideMid,
-  pickEdgeSides,
-  pointsToPath,
-  routeEdge,
-  type Rect,
-} from "../flowchart/layout/edge-router";
+import { apRelationsVäg, type ApLayout } from "./layout-affarsprocess";
+import { labelBesideMid, pointsToPath, type Rect } from "../flowchart/layout/edge-router";
 import {
   apNodeSvg,
   apMarkerDefs,
@@ -87,31 +81,11 @@ export function renderApSvg(lo: ApLayout, opts?: ApSvgOptions): string {
     if (a.page !== b.page) continue;
     if (!synligaIds.has(rel.source) || !synligaIds.has(rel.target)) continue;
 
-    // Samma förval som canvasen läser ur layouten – annars kunde exporten
-    // rita in-objektets pil åt ett annat håll än skärmen.
-    const [sa, sb] = pickEdgeSides(a, b, lo.sides[rel.id]);
     const obstacles: Rect[] = [];
     for (const [id, r] of allaBoxar) {
       if (id !== rel.source && id !== rel.target) obstacles.push(r);
     }
-    // Layoutens portpunkter vinner (satellitstrecken) – samma tabell som
-    // canvasen läser, annars går pilen olika på skärm och i fil.
-    const utpekad = lo.ports[rel.id];
-    // Brytpunkten användaren dragit ligger i FRIA koordinater (invariant 5) och
-    // översätts med källans dx. Utan den ritade filen den automatiska vägen
-    // medan skärmen visade den dragna – samma sorts glidning som en gång fick
-    // hela edge-routern att flytta hit.
-    const wp = lo.sides[rel.id]?.waypoint;
-    const val = lo.sides[rel.id];
-    const pts = routeEdge({
-      from: utpekad?.from ?? apPortPunkt(a, sa, val?.sourcePos),
-      fromSide: sa,
-      to: utpekad?.to ?? apPortPunkt(b, sb, val?.targetPos),
-      toSide: sb,
-      obstacles,
-      via: wp ? { x: wp.x + a.dx, y: wp.y + a.dy } : utpekad?.via,
-      via2: wp && val?.waypoint2 ? { x: val.waypoint2.x + a.dx, y: val.waypoint2.y + a.dy } : null,
-    });
+    const pts = apRelationsVäg(lo, rel, a, b, obstacles);
     const annotering = ärAnnotering(rel.kind);
     // Färg och pilspets kommer ur formmodulen – samma regler som canvasen och
     // scenen läser. HUKI har en färg per ansvarstyp, och alla spetsar är fyllda.
@@ -126,8 +100,9 @@ export function renderApSvg(lo: ApLayout, opts?: ApSvgOptions): string {
     if (text) {
       // Vid böjen när layouten pekat ut en (gemensam linje per aktivitet),
       // annars mitt på vägen – samma regel som canvasen.
+      const utpekad = lo.ports[rel.id];
       const p =
-        utpekad?.via && !wp
+        utpekad?.via && !lo.sides[rel.id]?.waypoint
           ? { x: utpekad.via.x + 6, y: utpekad.via.y, sida: "höger" as const }
           : labelBesideMid(pts);
       const anchor = p.sida === "höger" ? "start" : "middle";
