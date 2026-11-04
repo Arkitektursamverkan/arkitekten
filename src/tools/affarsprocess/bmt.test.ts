@@ -1,0 +1,118 @@
+import { describe, expect, it } from "vitest";
+import { textToDraft } from "@/tools/flowchart/parser/toDraft";
+import { compileAp } from "@/core/affarsprocess";
+import { uuidUrNamn } from "@/core/namn-id";
+import { crc32, läsZip, packaZip } from "@/core/zip";
+import { layoutAp } from "./layout-affarsprocess";
+import { byggBmt, byggBmtFiler, inställningarUrMall } from "./bmt";
+
+const SPRÅK = "11111111-2222-4333-8444-555555555555";
+const TYP = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+const NS = "urn:exempel:mt-export";
+
+function filer(text: string, flödeId = "ap-prov") {
+  const d = { ...textToDraft(text), diagramType: "affarsprocess" as const };
+  return byggBmtFiler(layoutAp(compileAp(d)), { flödeId, namn: "Prov", sparad: new Date(1_790_000_000_000) }, { namnrymd: NS, språk: SPRÅK, beskrivningstyp: TYP });
+}
+
+const TEXT =
+  "Prov\nBehov finns → Uppdatera brandväggar [Roll: Intern IT H] [IT: Fortinet] [Krav: Rutin – ☐ Ta backup ☐ Ladda ner firmware] → Verifiera åtgärd [Roll: Intern IT U] → Klart";
+
+describe("namn-id och zip", () => {
+  it("ger samma UUID v5 som RFC 4122:s exempel", () => {
+    expect(uuidUrNamn("6ba7b810-9dad-11d1-80b4-00c04fd430c8", "python.org")).toBe("886313e1-3b8a-5372-9b90-0c9aee199e5d");
+  });
+  it("räknar CRC32 rätt och skriver ett arkiv som börjar och slutar som zip", async () => {
+    expect(crc32(new TextEncoder().encode("123456789"))).toBe(0xcbf43926);
+    const z = await packaZip({ "a.txt": "hej" });
+    expect([...z.slice(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+    expect(new DataView(z.buffer).getUint32(z.length - 22, true)).toBe(0x06054b50);
+  });
+});
+
+describe("byggBmtFiler", () => {
+  const f = filer(TEXT);
+  const modell = String(Object.entries(f).find(([k]) => k.startsWith("models/"))![1]);
+  const symboler = Object.entries(f).filter(([k]) => k.startsWith("symbols/")).map(([, v]) => String(v));
+
+  it("har en modell, språket och arkivets kringfiler", () => {
+    expect(Object.keys(f)).toEqual(expect.arrayContaining([`languages/${SPRÅK}.xml`, "version-info.txt", "data.xml", "breakdowns.xml", "removal-history.xml"]));
+    expect(modell).toContain('type="PROCESS_MODEL"');
+  });
+
+  it("översätter metoden: HUKI blir RACI, IT-stödet pekar på aktiviteten, kravet adresserar", () => {
+    expect(modell).toContain('type="RACI_ACCOUNTABLE"');
+    expect(modell).toContain('type="RACI_RESPONSIBLE"');
+    expect(modell).toContain('type="INTERRELATES_WITH"');
+    expect(modell).toContain('type="ADRESSES"');
+    expect(modell).toContain('type="FLOW"');
+  });
+
+  it("en roll på två aktiviteter är ETT objekt med två rutor", () => {
+    const roll = symboler.filter((s) => s.includes('type="ROLE"'));
+    expect(roll).toHaveLength(1);
+    const sid = roll[0].match(/uuid="([^"]+)"/)![1];
+    expect(modell.split(`symbol="${sid}"`).length - 1).toBe(2);
+  });
+
+  it("kravets rutin blir en numrerad lista i beskrivningen", () => {
+    const krav = symboler.find((s) => s.includes('type="REQUIREMENT"'))!;
+    expect(krav).toContain(`type="${TYP}"`);
+    expect(krav).toContain("&lt;ol&gt;&lt;li&gt;Ta backup&lt;/li&gt;");
+  });
+
+  it("samma flöde ger samma id:n – en ny export uppdaterar i stället för att kopiera", () => {
+    expect(filer(TEXT)).toEqual(f);
+    expect(Object.keys(filer(TEXT, "ap-annat")).find((k) => k.startsWith("models/"))).not.toBe(
+      Object.keys(f).find((k) => k.startsWith("models/")),
+    );
+  });
+});
+
+describe("zip fram och tillbaka", () => {
+  it("läser tillbaka det som packats, okomprimerat och komprimerat", async () => {
+    const filer = { "a/å.xml": "<x>hej</x>".repeat(50), "b.bin": new Uint8Array([0, 1, 2, 255]) };
+    for (const komprimera of [false, true]) {
+      const ut = await läsZip(await packaZip(filer, new Date(), { komprimera }));
+      expect(new TextDecoder().decode(ut["a/å.xml"])).toBe(filer["a/å.xml"]);
+      expect([...ut["b.bin"]]).toEqual([0, 1, 2, 255]);
+    }
+  });
+  it("säger till begripligt när filen inte är ett arkiv", async () => {
+    await expect(läsZip(new TextEncoder().encode("inte ett arkiv"))).rejects.toThrow("inte ett zip-arkiv");
+  });
+});
+
+describe("inställningarUrMall", () => {
+  const kod = (s: string) => new TextEncoder().encode(s);
+  const ANV = "99999999-8888-4777-8666-555555555555";
+  const mall = {
+    "models/schema.xsd": kod(`<xs:schema targetNamespace="${NS}"/>`),
+    [`languages/${SPRÅK}.xml`]: kod(`<mt-language><title>Svenska</title></mt-language>`),
+    [`users/${ANV}.xml`]: kod("<mt-user/>"),
+    [`description-types/${TYP}.xml`]: kod(`<x><language-data><title language="${SPRÅK}">Beskrivning</title></language-data></x>`),
+    "models/m.xml": kod("<mt-model><font-name>Exempelsans</font-name></mt-model>"),
+    "config.xml": kod("<profil/>"),
+  };
+
+  it("hämtar namnrymd, språk, skapare, beskrivningstyp och typsnitt ur mallen", () => {
+    const inst = inställningarUrMall(mall);
+    expect(inst).toMatchObject({ namnrymd: NS, språk: SPRÅK, beskrivningstyp: TYP, typsnitt: "Exempelsans" });
+    expect(inst.användare?.id).toBe(ANV);
+  });
+
+  it("lägger mallens profil, användare och scheman i arkivet", async () => {
+    const d = { ...textToDraft(TEXT), diagramType: "affarsprocess" as const };
+    const arkiv = await läsZip(
+      await byggBmt(layoutAp(compileAp(d)), { flödeId: "ap-prov", namn: "Prov", sparad: new Date() }, inställningarUrMall(mall)),
+    );
+    expect(Object.keys(arkiv)).toEqual(expect.arrayContaining(["config.xml", `users/${ANV}.xml`, "models/schema.xsd"]));
+    const modell = new TextDecoder().decode(Object.entries(arkiv).find(([k]) => /^models\/[0-9a-f-]{36}\.xml$/.test(k))![1]);
+    expect(modell).toContain(`xmlns="${NS}"`);
+    expect(modell).toContain(`<created-by>${ANV}</created-by>`);
+  });
+
+  it("en mall utan modellschema avvisas med ett begripligt fel", () => {
+    expect(() => inställningarUrMall({})).toThrow("modellschemat");
+  });
+});

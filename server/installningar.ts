@@ -10,6 +10,7 @@
  * rad per problem, en VARNING loggas. Vite-dev-servern loggar båda.
  */
 
+import { bmtMallFil, läsBmtMall } from "./bmt-mall";
 import fs from "node:fs";
 import path from "node:path";
 import { authKonfigUrMiljö, saknasFörEntra } from "./auth";
@@ -92,6 +93,8 @@ export function kontrollera(env: NodeJS.ProcessEnv = process.env): Kontroll {
 
   if (!env.ANTHROPIC_API_KEY?.trim() && !på(env.ARK_UTVECKLARLAGE))
     varningar.push("AI-stödet är av (ingen ANTHROPIC_API_KEY).");
+  if (bmtMallFil(env) && !läsBmtMall(env))
+    varningar.push("ARK_BMT_MALL pekar inte på en läsbar modellexport (.bmt) – BMT-exporten är av.");
   if (env.EA_API_KEY?.trim() && !env.EA_WEBB_URL?.trim())
     varningar.push("EA_WEBB_URL saknas – publiceringsrutan kan inte länka till portalen.");
   return { fel, varningar };

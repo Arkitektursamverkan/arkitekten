@@ -18,7 +18,7 @@
 
 import type { ApModel, ApNode, ApNodeKind, ApRelation } from "@/core/affarsprocess";
 import { edgeKey, type EdgeSides } from "@/core/draft";
-import type { Point, Side } from "../flowchart/layout/edge-router";
+import { pickEdgeSides, routeEdge, type Point, type Rect, type Side } from "../flowchart/layout/edge-router";
 import { portPoint } from "../flowchart/render/edge-geometry";
 import { BASE_DIMS } from "../flowchart/layout/layout";
 import {
@@ -195,6 +195,36 @@ export function apPortPunkt(n: ApLaidOutNode, side: Side, pos = 0.5): Point {
     ? { id: n.node.id, x: n.x + i.x, y: n.y + i.y, w: i.w, h: i.h }
     : { id: n.node.id, x: n.x, y: n.y, w: n.w, h: n.h };
   return portPoint(ruta, side, pos);
+}
+
+/**
+ * Relationens VÄG genom utlägget – punkterna som ritas. En plats för alla
+ * exporter (SVG, .bmt): samma förval av sidor (`lo.sides`), samma portpunkter
+ * som layouten äger (`lo.ports`, satelliternas streck) och användarens dragna
+ * brytpunkter, som ligger i FRIA koordinater och översätts med källans dx/dy
+ * (invariant 5). Utan den ritade filen den automatiska vägen medan skärmen
+ * visade den dragna. `hinder` är rutorna vägen ska gå runt.
+ */
+export function apRelationsVäg(
+  lo: ApLayout,
+  rel: ApRelation,
+  a: ApLaidOutNode,
+  b: ApLaidOutNode,
+  hinder: Rect[],
+): Point[] {
+  const val = lo.sides[rel.id];
+  const [sa, sb] = pickEdgeSides(a, b, val);
+  const utpekad = lo.ports[rel.id];
+  const wp = val?.waypoint;
+  return routeEdge({
+    from: utpekad?.from ?? apPortPunkt(a, sa, val?.sourcePos),
+    fromSide: sa,
+    to: utpekad?.to ?? apPortPunkt(b, sb, val?.targetPos),
+    toSide: sb,
+    obstacles: hinder,
+    via: wp ? { x: wp.x + a.dx, y: wp.y + a.dy } : utpekad?.via,
+    via2: wp && val?.waypoint2 ? { x: val.waypoint2.x + a.dx, y: val.waypoint2.y + a.dy } : null,
+  });
 }
 
 /* ------------------------------------------------------------------ */

@@ -69,6 +69,7 @@ import { Inloggningsspärr, Kontofel, Kontolager, somAnvändare, utåt } from ".
 import { exempelpaket, importera } from "./innehallspaket.mjs";
 import { organisation, organisationUrMiljö, sättOrganisation } from "../src/core/organisation";
 import { skapaUtseende, type UtseendeKälla } from "./utseende";
+import { läsBmtMall } from "./bmt-mall";
 import {
   ärAdmin,
   kanLäsa,
@@ -580,7 +581,27 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
           // --- Vem svarar? Knapparna visar olika besked beroende på vägen.
           if (url === "/status" && req.method === "GET") {
             // `claudeCode`: om kostnadsrutan får erbjuda Claude Code i stället.
-            json(res, 200, { ok: true, besvaras: aiLäge(utvecklarläge), claudeCode: utvecklarläge });
+            json(res, 200, {
+              ok: true,
+              besvaras: aiLäge(utvecklarläge),
+              claudeCode: utvecklarläge,
+              // Finns en mall för BMT-exporten? Utan den visas inte knappen.
+              bmtMall: läsBmtMall() !== null,
+            });
+            return;
+          }
+
+          // --- Mallen för BMT-exporten (server/bmt-mall.ts). Webbläsaren bygger filen.
+          if (url === "/bmt/mall" && req.method === "GET") {
+            const mall = läsBmtMall();
+            if (!mall) {
+              json(res, 404, { ok: false, error: "Installationen har ingen mall för BMT-exporten (ARK_BMT_MALL)." });
+              return;
+            }
+            res.statusCode = 200;
+            res.setHeader("content-type", "application/zip");
+            res.setHeader("cache-control", "no-store");
+            res.end(mall);
             return;
           }
 
