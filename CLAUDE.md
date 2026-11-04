@@ -292,6 +292,15 @@ parser, AI-brygga, historik och lagring. Plan och symbolkatalog:
   i ApCanvas) – det är det enda klick läsläget släpper igenom. Nyckeln är ett
   id, så den flyttas med vid namnbyte (`renameSatellit`) och när ett fritt krav
   knyts in (`flyttaPosition` i lagg-till). Skriv bara via `sättRutin`.
+  En CHECKLISTA i kravet – `[Krav: Rutin X – ☐ moment ☐ moment]`, så skriver
+  man och AI:n en rutin i löptexten – lyfts till rutinen av
+  `lyftUtChecklistor` (`core/affarsprocess.ts`; delningen är `delaChecklista`
+  i `core/rutin.ts`): kravet får namnet före rutorna, rutinen ett moment per
+  ruta. Båda tolkarna (`textToDraft`, `ai/schema.ts`) kör lyftet; ett sparat
+  flöde lyfts per krav när man trycker "Skapa rutin ur checklistan" i
+  inspektören. En befintlig rutin skrivs aldrig över. Inne i hakparenteser
+  skyddar regelparsern streck, pilar och parenteser (`SKYDD_HAK`), så en
+  satellit blir aldrig steg eller gren.
 - **Flödesschemat har samma regel**: `draft.fria` bär de steg som placerats ur
   verktygsraden. De ritas men kedjas inte in och får inget auto-slut; `knytIn`
   (anropas av `addManualEdge`) släpper dem loss OCH undertrycker den automatiska

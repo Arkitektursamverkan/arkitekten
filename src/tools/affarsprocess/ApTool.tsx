@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { compileAp, sättRutin, type ApNodeKind } from "@/core/affarsprocess";
+import { compileAp, idEfterLyft, lyftUtChecklistor, sättRutin, type ApNodeKind } from "@/core/affarsprocess";
 import { apFigurer } from "./figurer";
 import { Figurförteckning } from "@/shell/Figurforteckning";
 import {
@@ -472,6 +472,21 @@ export function ApTool({
   /** Kravet vars rutin visas (null = rutinvyn stängd). */
   const [rutinNod, setRutinNod] = useState<string | null>(null);
   const rutinKrav = rutinNod ? model.nodes.find((n) => n.id === rutinNod && n.kind === "krav") : undefined;
+  /**
+   * Öppnar rutinen bakom ett krav. Bär kravet en inskriven checklista
+   * ("Rutin X – ☐ a ☐ b") och ingen rutin, görs checklistan först om till
+   * rutinen (`lyftUtChecklistor`) – i EN setDraft, så ångra tar tillbaka det.
+   */
+  const öppnaRutin = useCallback(
+    (nodId: string) => {
+      const nytt = idEfterLyft(draft, nodId);
+      if (nytt && !model.nodes.find((n) => n.id === nodId)?.rutin) {
+        setDraft((d) => ({ ...lyftUtChecklistor(d, nodId), meta: { ...d.meta, origin: "manual" } }));
+        setRutinNod(nytt);
+      } else setRutinNod(nodId);
+    },
+    [draft, model, setDraft],
+  );
 
   // ---- Paletten: valt objekt placeras med nästa klick på ytan. Esc avbryter.
   const [palettVal, setPalettVal] = useState<ApNodeKind | null>(null);
@@ -1272,7 +1287,7 @@ export function ApTool({
                 nodeId={valdNod}
                 onChange={setDraft}
                 onClose={() => setValdNod(null)}
-                onRutin={setRutinNod}
+                onRutin={öppnaRutin}
               />
             )}
             {rutinKrav && (

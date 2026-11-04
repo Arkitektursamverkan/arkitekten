@@ -22,6 +22,7 @@ import {
 } from "@/core/draft";
 import type { GatewayKind, NodeType, Swimlane } from "@/core/model";
 import { extraheraAp } from "../parser/affarsprocess-syntax";
+import { lyftUtChecklistor } from "@/core/affarsprocess";
 
 /** Alla nodtyper AI:n får välja mellan (speglar NodeType i model.ts). */
 const NODE_TYPES: NodeType[] = [
@@ -206,7 +207,9 @@ export function toDraft(res: AiDraftResponse, rawText: string): ProcessDraft {
     };
   });
 
-  return {
+  // En checklista i ett krav ("[Krav: Rutin X – ☐ a ☐ b]") blir kravets
+  // rutin – samma lyft som regelparsern gör.
+  return lyftUtChecklistor({
     title: res.title,
     subtitle: orUndefined(res.subtitle),
     lanes,
@@ -221,5 +224,5 @@ export function toDraft(res: AiDraftResponse, rawText: string): ProcessDraft {
         .filter((t): t is string => Boolean(t)),
       warnings: [],
     },
-  };
+  });
 }

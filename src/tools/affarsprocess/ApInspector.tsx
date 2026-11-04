@@ -9,6 +9,7 @@
  * panel, så allt kring en aktivitet redigeras på ett ställe.
  */
 
+import { harChecklista } from "@/core/rutin";
 import { useRef, useState } from "react";
 import {
   renameSatellit,
@@ -154,8 +155,14 @@ export function ApInspector({ draft, model, nodeId, onChange, onClose, onRutin }
     <div className="ark-ap-satgrupp">
       <div className="ark-section-title">Rutin · {nod.label}</div>
       <button className="ark-btn" onClick={() => onRutin(nodeId)}>
-        {nod.rutin ? "Visa rutinen" : "Skapa rutin"}
+        {nod.rutin ? "Visa rutinen" : harChecklista(nod.label) ? "Skapa rutin ur checklistan" : "Skapa rutin"}
       </button>
+      {!nod.rutin && harChecklista(nod.label) && (
+        <p className="ark-hint">
+          Kravet har en checklista i namnet. Den blir kravets rutin – ett moment per ruta – och
+          kravet behåller namnet före rutorna.
+        </p>
+      )}
     </div>
   );
 

@@ -126,3 +126,42 @@ export function underpunktSort(under: readonly string[]): "val" | "steg" {
 export function ärUpplysning(text: string): boolean {
   return /^(om|obs|tips|notera)\b/i.test(text.trim()) || /^\S+(\s\S+)?\s+[-–]\s+\S/.test(text.trim());
 }
+
+/* ------------------------------------------------------------------ */
+/* Checklistan i ett krav – "[Krav: Rutin X – ☐ moment ☐ moment]"      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Kryssrutorna som inleder ett moment i en checklista. Både tomma och
+ * förbockade godtas – bocken hör till läsningen, inte till rutinen, så en
+ * inklistrad "☑" blir ett vanligt moment.
+ */
+const KRYSSRUTA = /[☐☑☒□■✓✔]/;
+const KRYSSRUTOR = /\s*[☐☑☒□■✓✔]\s*/;
+
+/** Sant när kravets text bär en checklista som kan bli en rutin. */
+export function harChecklista(text: string): boolean {
+  return KRYSSRUTA.test(text);
+}
+
+/**
+ * Delar ett krav med inskriven checklista i kravets NAMN och rutinens TEXT:
+ *
+ *   "Rutin uppdatering brandväggar – ☐ Ladda ner firmware ☐ Ta backup"
+ *     → { namn: "Rutin uppdatering brandväggar",
+ *         rutin: "Ladda ner firmware\nTa backup" }
+ *
+ * Så skriver man – och AI:n – en checklista i löptexten, där rutinen inte
+ * har någon egen plats. Ett streck eller kolon mellan namnet och första
+ * rutan skalas bort. Saknas namn före rutorna (texten BÖRJAR med en ruta)
+ * heter kravet "Rutin". Returnerar null när texten inte har någon checklista.
+ */
+export function delaChecklista(text: string): { namn: string; rutin: string } | null {
+  if (!harChecklista(text)) return null;
+  const [före, ...moment] = text.split(KRYSSRUTOR);
+  const namn = före.replace(/[\s–—:-]+$/, "").trim() || "Rutin";
+  const rutin = skrivRutin(
+    moment.map((m) => m.trim()).filter(Boolean).map((m) => ({ text: m, under: [] })),
+  );
+  return { namn, rutin };
+}
