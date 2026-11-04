@@ -204,7 +204,14 @@ const AP_SATELLITER = `SATELLITER – skrivs SIST i stegets \`text\`, i hakparen
 - HITTA ALDRIG PÅ satelliter som saknar täckning i underlaget. En roll som
   underlaget uttryckligen pekar ut är inte påhittad; ett IT-system som ingen
   nämnt är det.
-- Vanliga parenteser går INTE att använda för satelliter – de är grensyntax.`;
+- Vanliga parenteser går INTE att använda för satelliter – de är grensyntax.
+- Beskriver underlaget en RUTIN eller CHECKLISTA – momenten man går igenom för
+  att utföra en aktivitet – skrivs den i kravet, ett moment per kryssruta:
+  \`[Krav: Rutin för uppdatering av brandväggar – ☐ Ladda ner firmware ☐ Ta backup av konfigurationen]\`.
+  Kravet får namnet före rutorna och blir en rutin i diagrammet, där varje
+  ruta är ett moment att bocka av. Börja momentet med verbet. Ta bara med
+  moment som underlaget nämner; säger det att rutinen skrivs senare räcker
+  kravet utan rutor.`;
 
 const AP_INGA_BANOR = `INGA SIMBANOR
 - Affärsprocessens flöde har inga banor. Ange EN lane med processens huvudaktör och

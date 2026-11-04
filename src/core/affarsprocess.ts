@@ -25,6 +25,7 @@
  * steg.ap.output = null).
  */
 
+import { delaChecklista } from "./rutin";
 import { compileDraft, type ApStegInfo, type Huki, type ProcessDraft } from "./draft";
 import type { ProcessModel } from "./model";
 
@@ -753,4 +754,70 @@ export function sättRutin(
   if (text?.trim()) apRutiner[nodId] = { ...apRutiner[nodId], text: text.replace(/\s+$/, "") };
   else delete apRutiner[nodId];
   return { ...draft, apRutiner, meta: { ...draft.meta, origin: "manual" } };
+}
+
+/**
+ * Gör ett kravs inskrivna CHECKLISTA till kravets rutin.
+ *
+ * "[Krav: Rutin uppdatering brandväggar – ☐ Ladda ner firmware ☐ Ta backup]"
+ * är hur man (och AI:n) skriver en rutin i löptexten. Utan lyftet blev hela
+ * raden kravets namn och ingen rutin skapades (patchningsprocessen,
+ * 2026-11-04). Här får kravet namnet före rutorna och rutinen ett moment per
+ * ruta – samma lagring som byggaren i rutinvyn (`apRutiner`, nycklad på
+ * kravets id). Sparad position och omdöpning flyttas med till det nya id:t,
+ * som vid ett namnbyte. En rutin som redan står på det nya id:t skrivs
+ * ALDRIG över: den kan vara skriven för hand.
+ *
+ * `nodId` = ett visst krav; utan det lyfts alla krav i flödet. Returnerar
+ * draften oförändrad (samma objekt) när det inte finns något att lyfta.
+ */
+export function lyftUtChecklistor(draft: ProcessDraft, nodId?: string): ProcessDraft {
+  let nästa = draft;
+  for (const steg of draft.steps) {
+    for (const krav of steg.ap?.krav ?? []) {
+      const delad = delaChecklista(krav);
+      if (!delad) continue;
+      const gammaltId = satellitId("krav", steg.id, krav);
+      if (nodId && nodId !== gammaltId) continue;
+      const nyttId = satellitId("krav", steg.id, delad.namn);
+      const ap = { ...nästa.steps.find((s) => s.id === steg.id)!.ap };
+      // Två krav kan inte heta likadant på samma aktivitet – de vore samma nod.
+      ap.krav = (ap.krav ?? []).flatMap((k) =>
+        k === krav ? (ap.krav!.includes(delad.namn) ? [] : [delad.namn]) : [k],
+      );
+      const flytta = <T,>(rec: Record<string, T> | undefined) => {
+        if (!rec || !(gammaltId in rec)) return rec;
+        const ny = { ...rec };
+        if (!(nyttId in ny)) ny[nyttId] = ny[gammaltId];
+        delete ny[gammaltId];
+        return ny;
+      };
+      const autoPositions = flytta(nästa.autoPositions);
+      const autoLabels = flytta(nästa.autoLabels);
+      const apRutiner = flytta(nästa.apRutiner) ?? {};
+      nästa = {
+        ...nästa,
+        steps: nästa.steps.map((s) => (s.id === steg.id ? { ...s, ap } : s)),
+        ...(autoPositions ? { autoPositions } : {}),
+        ...(autoLabels ? { autoLabels } : {}),
+        apRutiner: apRutiner[nyttId]?.text?.trim()
+          ? apRutiner
+          : delad.rutin
+            ? { ...apRutiner, [nyttId]: { text: delad.rutin } }
+            : apRutiner,
+      };
+    }
+  }
+  return nästa;
+}
+
+/** Id:t ett krav med checklista får efter `lyftUtChecklistor` (null = ingen checklista). */
+export function idEfterLyft(draft: ProcessDraft, nodId: string): string | null {
+  for (const steg of draft.steps)
+    for (const krav of steg.ap?.krav ?? []) {
+      if (satellitId("krav", steg.id, krav) !== nodId) continue;
+      const delad = delaChecklista(krav);
+      return delad ? satellitId("krav", steg.id, delad.namn) : null;
+    }
+  return null;
 }

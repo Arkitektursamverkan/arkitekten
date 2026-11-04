@@ -17,6 +17,7 @@
  */
 
 import type { ApStegInfo, Huki } from "@/core/draft";
+import { harChecklista } from "@/core/rutin";
 
 const MÖNSTER =
   /\[\s*(roll|intressent|it|app|applikation|arkiv|krav|tid|forum|plats|problem|risk|möjlighet|mojlighet|in|ut)\s*:\s*([^\]]+)\]/gi;
@@ -54,7 +55,10 @@ export function extraheraAp(text: string): { ren: string; ap?: ApStegInfo } {
       else if (k === "it" || k === "app" || k === "applikation")
         (ap.applikationer ??= []).push(...värden(värde));
       else if (k === "arkiv") (ap.arkiv ??= []).push(...värden(värde));
-      else if (k === "krav") (ap.krav ??= []).push(...värden(värde));
+      // Ett krav med en checklista ("Rutin X – ☐ a ☐ b") är ETT krav: rutans
+      // moment får innehålla komma. `lyftUtChecklistor` gör det till en rutin.
+      else if (k === "krav")
+        (ap.krav ??= []).push(...(harChecklista(värde) ? [värde.trim()] : värden(värde)));
       else if (k === "tid") ap.tid = värde.trim();
       else if (k === "forum") ap.forum = värde.trim();
       else if (k === "plats") ap.plats = värde.trim();
