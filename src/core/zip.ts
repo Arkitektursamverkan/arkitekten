@@ -1,6 +1,8 @@
 /**
- * ZIP-arkiv utan komprimering ("stored") – det minsta som behövs för att
- * skriva en fil som andra program packar upp, utan ett beroende.
+ * ZIP-arkiv – det minsta som behövs för att skriva en fil som andra program
+ * packar upp, utan ett beroende. Okomprimerat ("stored") eller komprimerat
+ * ("deflate", med plattformens `CompressionStream`, som både webbläsaren och
+ * Node har).
  *
  * Varje post bär sin storlek och CRC i det lokala huvudet (ingen
  * "data descriptor"), så att även en strömmande läsare (Javas
@@ -31,8 +33,17 @@ function dosTid(d: Date): { tid: number; datum: number } {
   };
 }
 
+async function deflate(data: Uint8Array): Promise<Uint8Array> {
+  const ström = new Blob([data as BlobPart]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(ström).arrayBuffer());
+}
+
 /** Packar filerna (sökväg → innehåll) i ett arkiv. Ordningen följs. */
-export function packaZip(filer: Record<string, string | Uint8Array>, när = new Date()): Uint8Array {
+export async function packaZip(
+  filer: Record<string, string | Uint8Array>,
+  när = new Date(),
+  { komprimera = false }: { komprimera?: boolean } = {},
+): Promise<Uint8Array> {
   const kod = new TextEncoder();
   const { tid, datum } = dosTid(när);
   const delar: Uint8Array[] = [];
@@ -43,16 +54,18 @@ export function packaZip(filer: Record<string, string | Uint8Array>, när = new 
     const n = kod.encode(namn);
     const data = typeof innehåll === "string" ? kod.encode(innehåll) : innehåll;
     const crc = crc32(data);
+    const packad = komprimera ? await deflate(data) : data;
+    const metod = komprimera ? 8 : 0;
 
     const lokal = new DataView(new ArrayBuffer(30));
     lokal.setUint32(0, 0x04034b50, true);
     lokal.setUint16(4, 20, true); // version som behövs
     lokal.setUint16(6, 0x0800, true); // UTF-8-namn
-    lokal.setUint16(8, 0, true); // stored
+    lokal.setUint16(8, metod, true);
     lokal.setUint16(10, tid, true);
     lokal.setUint16(12, datum, true);
     lokal.setUint32(14, crc, true);
-    lokal.setUint32(18, data.length, true);
+    lokal.setUint32(18, packad.length, true);
     lokal.setUint32(22, data.length, true);
     lokal.setUint16(26, n.length, true);
     lokal.setUint16(28, 0, true);
@@ -62,18 +75,18 @@ export function packaZip(filer: Record<string, string | Uint8Array>, när = new 
     central.setUint16(4, 20, true); // skapad av
     central.setUint16(6, 20, true);
     central.setUint16(8, 0x0800, true);
-    central.setUint16(10, 0, true);
+    central.setUint16(10, metod, true);
     central.setUint16(12, tid, true);
     central.setUint16(14, datum, true);
     central.setUint32(16, crc, true);
-    central.setUint32(20, data.length, true);
+    central.setUint32(20, packad.length, true);
     central.setUint32(24, data.length, true);
     central.setUint16(28, n.length, true);
     central.setUint32(42, pos, true); // lokala huvudets plats
 
-    delar.push(new Uint8Array(lokal.buffer), n, data);
+    delar.push(new Uint8Array(lokal.buffer), n, packad);
     katalog.push(new Uint8Array(central.buffer), n);
-    pos += 30 + n.length + data.length;
+    pos += 30 + n.length + packad.length;
   }
 
   const katalogStorlek = katalog.reduce((s, d) => s + d.length, 0);

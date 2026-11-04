@@ -21,9 +21,9 @@ describe("namn-id och zip", () => {
   it("ger samma UUID v5 som RFC 4122:s exempel", () => {
     expect(uuidUrNamn("6ba7b810-9dad-11d1-80b4-00c04fd430c8", "python.org")).toBe("886313e1-3b8a-5372-9b90-0c9aee199e5d");
   });
-  it("räknar CRC32 rätt och skriver ett arkiv som börjar och slutar som zip", () => {
+  it("räknar CRC32 rätt och skriver ett arkiv som börjar och slutar som zip", async () => {
     expect(crc32(new TextEncoder().encode("123456789"))).toBe(0xcbf43926);
-    const z = packaZip({ "a.txt": "hej" });
+    const z = await packaZip({ "a.txt": "hej" });
     expect([...z.slice(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
     expect(new DataView(z.buffer).getUint32(z.length - 22, true)).toBe(0x06054b50);
   });
@@ -31,8 +31,8 @@ describe("namn-id och zip", () => {
 
 describe("byggBmtFiler", () => {
   const f = filer(TEXT);
-  const modell = Object.entries(f).find(([k]) => k.startsWith("models/"))![1];
-  const symboler = Object.entries(f).filter(([k]) => k.startsWith("symbols/")).map(([, v]) => v);
+  const modell = String(Object.entries(f).find(([k]) => k.startsWith("models/"))![1]);
+  const symboler = Object.entries(f).filter(([k]) => k.startsWith("symbols/")).map(([, v]) => String(v));
 
   it("har en modell, språket och 2c8:s kringfiler", () => {
     expect(Object.keys(f)).toEqual(expect.arrayContaining([`languages/${SPRÅK}.xml`, "version-info.txt", "data.xml", "breakdowns.xml", "removal-history.xml"]));

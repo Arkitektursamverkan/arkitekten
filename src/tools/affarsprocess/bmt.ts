@@ -36,6 +36,19 @@ export interface BmtInställningar {
   språkNamn?: string;
   /** Beskrivningstypen texterna skrivs i ("Beskrivning"). Saknas = inga beskrivningar. */
   beskrivningstyp?: string;
+  /**
+   * Användaren som står som skapare av allt som exporteras. 2c8 sätter alltid
+   * skapare på sina objekt, och användaren ska då finnas i arkivets users/.
+   */
+  användare?: { id: string; förnamn: string; efternamn?: string };
+  /** Typsnittet på rutor och kopplingar. Saknas = 2c8:s eget val. */
+  typsnitt?: string;
+  /**
+   * Filer ur en vanlig export från MÅL-repositoryt (sökväg → innehåll).
+   * Repositoryts profil (config.xml), scheman, språk, användare och
+   * beskrivningstyp följer med ordagrant – 2c8 läser inte en fil utan dem.
+   */
+  mall?: Record<string, string | Uint8Array>;
 }
 
 export interface BmtKälla {
@@ -150,6 +163,22 @@ const esc = (s: string) =>
 
 const r = Math.round;
 
+/** Skapare och senaste ändrare – samma användare för allt i exporten. */
+function skapare(inst: BmtInställningar): string {
+  return inst.användare
+    ? `<created-by>${inst.användare.id}</created-by><last-modified-by>${inst.användare.id}</last-modified-by>`
+    : "";
+}
+
+/** Typsnittet, som 2c8 skriver det på rutor och kopplingar. */
+function typsnitt(inst: BmtInställningar, färg = false): string {
+  if (!inst.typsnitt) return "";
+  return (
+    `<font-name>${esc(inst.typsnitt)}</font-name><font-style>0</font-style><font-size>11</font-size>` +
+    (färg ? `<font-color>000000</font-color>` : "")
+  );
+}
+
 /** Rutan i 2c8 och etikettens ruta, ur utläggets objekt. */
 function geometri(lo: ApLaidOutNode): {
   x: number;
@@ -217,7 +246,7 @@ function språkdata(språk: string, titel: string): string {
 }
 
 function beskrivningar(inst: BmtInställningar, html: string | null): string {
-  if (!html || !inst.beskrivningstyp) return "<descriptions/>";
+  if (!html || !inst.beskrivningstyp) return "<descriptions></descriptions>";
   return (
     `<descriptions><description type="${inst.beskrivningstyp}">` +
     `<text language="${inst.språk}">${esc(html)}</text>` +
@@ -233,7 +262,7 @@ export function byggBmtFiler(
   lo: ApLayout,
   källa: BmtKälla,
   inst: BmtInställningar,
-): Record<string, string> {
+): Record<string, string | Uint8Array> {
   const id = (namn: string) => uuidUrNamn(RYMD, namn);
   const tid = String(källa.sparad.getTime());
   const historik = (namn: string) => id(`${namn}@${tid}`);
@@ -255,11 +284,11 @@ export function byggBmtFiler(
     filer[fil] =
       `<?xml version="1.0" encoding="utf-8"?>` +
       `<mt-symbol xmlns="${NS}" uuid="${sid}" type="${typ}" variant="${variant}" last-modified="${tid}" ignore-changes="false">` +
-      `<history>${historik(sid)}</history><created>${tid}</created>` +
+      `<history>${historik(sid)}</history><created>${tid}</created>${skapare(inst)}` +
       språkdata(sp, node.label) +
-      `<properties/><documents/>` +
+      `<properties></properties><documents></documents>` +
       beskrivningar(inst, beskrivningHtml(node.beskrivning, node.rutin)) +
-      `<extension-documents/><plugin-data/></mt-symbol>`;
+      `<extension-documents></extension-documents><plugin-data></plugin-data></mt-symbol>`;
   }
 
   // ---- Rutorna.
@@ -270,13 +299,13 @@ export function byggBmtFiler(
       const vid = rutaId(node.id);
       return (
         `<vertex uuid="${vid}" symbol="${symbolId(node)}"><history>${historik(vid)}</history>` +
-        `<x>${r(g.x)}</x><y>${r(g.y)}</y><width>${r(g.w)}</width><height>${r(g.h)}</height>` +
+        `<x>${r(g.x)}</x><y>${r(g.y)}</y><width>${r(g.w)}</width><height>${r(g.h)}</height>${typsnitt(inst)}` +
         `<is-owning-symbol>true</is-owning-symbol><z-order>${i}</z-order><show-label>true</show-label>` +
         `<lock-proportions>false</lock-proportions><center-label>false</center-label><size-ratio>1.0</size-ratio>` +
         `<holder>false</holder><frozen>false</frozen>` +
         `<label-bounds language="${sp}"><x>${r(g.etikett.x)}</x><y>${r(g.etikett.y)}</y>` +
         `<width>${r(g.etikett.w)}</width><height>${r(g.etikett.h)}</height></label-bounds>` +
-        `<properties/></vertex>`
+        `<properties></properties></vertex>`
       );
     })
     .join("");
@@ -296,8 +325,8 @@ export function byggBmtFiler(
       const etikett = rel.kind === "huki" ? "" : (rel.label ?? "");
       return (
         `<edge uuid="${eid}" type="${t.typ}" router-id="${ROUTER}" source-vertex="${rutaId(frånId)}" target-vertex="${rutaId(tillId)}">` +
-        `<history>${historik(eid)}</history><label-along-line>false</label-along-line><hide-arrows>false</hide-arrows>` +
-        `<language-data>${etikett ? `<title language="${sp}">${esc(etikett)}</title>` : `<title language="${sp}"/>`}` +
+        `<history>${historik(eid)}</history>${typsnitt(inst, true)}<label-along-line>false</label-along-line><hide-arrows>false</hide-arrows>` +
+        `<language-data>${etikett ? `<title language="${sp}">${esc(etikett)}</title>` : `<title language="${sp}"></title>`}` +
         `<translated language="${sp}">true</translated></language-data>` +
         `<control-points><control-point><x>${r(p1.x)}</x><y>${r(p1.y)}</y></control-point>` +
         `<control-point><x>${r(p2.x)}</x><y>${r(p2.y)}</y></control-point></control-points></edge>`
@@ -310,30 +339,52 @@ export function byggBmtFiler(
   const modell =
     `<?xml version="1.0" encoding="utf-8"?>` +
     `<mt-model xmlns="${NS}" uuid="${mid}" type="PROCESS_MODEL" last-modified="${tid}" is-draft="false" ignore-changes="false">` +
-    `<history>${historik(mid)}</history><created>${tid}</created>` +
+    `<history>${historik(mid)}</history><created>${tid}</created>${skapare(inst)}` +
     språkdata(sp, källa.namn) +
-    `<properties/><documents/>` +
+    `<properties></properties><documents></documents>` +
     beskrivningar(inst, beskrivningHtml(källa.beskrivning, undefined)) +
-    `<extension-documents/><vertices>${rutor}</vertices><edges>${kanter}</edges>` +
-    `<removal-history/><plugin-data/></mt-model>`;
+    `<extension-documents></extension-documents><vertices>${rutor}</vertices><edges>${kanter}</edges>` +
+    `<removal-history></removal-history><plugin-data></plugin-data></mt-model>`;
 
-  // Ordningen följer 2c8:s egen export: språk först, modellen, objekten.
   const export_ = new Date(källa.sparad);
-  const stämpel = `${export_.getFullYear()}-${String(export_.getMonth() + 1).padStart(2, "0")}-${String(export_.getDate()).padStart(2, "0")} ${String(export_.getHours()).padStart(2, "0")}:${String(export_.getMinutes()).padStart(2, "0")}`;
-  return {
+  const två = (n: number) => String(n).padStart(2, "0");
+  const stämpel = `${export_.getFullYear()}-${två(export_.getMonth() + 1)}-${två(export_.getDate())} ${två(export_.getHours())}:${två(export_.getMinutes())}`;
+  const mall = inst.mall ?? {};
+  const urMall = (namn: string) => (namn in mall ? { [namn]: mall[namn] } : {});
+
+  // Ordningen är 2c8:s egen: språk, modeller, beskrivningstyper, användare,
+  // objekt, kringfiler, scheman. Det som ÄR repositoryts eget – språket,
+  // användaren, beskrivningstypen, profilen och schemana – tas ordagrant ur
+  // mallen (en export ur samma repository), aldrig ur koden.
+  const ut: Record<string, string | Uint8Array> = {
     [`languages/${sp}.xml`]:
+      mall[`languages/${sp}.xml`] ??
       `<?xml version="1.0" encoding="utf-8"?><mt-language xmlns="${NS}" uuid="${sp}">` +
-      `<title>${esc(inst.språkNamn ?? "Svenska")}</title><default-language>true</default-language></mt-language>`,
-    "version-info.txt": "compatibility-level: 5\nprogram-version: 2025.2.20\n",
+        `<title>${esc(inst.språkNamn ?? "Svenska")}</title><default-language>true</default-language></mt-language>`,
+    [`models/${mid}.xml`]: modell,
+    ...(inst.beskrivningstyp ? urMall(`description-types/${inst.beskrivningstyp}.xml`) : {}),
+    ...(inst.användare
+      ? {
+          [`users/${inst.användare.id}.xml`]:
+            mall[`users/${inst.användare.id}.xml`] ??
+            `<?xml version="1.0" encoding="utf-8"?><mt-user xmlns="${NS}" user-name="${inst.användare.id}">` +
+              `<first-name>${esc(inst.användare.förnamn)}</first-name><last-name>${esc(inst.användare.efternamn ?? "")}</last-name></mt-user>`,
+        }
+      : {}),
+    ...filer,
     "removal-history.xml": `<?xml version="1.0" encoding="utf-8"?><removal-history></removal-history>`,
     "breakdowns.xml": `<?xml version="1.0" encoding="utf-8"?><breakdowns></breakdowns>`,
+    ...urMall("config.xml"),
+    "version-info.txt": mall["version-info.txt"] ?? "compatibility-level: 5\r\nprogram-version: 2025.2.20",
     "data.xml": `<?xml version="1.0" encoding="utf-8"?><BMTExport ExportTime="${stämpel}" Version="3.5.0.0"></BMTExport>`,
-    [`models/${mid}.xml`]: modell,
-    ...filer,
   };
+  for (const katalog of ["languages", "description-types", "models", "users", "symbols"])
+    if (Object.keys(ut).some((k) => k.startsWith(`${katalog}/`))) Object.assign(ut, urMall(`${katalog}/schema.xsd`));
+  return ut;
 }
 
 /** Hela .bmt-filen. */
-export function byggBmt(lo: ApLayout, källa: BmtKälla, inst: BmtInställningar): Uint8Array {
-  return packaZip(byggBmtFiler(lo, källa, inst), källa.sparad);
+export function byggBmt(lo: ApLayout, källa: BmtKälla, inst: BmtInställningar): Promise<Uint8Array> {
+  // 2c8 komprimerar sina egna arkiv; vi gör likadant.
+  return packaZip(byggBmtFiler(lo, källa, inst), källa.sparad, { komprimera: true });
 }
