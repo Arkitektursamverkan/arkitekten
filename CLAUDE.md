@@ -301,6 +301,21 @@ parser, AI-brygga, historik och lagring. Plan och symbolkatalog:
   inspektören. En befintlig rutin skrivs aldrig över. Inne i hakparenteser
   skyddar regelparsern streck, pilar och parenteser (`SKYDD_HAK`), så en
   satellit blir aldrig steg eller gren.
+- **Kedjan redigeras i inspektören, inte med tangenter** (`lagg-till.ts`):
+  `taBortObjekt` tar bort kedjesteg (även tolkade) och fria objekt – ett steg
+  tar med sig satelliter, verksamhetsobjekt och handritade pilar till sig, och
+  kedjan SLUTS runt luckan. Att BRYTA kedjan är en egen handling:
+  `taBortKedjepil` på mellanlagrets kant (`rel.kant`, hittad med
+  `kedjekantFör` i ApCanvas – tom etikett och saknad är samma nyckel), via
+  knappen "Bryt kedjan här" när en kedjepil är vald. `läggTillAktivitetEfter`
+  lägger ett riktigt kedjesteg efter steget (efter en regels grenar). Delete/
+  Backspace tar ALDRIG bort något: man ska se vad man tar bort (se testet
+  "Delete på ett markerat objekt").
+- **Helskärmen** (`render/helskarm.ts`, `useHelskärm`) är EN plats för båda
+  verktygen: ritytans behållare får `ark-helskarm` (styles.css gömmer allt utom
+  ritytan, avskalade vyn och Avsluta), ritytan LÅSES och vyn anpassas
+  (`anpassaVy`/`regenKey`). Webbläsarens helskärm begärs men krävs inte. Bara
+  den egna helskärmen lämnas – ramarnas presentation rörs aldrig.
 - **Flödesschemat har samma regel**: `draft.fria` bär de steg som placerats ur
   verktygsraden. De ritas men kedjas inte in och får inget auto-slut; `knytIn`
   (anropas av `addManualEdge`) släpper dem loss OCH undertrycker den automatiska

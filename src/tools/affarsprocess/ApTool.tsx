@@ -69,11 +69,12 @@ import {
   Verktygsrad,
 } from "@/shell/Verktygsrad";
 import { ApCanvas } from "./ApCanvas";
+import { useHelskärm } from "@/render/helskarm";
 import { ApInspector } from "./ApInspector";
 import { RutinVy } from "./RutinVy";
 import { begärRutin } from "./ai-rutin";
 import { ApPalett } from "./ApPalett";
-import { knytIhop, läggTillObjekt } from "./lagg-till";
+import { knytIhop, läggTillObjekt, taBortKedjepil } from "./lagg-till";
 import { granskaAp, sammanfattaKontroll } from "./kontroll";
 import { layoutAp } from "./layout-affarsprocess";
 import { renderApSvg } from "./svg-affarsprocess";
@@ -495,6 +496,8 @@ export function ApTool({
 
   // ---- Direktredigering på ytan (fas 5).
   const [valdNod, setValdNod] = useState<string | null>(null);
+  /** Visningsläget: bara bilden, hela skärmen, inget går att ändra. */
+  const helskärm = useHelskärm();
   /** Kravet vars rutin visas (null = rutinvyn stängd). */
   const [rutinNod, setRutinNod] = useState<string | null>(null);
   const rutinKrav = rutinNod ? model.nodes.find((n) => n.id === rutinNod && n.kind === "krav") : undefined;
@@ -585,6 +588,12 @@ export function ApTool({
       setPalettVal(null);
     },
     [palettVal, draft, layout, setDraft],
+  );
+
+  /** Bryter kedjan: pilen mellan två steg tas bort. */
+  const onTaBortKant = useCallback(
+    (kant: { source: string; target: string; label?: string }) => setDraft((d) => taBortKedjepil(d, kant)),
+    [setDraft],
   );
 
   /** En pil dragen mellan två objekt – fria objekt knyts in och konverteras. */
@@ -1036,6 +1045,12 @@ export function ApTool({
           </VradGrupp>
 
           <VradGrupp>
+            <VradKnapp
+              onClick={helskärm.öppna}
+              title="Visa processen i helskärm – bara bilden, inget går att ändra. Esc avslutar."
+            >
+              ⛶ Helskärm
+            </VradKnapp>
             <Rullgardin titel="Vy" bredd={320} title="Utseende och sidformat">
               <RullgardinDel titel="Utseende">
                 <div className="ark-toggle">
@@ -1280,13 +1295,18 @@ export function ApTool({
 
           {/* Ritytan: paneler och inspektörer ligger HÄR inne, så att de
               positioneras mot bilden och inte mot rubriken. */}
-          <div className="ark-tool-stage">
+          <div className={`ark-tool-stage ${helskärm.aktiv ? "ark-helskarm" : ""}`} ref={helskärm.ref}>
+            {helskärm.aktiv && (
+              <button className="ark-btn ark-helskarm-avsluta" onClick={helskärm.stäng} title="Avsluta helskärm (Esc)">
+                ✕ Avsluta helskärm
+              </button>
+            )}
             {visaAvskalad && (
               <AvskaladVy
                 modell={model}
                 lägen={draft.presentation?.lägen ?? {}}
                 kopplingar={draft.presentation?.kopplingar ?? {}}
-                redigerar={!läser}
+                redigerar={!läser && !helskärm.aktiv}
                 vald={valdNod}
                 onFlytta={(id, läge) => setDraft((d) => setPresentationsLäge(d, id, läge))}
                 onKoppling={(nyckel, ände, val) => setDraft((d) => setPresentationsKoppling(d, nyckel, ände, val))}
@@ -1299,7 +1319,8 @@ export function ApTool({
             )}
             <ApCanvas
               layout={layout}
-              låst={läser}
+              låst={läser || helskärm.aktiv}
+              anpassaVy={helskärm.byte}
               textScale={textScale}
               edgeStyles={draft.edgeStyles}
               onPositionChange={onPositionChange}
@@ -1314,6 +1335,7 @@ export function ApTool({
               onPlace={placera}
               onConnect={onConnect}
               onEdgeSidesChange={onEdgeSidesChange}
+              onTaBortKant={onTaBortKant}
             />
             {/* Rutinrutan står där inspektören står (högerkanten). Medan den är
                 öppen viker inspektören undan; stängs den är inspektören kvar. */}
@@ -1325,6 +1347,7 @@ export function ApTool({
                 onChange={setDraft}
                 onClose={() => setValdNod(null)}
                 onRutin={öppnaRutin}
+                onVälj={setValdNod}
               />
             )}
             {rutinKrav && (

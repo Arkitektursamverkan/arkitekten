@@ -92,6 +92,7 @@ import { TracePanel } from "./TracePanel";
 import { useBehörighet } from "@/shell/behorighet-hook";
 import { ÖppnaVisualisering } from "@/tools/ramar/OppnaVisualisering";
 import { PubliceraSystemprocessKnapp } from "./PubliceraSystemprocess";
+import { useHelskärm } from "@/render/helskarm";
 
 const PAGE_ORDER: PageFormatId[] = ["word", "free", "wide", "a4p", "a4l"];
 
@@ -182,6 +183,8 @@ export function FlowchartTool({
   const [textScale, setTextScale] = useState(1);
   const [colorMode, setColorMode] = useState<ColorMode>("type");
   const [locked, setLocked] = useState(false);
+  /** Visningsläget: bara bilden, hela skärmen, inget går att ändra. */
+  const helskärm = useHelskärm();
   const [regenKey, setRegenKey] = useState(0);
   /** Banor man dragit objekt ut ur i den här redigeringen – de ritas även tomma. */
   const [behållnaBanor, setBehållnaBanor] = useState<ReadonlySet<string>>(new Set());
@@ -1274,6 +1277,12 @@ export function FlowchartTool({
           </VradGrupp>
 
           <VradGrupp>
+            <VradKnapp
+              onClick={helskärm.öppna}
+              title="Visa processen i helskärm – bara bilden, inget går att ändra. Esc avslutar."
+            >
+              ⛶ Helskärm
+            </VradKnapp>
             <Rullgardin titel="Vy" bredd={320} title="Perspektiv, sidformat och färgläge">
               <RullgardinDel titel="Perspektiv">
                 <div className="ark-toggle">
@@ -1610,14 +1619,20 @@ export function FlowchartTool({
 
           {/* Ritytan: allt som ligger ovanpå den (paneler, inspektörer) hör hemma
               HÄR inne, så att de positioneras mot bilden och inte mot rubriken. */}
-          <div className="ark-tool-stage">
+          <div className={`ark-tool-stage ${helskärm.aktiv ? "ark-helskarm" : ""}`} ref={helskärm.ref}>
+            {helskärm.aktiv && (
+              <button className="ark-btn ark-helskarm-avsluta" onClick={helskärm.stäng} title="Avsluta helskärm (Esc)">
+                ✕ Avsluta helskärm
+              </button>
+            )}
             <FlowCanvas
-              model={locked || läser ? filtered : ritad}
-              locked={locked || läser}
+              model={locked || läser || helskärm.aktiv ? filtered : ritad}
+              locked={locked || läser || helskärm.aktiv}
               pageFormat={pageFormat}
               scale={scale}
               colorMode={colorMode}
-              regenKey={regenKey}
+              // Helskärm in/ut byter ritytans storlek – vyn anpassas på nytt.
+              regenKey={regenKey + helskärm.byte}
               onLabelChange={onLabelChange}
               onPositionChange={onPositionChange}
               onLaneChange={onLaneChange}

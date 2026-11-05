@@ -35,6 +35,9 @@ import {
   setAutoPosition,
   setStepPosition,
   laneDefaultPerspectives,
+  normalizeOrder,
+  removeEdge,
+  removeStep,
   type ApStegInfo,
   type Huki,
   type ProcessDraft,
@@ -122,6 +125,85 @@ export function taBortFri(draft: ProcessDraft, friId: string): ProcessDraft {
     autoPositions,
     meta: { ...draft.meta, origin: "manual" },
   };
+}
+
+/**
+ * Tar bort objekt ur processen: fria objekt ur paletten och KEDJESTEG
+ * (aktivitet, regel, forum, händelse) – även steg som AI:n eller regelparsern
+ * tolkat fram. Ett kedjesteg tar med sig sina satelliter och verksamhetsobjekt
+ * (de bor i stegets ap-block), och kedjan sluts över luckan: s2 → s3 → s4 blir
+ * s2 → s4. Vill man BRYTA kedjan tar man bort pilen (`taBortKedjepil`).
+ *
+ * Andra id:n (satelliter, verksamhetsobjekt, auto-slut) rörs inte – de tas
+ * bort i sin aktivitets panel. EN draft ut, så ångra tar allt i ett steg.
+ */
+export function taBortObjekt(draft: ProcessDraft, ids: readonly string[]): ProcessDraft {
+  const fria = new Set((draft.apFria ?? []).map((f) => f.id));
+  const steg = new Set(draft.steps.map((s) => s.id));
+  let d = draft;
+  for (const id of ids) {
+    if (fria.has(id)) d = taBortFri(d, id);
+    else if (steg.has(id)) d = taBortSteg(d, id);
+  }
+  return d;
+}
+
+/** Kan objektet tas bort med `taBortObjekt`? */
+export function kanTaBort(draft: ProcessDraft, id: string): boolean {
+  return (draft.apFria ?? []).some((f) => f.id === id) || draft.steps.some((s) => s.id === id);
+}
+
+function taBortSteg(draft: ProcessDraft, stegId: string): ProcessDraft {
+  const utan = removeStep(draft, stegId);
+  // Handritade pilar till steget eller dess verksamhetsobjekt pekar annars ut
+  // i tomma luften – kompileringen hade fått en kant utan nod.
+  const rör = (n: string) => n === stegId || n === voId(stegId) || n === voInId(stegId);
+  const extra = (utan.extraEdges ?? []).filter((e) => !rör(e.source) && !rör(e.target));
+  return {
+    ...utan,
+    extraEdges: extra.length ? extra : undefined,
+    fria: utan.fria?.filter((id) => id !== stegId),
+  };
+}
+
+/**
+ * Bryter kedjan: tar bort pilen mellan två steg. En härledd kedjepil
+ * undertrycks (`removedEdges`), en handritad raderas – samma regel som i
+ * flödesschemat (`removeEdge`). Etiketten skiljer Ja från Nej (invariant 3).
+ */
+export function taBortKedjepil(
+  draft: ProcessDraft,
+  kant: { source: string; target: string; label?: string },
+): ProcessDraft {
+  return removeEdge(draft, kant.source, kant.target, kant.label);
+}
+
+/**
+ * Lägger en ny aktivitet i kedjan DIREKT efter ett steg: s2 → s3 blir
+ * s2 → ny → s3. Är steget en regel hamnar den nya aktiviteten efter regelns
+ * grenar, alltså där flödet fortsätter. Samma bana och samma gren som steget.
+ * Id:t är nästa lediga steg-id och lagras (invariant 2).
+ */
+export function läggTillAktivitetEfter(draft: ProcessDraft, stegId: string): TillagtObjekt {
+  const ordnad = normalizeOrder(draft);
+  const steg = ordnad.steps.find((s) => s.id === stegId);
+  if (!steg) return { draft, nodId: null };
+  // Hoppa förbi stegets grenar (och deras grenar) – de hör till steget.
+  const block = new Set([stegId]);
+  let sista = stegId;
+  for (const s of ordnad.steps.slice(ordnad.steps.indexOf(steg) + 1)) {
+    if (!s.branchOf || !block.has(s.branchOf.stepId)) break;
+    block.add(s.id);
+    sista = s.id;
+  }
+  const id = nextStepId(ordnad);
+  const nästa = addStepAfter(ordnad, sista, {
+    type: "activity",
+    text: NAMN.aktivitet ?? "Ny aktivitet",
+    laneId: steg.laneId,
+    branchOf: steg.branchOf,
+  });
+  return { draft: nästa, nodId: id };
 }
 
 const SATELLITER: ReadonlySet<string> = new Set([

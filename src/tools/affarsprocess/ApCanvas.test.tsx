@@ -13,10 +13,10 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { compileAp } from "@/core/affarsprocess";
+import { compileAp, setStepAp } from "@/core/affarsprocess";
 import { emptyDraft, makeLane, type DraftStep, type ProcessDraft } from "@/core/draft";
 import type { NodeType } from "@/core/model";
-import { ApCanvas } from "./ApCanvas";
+import { ApCanvas, kedjekantFör } from "./ApCanvas";
 import { layoutAp } from "./layout-affarsprocess";
 
 beforeEach(() => {
@@ -170,5 +170,44 @@ describe("markeringsrapporten", () => {
     }
     render(<Förälder />);
     expect(rapporter.length).toBeLessThanOrEqual(1);
+  });
+});
+
+/**
+ * REGRESSION: kedjan mellan tolkade steg gick inte att bryta i Affärsprocess.
+ * Klick på en kedjepil ger knappen "Bryt kedjan här", som skickar
+ * MELLANLAGRETS kant (inte relationens ändar). React Flow ritar inga kanter i
+ * happy-dom, så kopplingen pil → kant testas här och knappens frånvaro nedan.
+ */
+describe("Bryt kedjan här", () => {
+  it("en kedjepil ger mellanlagrets kant, ett satellitstreck ingen", () => {
+    const rel = layout.relations.find((r) => r.kant?.source === "a1" && r.kant.target === "a2")!;
+    expect(kedjekantFör(layout.relations, { source: rel.source, target: rel.target, label: rel.label })).toEqual(
+      rel.kant,
+    );
+    expect(kedjekantFör(layout.relations, { source: "a1", target: "a2", label: "Ja" })).toBeUndefined();
+    // Klicket på en omärkt pil bär den utskrivna etiketten "" (fanns bara i webbläsaren).
+    expect(kedjekantFör(layout.relations, { source: rel.source, target: rel.target, label: "" })).toEqual(rel.kant);
+    const medRoll = layoutAp(
+      compileAp(setStepAp(draft, "a1", { roller: [{ namn: "Handläggare" }] })),
+    );
+    const streck = medRoll.relations.find((r) => r.kind === "huki")!;
+    expect(
+      kedjekantFör(medRoll.relations, { source: streck.source, target: streck.target, label: streck.huki }),
+    ).toBeUndefined();
+  });
+
+  it("knappen syns inte förrän en kedjepil är vald", () => {
+    render(
+      <ApCanvas
+        layout={layout}
+        textScale={1}
+        onPositionChange={vi.fn()}
+        onWaypointChange={vi.fn()}
+        onSelect={vi.fn()}
+        onTaBortKant={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/Bryt kedjan här/)).toBeNull();
   });
 });

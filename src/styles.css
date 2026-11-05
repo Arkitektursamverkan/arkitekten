@@ -1074,7 +1074,7 @@ select.ark-input { cursor: pointer; background: var(--panel); }
 .ark-pekarknapp.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 /* Affärsprocessens rityta har ingen verktygsrad att ligga i – där flyter växeln på samma
    plats som flödesschemats rad, uppe till vänster. */
-.ark-pekarval-flytande { position: absolute; left: 12px; top: 12px; z-index: 12; }
+.ark-pekarval-flytande { position: absolute; left: 12px; top: 12px; z-index: 12; display: flex; gap: 8px; align-items: center; }
 /* Pekaren i markeringsläget är ett KRYSS. Handen betyder "jag flyttar vyn",
    och i markeringsläget flyttas ingenting – React Flows egen grab-hand satt
    kvar och lovade fel sak. */
@@ -1824,3 +1824,20 @@ select.ark-input { cursor: pointer; background: var(--panel); }
 .ark-konton-tabell { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 13px; }
 .ark-konton-tabell td { padding: 4px 6px; border-top: 1px solid var(--border, #e5e7eb); vertical-align: middle; }
 .ark-konton-nytt { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* ---- Helskärm: visningsläget för en process (render/helskarm.ts) ----
+   Ritytan fyller hela fönstret – också när webbläsaren nekar sin egen
+   helskärm – och allt annat på ritytan göms: inspektörer, paneler, växeln,
+   översiktskartan. Kvar blir bilden, zoomknapparna och Avsluta. */
+.ark-tool-stage.ark-helskarm {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg, #fff);
+}
+.ark-tool-stage.ark-helskarm > :not(.ark-canvas):not(.ark-ap-avskalad):not(.ark-helskarm-avsluta) { display: none; }
+.ark-helskarm .ark-pekarval-flytande,
+.ark-helskarm .react-flow__minimap { display: none; }
+.ark-helskarm-avsluta {
+  position: absolute; top: 12px; right: 12px; z-index: 60;
+  opacity: 0.35; transition: opacity 0.2s;
+}
+.ark-helskarm-avsluta:hover, .ark-helskarm-avsluta:focus-visible { opacity: 1; }

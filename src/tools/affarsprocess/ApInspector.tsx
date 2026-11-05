@@ -31,7 +31,7 @@ import {
   type ProcessDraft,
 } from "@/core/draft";
 import { AP_TYPE_LABEL, HUKI_LABEL } from "./former";
-import { bytFriNamn, taBortFri } from "./lagg-till";
+import { bytFriNamn, läggTillAktivitetEfter, taBortFri, taBortObjekt } from "./lagg-till";
 
 // Bokstavens betydelse bor i former (samma text som hovertexten på
 // kopplingen) – annars kan väljaren och ritytan säga olika saker.
@@ -144,9 +144,11 @@ export interface ApInspectorProps {
   onClose: () => void;
   /** Öppnar rutinvyn för ett krav (skapa eller visa). Saknas = ingen rutinknapp. */
   onRutin?: (nodId: string) => void;
+  /** Markerar ett annat objekt – en nyss tillagd aktivitet öppnas för namnbyte. */
+  onVälj?: (nodId: string) => void;
 }
 
-export function ApInspector({ draft, model, nodeId, onChange, onClose, onRutin }: ApInspectorProps) {
+export function ApInspector({ draft, model, nodeId, onChange, onClose, onRutin, onVälj }: ApInspectorProps) {
   const nod = model.nodes.find((n) => n.id === nodeId);
   if (!nod) return null;
 
@@ -440,6 +442,37 @@ export function ApInspector({ draft, model, nodeId, onChange, onClose, onRutin }
           onCommit={(nytt) => patchAp({ plats: nytt.trim() || undefined })}
         />
       </div>
+
+      {/* Kedjan: lägga till efter och ta bort – även för steg som AI:n eller
+          regelparsern tolkat fram. Ångra tar tillbaka. */}
+      {ärKedjenod && (
+        <div className="ark-ap-satgrupp">
+          <div className="ark-section-title">Kedjan</div>
+          <button
+            className="ark-btn"
+            onClick={() => {
+              const { draft: nästa, nodId } = läggTillAktivitetEfter(draft, stegId);
+              onChange(nästa);
+              if (nodId) onVälj?.(nodId);
+            }}
+          >
+            + Lägg till aktivitet efter
+          </button>
+          <button
+            className="ark-linkbtn"
+            onClick={() => {
+              onChange(taBortObjekt(draft, [stegId]));
+              onClose();
+            }}
+          >
+            Ta bort ur kedjan
+          </button>
+          <p className="ark-hint">
+            Borttagningen sluter kedjan runt luckan. Vill du i stället bryta kedjan: klicka på pilen
+            och välj ”Bryt kedjan här” uppe till vänster. Ångra tar tillbaka båda.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
