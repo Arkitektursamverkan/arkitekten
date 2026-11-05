@@ -60,7 +60,7 @@ vi.mock("./ai/bridge", async () => {
 const { FlowchartTool } = await import("./FlowchartTool");
 
 it("REGRESSION: AI-tolkningen av en sparad process blev aldrig en version", async () => {
-  render(
+  const { unmount } = render(
     <FlowchartTool
       nyProcess={{ namn: "Mejllogg", kategori: "", underkategori: "", text: "Registrator diarieför", start: "ai", nonce: 1 }}
       läge="redigerar"
@@ -72,4 +72,7 @@ it("REGRESSION: AI-tolkningen av en sparad process blev aldrig en version", asyn
   expect(flöde.draft.steps.some((s) => s.text.includes("Lämna ut materialet"))).toBe(true);
   // Den första versionen står kvar som den var (invariant 11).
   expect(flöde.versions[0].draft.steps.some((s) => s.text.includes("Lämna ut"))).toBe(false);
+  // Avmontera: annars kan kanvasens fördröjda fitView slå till efter att
+  // testmiljön rivits ("window is not defined") och fälla hela körningen.
+  unmount();
 });

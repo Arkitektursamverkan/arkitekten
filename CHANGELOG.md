@@ -9,6 +9,12 @@ funktioner, en ny korrigering för rättelser.
 
 - (inget än)
 
+## 0.3.3 – 2026-11-05
+
+- Affärsprocess: export till BMT (.bmt) under Export → Som fil. Knappen visas när `ARK_BMT_MALL` pekar på en mall – en export av en enda modell ur det modellverktyg som ska ta emot filen. Namnrymd, språk och andra installationsberoende id:n hämtas ur mallen (`GET /__ark/bmt/mall`, `bmtMall` i `/__ark/status`).
+- Affärsprocess: en checklista i ett krav (`[Krav: Rutin X – ☐ a ☐ b]`) blir kravet "Rutin X" och en rutin med ett moment per ruta, i både regelparsern och AI-tolkningen. Ett sparat flöde gör om sina checklistor med "Skapa rutin ur checklistan" i inspektören.
+- Testet för AI-tolkningen avmonterar sin komponent, så att kanvasens fördröjda vyanpassning inte kan fälla körningen efter att testmiljön rivits.
+
 ## 0.3.2 – 2026-11-02
 
 - Systemprocess: banan man drar ut sista objektet ur står kvar under redigeringen, så att bytet syns och objektet går att dra tillbaka. Tomma banor visas inte i färdiga bilder.
