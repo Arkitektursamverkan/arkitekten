@@ -50,7 +50,9 @@ describe("PresentationsKnapp", () => {
       anmärkningar: ["Ram 2: struket."],
     });
     await screen.findByText(/3 ramar är sparade/);
-    expect(onArbetar).toHaveBeenLastCalledWith(false);
+    // Kvitteringen kan synas en render före onArbetar(false) – vänta in den
+    // (föll på CI 2026-11-05).
+    await waitFor(() => expect(onArbetar).toHaveBeenLastCalledWith(false));
     expect(screen.getByText(/1 anmärkning/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Öppna i Visualisering/ }));
