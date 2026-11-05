@@ -55,6 +55,7 @@ import {
   apHörnradie,
   AP_TYPE_LABEL,
 } from "./former";
+import type { ApRelation } from "@/core/affarsprocess";
 import { apPortPunkt, type ApLayout } from "./layout-affarsprocess";
 
 /* ---- Nodvyer ---- */
@@ -212,6 +213,36 @@ export interface ApCanvasProps {
     },
     label?: string,
   ) => void;
+  /**
+   * Tar bort en kedjepil – bryter kedjan. Knappen visas uppe till vänster när
+   * en kedjepil är vald; ingen tangent, av samma skäl som objekten tas bort i
+   * inspektören: man ska se vad man tar bort. Får mellanlagrets kant (`rel.kant`).
+   */
+  onTaBortKant?: (kant: { source: string; target: string; label?: string }) => void;
+  /** Byts när ritytan byter storlek (helskärm in/ut) – då anpassas vyn till bilden. */
+  anpassaVy?: number;
+}
+
+/**
+ * Mellanlagrets kant bakom en vald pil, eller undefined när pilen inte är en
+ * kedjepil (satellitstreck, in-objekt). Etiketten matchas som nyckel
+ * (invariant 3): Ja- och Nej-pilen mellan samma par är olika kanter.
+ * REGRESSION: en omärkt pil klickades med etiketten "" och hittade ingen kant.
+ */
+export function kedjekantFör(
+  relationer: readonly ApRelation[],
+  vald: { source: string; target: string; label?: string },
+): ApRelation["kant"] {
+  // Klicket på en omärkt pil bär den UTSKRIVNA etiketten "" – relationen har
+  // ingen alls. Tomt och saknat är samma nyckel.
+  const nyckel = vald.label || undefined;
+  return relationer.find(
+    (r) =>
+      r.kant &&
+      r.source === vald.source &&
+      r.target === vald.target &&
+      ((r.kind === "huki" ? r.huki : r.label) || undefined) === nyckel,
+  )?.kant;
 }
 
 export function ApCanvas({
@@ -231,9 +262,18 @@ export function ApCanvas({
   onPlace,
   onConnect,
   onEdgeSidesChange,
+  onTaBortKant,
+  anpassaVy,
 }: ApCanvasProps) {
   /** React Flow-instansen – för skärm→flödeskoordinater vid placering. */
   const rf = useRef<ReactFlowInstance | null>(null);
+  // Ny storlek på ritytan → hela processen i bild. Kort fördröjning så att
+  // behållaren hunnit få sina nya mått (samma knep som flödesschemat).
+  useEffect(() => {
+    if (!anpassaVy) return;
+    const t = setTimeout(() => rf.current?.fitView({ padding: 0.04, duration: 240 }), 120);
+    return () => clearTimeout(t);
+  }, [anpassaVy]);
   /**
    * Markeringen rapporteras upp med en STABIL handlare och bara när id:na
    * faktiskt ändrats. React Flows SelectionListener kör sin effekt varje gång
@@ -513,6 +553,13 @@ export function ApCanvas({
       ]
     : undefined;
 
+  /**
+   * Mellanlagrets kant bakom den valda pilen – det är DEN som tas bort när
+   * kedjan bryts. Pilen ut ur ett insprängt verksamhetsobjekt (vo_s3 → s4) bär
+   * kanten s3 → s4; satelliter och in-objekt har ingen och kan inte brytas här.
+   */
+  const valdKedjekant = valdKant ? kedjekantFör(layout.relations, valdKant) : undefined;
+
   /** Den valda kantens egna sidval ur mellanlagret. */
   const valdSidor = valdKant
     ? (stil(edgeKey(valdKant.source, valdKant.target, valdKant.label)) ??
@@ -645,6 +692,18 @@ export function ApCanvas({
       {!låst && (
         <div className="ark-pekarval-flytande">
           <PekarVal läge={pekarläge} onVälj={setPekarläge} />
+          {valdKedjekant && onTaBortKant && (
+            <button
+              className="ark-btn ark-ap-bryt"
+              title="Tar bort pilen och bryter kedjan här. Ångra tar tillbaka den."
+              onClick={() => {
+                onTaBortKant(valdKedjekant);
+                setValdKant(null);
+              }}
+            >
+              ✂ Bryt kedjan här
+            </button>
+          )}
         </div>
       )}
       <ReactFlow
