@@ -13,6 +13,7 @@ funktioner, en ny korrigering för rättelser.
 
 - Affärsprocess: ett steg i kedjan – även ett som AI:n eller regelparsern tolkat fram – tas bort med "Ta bort ur kedjan" i inspektören; kedjan sluts runt luckan. "+ Lägg till aktivitet efter" lägger en ny aktivitet direkt efter steget (efter en regels grenar). En vald kedjepil ger knappen "Bryt kedjan här" uppe till vänster. Ångra tar tillbaka allt.
 - Helskärm i både Affärsprocess och Systemprocess: knappen "⛶ Helskärm" visar bara bilden över hela skärmen, utan meny, verktygsrad eller paneler, och låst för ändringar. Esc eller "Avsluta helskärm" går tillbaka.
+- Testet för presentationsknappen väntar in att arbetet kvitterats – det föll ibland på CI.
 
 ## 0.3.3 – 2026-11-05
 
