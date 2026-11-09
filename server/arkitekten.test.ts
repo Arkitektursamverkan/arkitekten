@@ -130,7 +130,7 @@ describe("symbolstilen", () => {
 
   it("ett okänt id väljs aldrig", async () => {
     const res = await fetch(`${bas}/__ark/symbolstil`, { method: "PUT", body: JSON.stringify({ id: "finns-inte" }) });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 });
 
@@ -169,7 +169,7 @@ describe("kontrollen vid start", () => {
     expect(kontrollera({ ARK_AUTH: "local" }).fel.join(" ")).toContain("ARK_AUTH=local");
   });
   it("auto utan Entra i drift blir egna konton och startar", () => {
-    const k = kontrollera({ NODE_ENV: "production", ARK_AUTH: "auto", ARK_SESSION_SECRET: "x".repeat(40), SETUP_CODE: "kod" });
+    const k = kontrollera({ NODE_ENV: "production", ARK_AUTH: "auto", ARK_SESSION_SECRET: "x".repeat(40), SETUP_CODE: "kod", ARK_BAS_URL: "https://arkitekten.example.org" });
     expect(k.fel).toEqual([]);
   });
   it("öppen drift varnar", () => {

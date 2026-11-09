@@ -35,12 +35,49 @@ export function flödestjänstPort(env: NodeJS.ProcessEnv = process.env): number
   return port;
 }
 
-/** Startar flödestjänsten ur samma installation, med samma miljö och egen port. */
+/**
+ * Det enda barnet får ur Arkitektens miljö. Flödestjänsten läser sina
+ * kataloger, organisationens namn (`core/organisation.ts`) och sin nyckel –
+ * inget annat.
+ *
+ * REGRESSION: barnet ärvde HELA miljön, med ANTHROPIC_API_KEY,
+ * ENTRA_CLIENT_SECRET, EA_API_KEY och ARK_SESSION_SECRET, i en process som
+ * svarar på nätet utan inloggning. Lägg bara till en variabel här när
+ * flödestjänsten faktiskt läser den.
+ */
+export const BARNETS_MILJÖ = [
+  // Processen och tsx
+  "PATH",
+  "HOME",
+  "NODE_ENV",
+  "NODE_OPTIONS",
+  "TMPDIR",
+  "TZ",
+  "LANG",
+  "LC_ALL",
+  // Flödestjänsten (server/flodestjanst.mts)
+  "FLOWS_DIR",
+  "RAMAR_DIR",
+  "STILAR_DIR",
+  "ARK_FLODESTJANST_NYCKEL",
+  // Organisationens namn i scenerna (core/organisation.ts)
+  "ARK_PORTALBANA",
+  "ARK_SYSTEMPROCESS_KATEGORI",
+] as const;
+
+export function barnetsMiljö(env: NodeJS.ProcessEnv, port: number): NodeJS.ProcessEnv {
+  const ut: NodeJS.ProcessEnv = {};
+  for (const namn of BARNETS_MILJÖ) if (env[namn] !== undefined) ut[namn] = env[namn];
+  ut.PORT = String(port);
+  return ut;
+}
+
+/** Startar flödestjänsten ur samma installation, på egen port och med bara den miljö den behöver. */
 export function startaFlödestjänst(root: string, port: number, env: NodeJS.ProcessEnv = process.env): ChildProcess {
   const tsx = path.join(root, "node_modules", ".bin", "tsx");
   return spawn(tsx, [path.join(root, "server", "flodestjanst.mts")], {
     cwd: root,
-    env: { ...env, PORT: String(port) },
+    env: barnetsMiljö(env, port),
     stdio: "inherit",
   });
 }

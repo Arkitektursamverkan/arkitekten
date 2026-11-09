@@ -84,6 +84,10 @@ export function kontrollera(env: NodeJS.ProcessEnv = process.env): Kontroll {
     if (auth.läge === "entra") {
       const saknas = saknasFörEntra(auth);
       if (saknas.length) fel.push(`Inloggningen (Entra ID) saknar ${saknas.join(", ")}.`);
+    } else if (!env.ARK_BAS_URL?.trim() && iProduktion(env)) {
+      // REGRESSION: utan ARK_BAS_URL var det bara en varning, och kakan
+      // kunde sakna Secure. I drift ska adressen stå där.
+      fel.push("ARK_BAS_URL saknas – lokala konton i drift kräver appens https-adress (t.ex. https://arkitekten.example.org).");
     } else if (!auth.basUrl.startsWith("https:")) {
       varningar.push("Lokala konton utan https (ARK_BAS_URL) – lösenorden går okrypterade över nätet.");
     }
@@ -108,6 +112,8 @@ export function kontrollera(env: NodeJS.ProcessEnv = process.env): Kontroll {
     varningar.push("AI-stödet är av (ingen ANTHROPIC_API_KEY).");
   if (bmtMallFil(env) && !läsBmtMall(env))
     varningar.push("ARK_BMT_MALL pekar inte på en läsbar modellexport (.bmt) – BMT-exporten är av.");
+  if (env.ARK_FLODESTJANST_PORT?.trim() && !env.ARK_FLODESTJANST_NYCKEL?.trim())
+    varningar.push("ARK_FLODESTJANST_NYCKEL saknas – flödestjänsten svarar vem som helst som når den.");
   if (env.EA_API_KEY?.trim() && !env.EA_WEBB_URL?.trim())
     varningar.push("EA_WEBB_URL saknas – publiceringsrutan kan inte länka till portalen.");
   return { fel, varningar };

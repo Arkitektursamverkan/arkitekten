@@ -32,6 +32,7 @@ export interface EaKonfig {
   fetch?: typeof fetch;
 }
 
+import { Användarfel } from "./fel";
 import type { EaApplikation, EaProcess } from "../src/core/publicering";
 export type { EaApplikation, EaProcess };
 
@@ -66,7 +67,7 @@ async function anrop(k: EaKonfig, väg: string, init: RequestInit = {}): Promise
     } catch {
       /* inte JSON – visa texten som den är */
     }
-    throw new Error(`EA-portalen svarade ${res.status} på ${väg}: ${detalj}`);
+    throw new Användarfel(`EA-portalen svarade ${res.status} på ${väg}: ${detalj}`, 502);
   }
   return text ? JSON.parse(text) : null;
 }
@@ -179,7 +180,7 @@ export async function uppdateraEgenProcess(
 export async function arkiveraEgenProcess(k: EaKonfig, id: string): Promise<void> {
   const nod = (await anrop(k, `/nodes/${encodeURIComponent(id)}`)) as NodeRead;
   if ((nod.external_source ?? "NONE") !== "NONE" || nod.attributes?.källa !== "Arkitekten") {
-    throw new Error(`”${nod.name}” är inte skapad ur Arkitekten och arkiveras inte härifrån.`);
+    throw new Användarfel(`”${nod.name}” är inte skapad ur Arkitekten och arkiveras inte härifrån.`);
   }
   await anrop(k, `/nodes/${encodeURIComponent(id)}`, {
     method: "PATCH",

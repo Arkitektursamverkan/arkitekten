@@ -14,6 +14,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { läsSymbolstil, sättSymbolstil } from "@/tools/affarsprocess/symbolstil";
 import { sättOrganisation } from "@/core/organisation";
+import { inloggningsfelText } from "@/core/inloggningsfel";
 import { OrgMärke, useUtseende } from "./OrgMarke";
 import { InstallningarKnapp } from "./Installningar";
 import { BytLösenordKnapp, LokalInloggning } from "./LokalaKonton";
@@ -87,7 +88,11 @@ export function Inloggningsgrind({ children }: { children: ReactNode }) {
    * (2026-10-14, AADSTS700025).
    */
   const [tidigareFel] = useState(
-    () => new URLSearchParams(location.search).get("inloggningsfel") ?? undefined,
+    () => {
+      // Bara en kod ur en känd uppsättning visas – aldrig texten i adressen.
+      const kod = new URLSearchParams(location.search).get("inloggningsfel");
+      return kod === null ? undefined : inloggningsfelText(kod);
+    },
   );
 
   useEffect(() => {

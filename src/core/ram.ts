@@ -137,8 +137,8 @@ export interface Ramserie {
   stil?: RamStil;
   /**
    * Vem som skapade serien. Stämplas av bryggan vid skapandet och följer sedan
-   * med – ramarna är offentliga, men bara skaparen (och en administratör) tar
-   * bort dem (core/behorighet.ts).
+   * med – alla läser ramarna, men bara skaparen (och en administratör) ändrar
+   * och tar bort dem (core/behorighet.ts).
    */
   skapadAv?: Ägare;
 }

@@ -36,7 +36,7 @@ Rollerna är två: **administratör** och **användare**.
 | **Gemensam katalog** | Allt utan ägare. Alla befintliga flöden hamnar här. | alla | admin | admin |
 | **Demo** | Kategorin `Demo`. Offentlig. | alla | alla | admin |
 | **Mina processer** | Flöden med `ägare`. Varje användare har sin egen, med egna kategorier. | ägaren + admin | ägaren + admin | ägaren + admin |
-| **Visualisering** | Ramserierna. Offentliga. | alla | alla | skaparen + admin |
+| **Visualisering** | Ramserierna. Alla läser och skapar nya. | alla | skaparen + admin | skaparen + admin |
 
 - Med inloggning börjar en **ny process** i *Mina processer*, eller i *Demo* om
   man väljer det i "Ny process".
@@ -58,7 +58,7 @@ För en installation utan Entra ID, som portalens och plattformens egna konton:
 
 ```sh
 ARK_AUTH=lokal
-ARK_BAS_URL=https://arkitekten.example.org   # https – lösenorden går över nätet
+ARK_BAS_URL=https://arkitekten.example.org   # https – lösenorden går över nätet (krävs i drift)
 ARK_SESSION_SECRET=<openssl rand -hex 32>
 ARK_KONTON=/data/konton.json                 # i avbilden redan satt
 ```
@@ -69,8 +69,18 @@ ARK_KONTON=/data/konton.json                 # i avbilden redan satt
   konton tas bort. Den som är inloggad byter sitt eget lösenord under
   **Byt lösenord** i kontoraden.
 - Lösenorden lagras som saltade scrypt-hashar, aldrig i klartext, och kräver
-  minst 10 tecken. Efter fem felaktiga försök på ett namn eller från en
-  adress spärras inloggningen en stund, sedan längre för varje nytt fel.
+  minst 10 tecken. Efter fem felaktiga försök på samma namn från samma
+  adress spärras den kombinationen en stund, sedan längre för varje nytt fel;
+  namnet ensamt spärras först efter 50 fel (mot den som byter adress). En
+  gissare kan alltså inte låsa ute någon annan – inte heller administratören.
+  Prövningen (scrypt) körs utan att låsa servern.
+- **Bakom en proxy** (Render, en omvänd proxy) är socketens adress proxyns,
+  och alla hade delat samma spärr. Sätt då `ARK_BETRODD_PROXY=1`: klientens
+  adress tas ur första ledet i `X-Forwarded-For`. Sätt den BARA när appen inte
+  kan nås förbi proxyn – annars kan vem som helst skriva huvudet själv.
+- **Sessionskakan** får `Secure` när `ARK_BAS_URL` är https, eller när proxyn
+  säger att begäran kom över https (`X-Forwarded-Proto: https`). I drift
+  (`NODE_ENV=production`) startar lokala konton inte utan `ARK_BAS_URL`.
 - Ett borttaget konto är utloggat direkt, och en ändrad roll gäller från nästa
   begäran. Ett konto kan inte ta bort sig självt eller sin egen
   administratörsroll, och den sista administratören går inte att ta bort.
@@ -132,11 +142,11 @@ inloggningsrutan men kan inte slutföra inloggningen.
 
 ## Det som inte omfattas
 
-- **Flödestjänsten** (`:8200`, `server/flodestjanst.mts`) är oförändrad. Den
-  listar alla flöden för integrationsplattformen, som bara speglar publicerade
-  processer. Egna processer kan inte publiceras. Tjänsten bör ändå inte nås
-  utanför maskinen.
+- **Flödestjänsten** (`:8200`, `server/flodestjanst.mts`) har ingen inloggning –
+  den är integrationsplattformens. Den lämnar aldrig ut processer i någons
+  egen katalog, och med `ARK_FLODESTJANST_NYCKEL` kräver den en delad nyckel
+  (`docs/gransnitt.md`). Tjänsten bör ändå inte nås utanför maskinen.
 - **Skripten** i `scripts/` skriver direkt på disk och går förbi bryggan. De
   skapar processer i den gemensamma katalogen, som förut.
 - En visualisering över en process i någons egen katalog visar ett fel för
-  andra: visualiseringarna är offentliga, men processen är det inte.
+  andra: alla läser visualiseringarna, men processen är det inte.

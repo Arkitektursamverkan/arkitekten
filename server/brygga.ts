@@ -39,6 +39,7 @@ import type * as AiBesvara from "../src/tools/flowchart/ai/besvara";
 // inget DOM) just för att både bryggan och webbläsaren ska kunna använda den.
 import { sammanfattaStatus } from "../src/core/status";
 import { skapadTid } from "../src/core/nyhet";
+import { inloggningsfelKod } from "../src/core/inloggningsfel";
 import {
   arkiveraEgenProcess,
   eaKonfigUrMiljö,
@@ -67,7 +68,8 @@ import {
 } from "./auth";
 import { bytYta, prövaRamserie, prövaSparning } from "./atkomst";
 import { läsStilar, valdStil, väljStil } from "./symbolstilar";
-import { Inloggningsspärr, Kontofel, Kontolager, somAnvändare, utåt } from "./konton";
+import { Inloggningsspärr, Kontofel, Kontolager, somAnvändare, spärrnycklar, utåt } from "./konton";
+import { ALLMÄNT_FEL, Användarfel, Kroppsfel } from "./fel";
 import { exempelpaket, importera } from "./innehallspaket.mjs";
 import { organisation, organisationUrMiljö, sättOrganisation } from "../src/core/organisation";
 import { skapaUtseende, type UtseendeKälla } from "./utseende";
@@ -77,6 +79,7 @@ import {
   kanLäsa,
   kanTaBort,
   kanTaBortRamserie,
+  kanÄndraRamserie,
   type Användare,
   type Yta,
 } from "../src/core/behorighet";
@@ -85,6 +88,12 @@ const REQUEST = "request.json";
 const RESPONSE = "response.json";
 /** Uppladdade underlag till ett uppdrag (t.ex. dokumentet en rutin ska byggas ur). */
 const UNDERLAG = "underlag";
+/** Brevlådorna per användare (utanför utvecklarläget), under `arkDir`. */
+const ANVÄNDARLÅDOR = "anvandare";
+/** Ett underlag som ingen begäran tagit hand om tas bort efter ett dygn. */
+const UNDERLAG_LIVSLÄNGD_MS = 24 * 60 * 60 * 1000;
+/** Högst så mycket underlag per brevlåda åt gången. */
+const UNDERLAG_TAK = 100_000_000;
 
 /** Nyckeln läses vid varje begäran – en omstart av tjänsten räcker för att byta den. */
 const apiNyckel = () => process.env.ANTHROPIC_API_KEY?.trim() ?? "";
@@ -133,39 +142,118 @@ export type Hanterare = (req: IncomingMessage, res: ServerResponse, next: () => 
 /** Bara enkla, filnamnssäkra id:n släpps igenom (skydd mot path traversal). */
 const SAFE_ID = /^[a-z0-9-]{1,64}$/;
 
-/** Läser hela request-bodyn som text. */
-function readBody(req: IncomingMessage, max = 1_000_000): Promise<string> {
+/**
+ * Läser hela request-bodyn som byten, högst `max`.
+ *
+ * REGRESSION: läsningen fortsatte efter gränsen – allt lades på hög i minnet
+ * och anslutningen stod öppen, så en enda stor POST (även till /auth/*, före
+ * inloggningen) kunde äta upp serverns minne. Nu avvisas en för stor
+ * `content-length` innan något läses, och en kropp som växer förbi gränsen
+ * slutar läsas direkt; hanteraren svarar 413 och stänger anslutningen
+ * (`svaraMedFel`).
+ */
+function läsKropp(req: IncomingMessage, max: number, meddelande: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    let data = "";
-    req.on("data", (chunk) => {
-      data += chunk;
-      // Enkel spärr mot orimliga payloads (beskrivningar är text, inte filer).
-      if (data.length > max) reject(new Error("För stor payload"));
+    const angiven = Number(req.headers["content-length"]);
+    if (Number.isFinite(angiven) && angiven > max) {
+      reject(new Kroppsfel(meddelande));
+      return;
+    }
+    const delar: Buffer[] = [];
+    let längd = 0;
+    let klar = false;
+    const sluta = (fel: Error) => {
+      if (klar) return;
+      klar = true;
+      req.removeListener("data", påData);
+      // Inget mer läses; resten av kroppen ligger kvar i nätet tills
+      // anslutningen stängs efter svaret.
+      req.pause();
+      delar.length = 0;
+      reject(fel);
+    };
+    const påData = (chunk: Buffer | string) => {
+      const bit = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+      längd += bit.length;
+      if (längd > max) sluta(new Kroppsfel(meddelande));
+      else delar.push(bit);
+    };
+    req.on("data", påData);
+    req.on("end", () => {
+      if (klar) return;
+      klar = true;
+      resolve(Buffer.concat(delar));
     });
-    req.on("end", () => resolve(data));
-    req.on("error", reject);
+    req.on("error", (e) => sluta(e));
+    req.on("aborted", () => sluta(new Error("Begäran avbröts.")));
   });
+}
+
+/** Läser hela request-bodyn som text (beskrivningar är text, inte filer). */
+async function readBody(req: IncomingMessage, max = 1_000_000): Promise<string> {
+  return (await läsKropp(req, max, "För stor payload")).toString("utf8");
 }
 
 /** Som `readBody`, men för en FIL: byten som de är, med en högre gräns. */
 function readBytes(req: IncomingMessage, max = 25_000_000): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const delar: Buffer[] = [];
-    let längd = 0;
-    req.on("data", (chunk: Buffer) => {
-      längd += chunk.length;
-      if (längd > max) reject(new Error("Filen är för stor (högst 25 MB)."));
-      else delar.push(chunk);
-    });
-    req.on("end", () => resolve(Buffer.concat(delar)));
-    req.on("error", reject);
-  });
+  return läsKropp(req, max, `Filen är för stor (högst ${Math.round(max / 1_000_000)} MB).`);
 }
 
 function json(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status;
   res.setHeader("content-type", "application/json; charset=utf-8");
   res.end(JSON.stringify(body));
+}
+
+/**
+ * Klientens adress. Bakom en betrodd proxy (ARK_BETRODD_PROXY) är det första
+ * ledet i X-Forwarded-For; annars socketens – som bakom en proxy är proxyns
+ * egen. Sätt bara ARK_BETRODD_PROXY när appen INTE kan nås förbi proxyn:
+ * annars kan vem som helst skriva huvudet själv.
+ */
+export function klientadress(req: IncomingMessage, betroddProxy: boolean): string {
+  if (betroddProxy) {
+    const xff = req.headers["x-forwarded-for"];
+    const första = (Array.isArray(xff) ? xff[0] : xff)?.split(",")[0]?.trim();
+    if (första) return första;
+  }
+  return req.socket.remoteAddress ?? "";
+}
+
+/** Nåddes appen över https? Proxyn framför säger det med `x-forwarded-proto`. */
+export function viaHttps(req: IncomingMessage): boolean {
+  const proto = req.headers["x-forwarded-proto"];
+  return (Array.isArray(proto) ? proto[0] : proto)?.split(",")[0]?.trim().toLowerCase() === "https";
+}
+
+/**
+ * Svaret på ett fel i en begäran. Bara ett `Användarfel` (server/fel.ts) når
+ * användaren med sin text; en kropp som inte är JSON får ett eget besked.
+ * Allt annat loggas här och blir ett allmänt besked utåt.
+ *
+ * REGRESSION: felets text gick rakt ut till webbläsaren – ett filsystemsfel
+ * bar serverns sökvägar (`ENOENT: … /data/flows/…`).
+ */
+function svaraMedFel(req: IncomingMessage, res: ServerResponse, err: unknown, log: Logg) {
+  if (res.headersSent) {
+    res.destroy();
+    return;
+  }
+  if (err instanceof Kroppsfel) {
+    // Resten av en för stor kropp ska inte läsas: anslutningen stängs efter svaret.
+    res.setHeader("connection", "close");
+    res.on("finish", () => req.destroy());
+  }
+  if (err instanceof Användarfel) {
+    json(res, err.status, { ok: false, error: err.message });
+    return;
+  }
+  if (err instanceof SyntaxError) {
+    json(res, 400, { ok: false, error: "Begäran är inte giltig JSON." });
+    return;
+  }
+  log.warn(`  [ark] FEL i ${req.method ?? "?"} ${(req.url ?? "").split("?")[0]}: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
+  json(res, 500, { ok: false, error: ALLMÄNT_FEL });
 }
 
 /** Bryggans begärandehanterare, monterad under `/__ark` (`req.url` utan prefixet). */
@@ -175,8 +263,6 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
       const { root, flowsDir, ramarDir, logg: log, utvecklarläge } = o;
       const utseende = o.utseende ?? skapaUtseende(process.env, eaKonfigUrMiljö());
       const dir = o.arkDir;
-      const requestPath = path.join(dir, REQUEST);
-      const responsePath = path.join(dir, RESPONSE);
       /** Kort namn i loggen: katalogens sista led. */
       const FLOWS = path.basename(flowsDir);
       const RAMAR = path.basename(ramarDir);
@@ -192,8 +278,17 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
        * en vid start – det fungerar, men alla loggas ut när tjänsten startas om.
        */
       const hemlighet = process.env.ARK_SESSION_SECRET?.trim() || crypto.randomBytes(32).toString("hex");
-      const säkerKaka =
-        (auth.läge === "entra" || auth.läge === "lokal") && auth.basUrl.startsWith("https:");
+      /**
+       * Kakan får `Secure` när appen nås över https: ARK_BAS_URL säger det,
+       * eller proxyn framför (Render och liknande) gör det med
+       * `x-forwarded-proto`. REGRESSION: utan ARK_BAS_URL saknade kakan
+       * `Secure` även när appen bara nåddes över https.
+       */
+      const basHttps = (auth.läge === "entra" || auth.läge === "lokal") && auth.basUrl.startsWith("https:");
+      const säkerKaka = (req: IncomingMessage) =>
+        basHttps || ((auth.läge === "entra" || auth.läge === "lokal") && viaHttps(req));
+      /** ARK_BETRODD_PROXY: klientens adress tas ur X-Forwarded-For (se `klientadress`). */
+      const betroddProxy = /^(1|true|ja|on)$/i.test(process.env.ARK_BETRODD_PROXY?.trim() ?? "");
       const konton = new Kontolager(o.kontonFil);
       const spärr = new Inloggningsspärr();
       if (auth.läge === "entra") {
@@ -220,8 +315,8 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
         }
         return u;
       };
-      const loggaIn = (res: ServerResponse, u: Användare) =>
-        res.setHeader("set-cookie", kaka(SESSION_KAKA, skapaSession(u, hemlighet), { maxÅlder: SESSION_SEKUNDER, säker: säkerKaka }));
+      const loggaIn = (req: IncomingMessage, res: ServerResponse, u: Användare) =>
+        res.setHeader("set-cookie", kaka(SESSION_KAKA, skapaSession(u, hemlighet), { maxÅlder: SESSION_SEKUNDER, säker: säkerKaka(req) }));
 
       const omdirigera = (res: ServerResponse, till: string, kakor: string[] = []) => {
         res.statusCode = 302;
@@ -238,18 +333,97 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
       const idnI = (kat: string) =>
         fs.existsSync(kat) ? fs.readdirSync(kat).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)) : [];
 
-      /** Begäran som servern just nu besvarar med API:t – en i taget, som brevlådan. */
-      let pågående: { id: string; ctrl: AbortController } | null = null;
+      /**
+       * BREVLÅDAN – en per användare.
+       *
+       * REGRESSION: alla delade en brevlåda. Vilken inloggad som helst kunde
+       * hämta en annans svar med GET /response, avbryta en annans begäran,
+       * och läsa en annans uppladdade underlag genom en begäran som pekade ut
+       * det. Nu har varje användare en egen katalog (nycklad på en hash av
+       * id:t – inget namn i filsystemet), och begäran, svaret och underlagen
+       * hör till den som är inloggad.
+       *
+       * UTVECKLARLÄGET (och öppen drift, där alla är samma användare) har EN
+       * brevlåda, direkt i `arkDir` (`.ark/request.json`): det är den Claude
+       * Code läser och skriver (CLAUDE.md, "AI-bryggan").
+       */
+      interface Brevlåda {
+        nyckel: string;
+        katalog: string;
+        request: string;
+        response: string;
+        underlag: string;
+      }
+      const delad = utvecklarläge || auth.läge === "öppen";
+      const brevlåda = (u: Användare): Brevlåda => {
+        const nyckel = delad ? "" : crypto.createHash("sha256").update(u.id).digest("hex").slice(0, 32);
+        const katalog = delad ? dir : path.join(dir, ANVÄNDARLÅDOR, nyckel);
+        return {
+          nyckel,
+          katalog,
+          request: path.join(katalog, REQUEST),
+          response: path.join(katalog, RESPONSE),
+          underlag: path.join(katalog, UNDERLAG),
+        };
+      };
+      const läsBegäran = (låda: Brevlåda): { id?: string; rawText?: string } | null => {
+        try {
+          return fs.existsSync(låda.request) ? JSON.parse(fs.readFileSync(låda.request, "utf8")) : null;
+        } catch {
+          return null;
+        }
+      };
+
+      /** Underlagskatalogerna i alla brevlådor. */
+      const allaUnderlag = (): string[] => {
+        const ut = [path.join(dir, UNDERLAG)];
+        const per = path.join(dir, ANVÄNDARLÅDOR);
+        if (fs.existsSync(per))
+          for (const n of fs.readdirSync(per)) ut.push(path.join(per, n, UNDERLAG));
+        return ut.filter((k) => fs.existsSync(k));
+      };
+      /** Tar bort underlag äldre än ett dygn – i ALLA brevlådor. */
+      const gallraUnderlag = (nu = Date.now()) => {
+        for (const kat of allaUnderlag())
+          for (const f of fs.readdirSync(kat)) {
+            const fil = path.join(kat, f);
+            try {
+              if (nu - fs.statSync(fil).mtimeMs > UNDERLAG_LIVSLÄNGD_MS) fs.rmSync(fil, { force: true });
+            } catch {
+              /* borttagen under tiden */
+            }
+          }
+      };
+      /** Tar bort de underlag som en begäran pekar ut – svaret är skrivet, de behövs inte mer. */
+      const rensaUnderlagFör = (låda: Brevlåda, begäran: { rawText?: unknown } | null) => {
+        const text = typeof begäran?.rawText === "string" ? begäran.rawText : "";
+        if (!text || !fs.existsSync(låda.underlag)) return;
+        for (const f of fs.readdirSync(låda.underlag))
+          if (text.includes(f)) fs.rmSync(path.join(låda.underlag, f), { force: true });
+      };
+      const underlagStorlek = (låda: Brevlåda) =>
+        fs.existsSync(låda.underlag)
+          ? fs.readdirSync(låda.underlag).reduce((sum, f) => {
+              try {
+                return sum + fs.statSync(path.join(låda.underlag, f)).size;
+              } catch {
+                return sum;
+              }
+            }, 0)
+          : 0;
+
+      /** Begäran som servern just nu besvarar med API:t – en i taget per brevlåda. */
+      const pågående = new Map<string, { id: string; ctrl: AbortController }>();
 
       /**
        * Besvarar begäran med API:t och lägger svaret i brevlådan. Svaret skrivs
        * bara om begäran fortfarande är den som väntar och ingen annan (Claude
        * Code) hunnit svara – en avbruten eller ersatt begäran får inget svar.
        */
-      const svaraMedApi = async (begäran: AiBesvara.ArkBegäran & { id: string }) => {
-        pågående?.ctrl.abort();
+      const svaraMedApi = async (begäran: AiBesvara.ArkBegäran & { id: string }, låda: Brevlåda) => {
+        pågående.get(låda.nyckel)?.ctrl.abort();
         const ctrl = new AbortController();
-        pågående = { id: begäran.id, ctrl };
+        pågående.set(låda.nyckel, { id: begäran.id, ctrl });
         const logg = (rad: string) => log.info(`  [ark-ai] ${begäran.id}: ${rad}`);
         const start = Date.now();
         let svar: Record<string, unknown>;
@@ -265,9 +439,15 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             signal: ctrl.signal,
             läsUnderlag: async (sökväg: string) => {
               // Bara uppladdade underlag – sökvägen kommer ur begäran.
+              // Bara den egna brevlådans: en begäran kan inte peka ut någon annans underlag.
               const fil = path.resolve(root, sökväg);
-              if (!fil.startsWith(path.join(dir, UNDERLAG) + path.sep)) throw new Error("Underlaget ligger utanför brevlådan.");
-              return new Uint8Array(fs.readFileSync(fil));
+              if (!fil.startsWith(låda.underlag + path.sep)) throw new Användarfel("Underlaget ligger utanför brevlådan.");
+              try {
+                return new Uint8Array(fs.readFileSync(fil));
+              } catch {
+                // Felet bär sökvägen – den ska inte ut i svaret.
+                throw new Användarfel("Underlaget finns inte längre – ladda upp filen igen.");
+              }
             },
             upptagna: () => ({ serier: idnI(ramarDir), flöden: idnI(flowsDir) }),
             logg,
@@ -279,15 +459,14 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
           }
           svar = { fel: err instanceof Error ? err.message : String(err) };
         }
-        if (pågående?.id === begäran.id) pågående = null;
-        const väntande = fs.existsSync(requestPath)
-          ? JSON.parse(fs.readFileSync(requestPath, "utf8"))?.id
-          : null;
-        if (väntande !== begäran.id || fs.existsSync(responsePath)) {
+        if (pågående.get(låda.nyckel)?.id === begäran.id) pågående.delete(låda.nyckel);
+        const väntande = läsBegäran(låda)?.id ?? null;
+        if (väntande !== begäran.id || fs.existsSync(låda.response)) {
           logg("begäran väntar inte längre – svaret kastas");
           return;
         }
-        fs.writeFileSync(responsePath, JSON.stringify({ ...svar, requestId: begäran.id }, null, 2), "utf8");
+        fs.writeFileSync(låda.response, JSON.stringify({ ...svar, requestId: begäran.id }, null, 2), "utf8");
+        rensaUnderlagFör(låda, begäran);
         const sek = Math.round((Date.now() - start) / 1000);
         if (svar.fel) log.warn(`  [ark-ai] ${begäran.id}: FEL efter ${sek} s – ${String(svar.fel)}`);
         else logg(`svar skrivet efter ${sek} s`);
@@ -380,13 +559,14 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               const { användare, tillbaka } = await avslutaInloggning(auth, hemlighet, req.headers.cookie, fråga);
               log.info(`  [ark] Inloggad: ${användare.namn} (${användare.roller.join(", ")})`);
               omdirigera(res, tillbaka, [
-                kaka(SESSION_KAKA, skapaSession(användare, hemlighet), { maxÅlder: SESSION_SEKUNDER, säker: säkerKaka }),
-                rensaOidcKaka(säkerKaka),
+                kaka(SESSION_KAKA, skapaSession(användare, hemlighet), { maxÅlder: SESSION_SEKUNDER, säker: säkerKaka(req) }),
+                rensaOidcKaka(säkerKaka(req)),
               ]);
             } catch (err) {
               const fel = err instanceof Error ? err.message : String(err);
               log.warn(`  [ark] Inloggningen misslyckades: ${fel}`);
-              omdirigera(res, `/?inloggningsfel=${encodeURIComponent(fel)}`, [rensaOidcKaka(säkerKaka)]);
+              // Bara en KOD i adressen – texten stannar i loggen (inloggningsfelKod).
+              omdirigera(res, `/?inloggningsfel=${encodeURIComponent(inloggningsfelKod(fel))}`, [rensaOidcKaka(säkerKaka(req))]);
             }
             return;
           }
@@ -426,23 +606,27 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 lösenord: String(b.lösenord ?? ""),
               });
               log.info(`  [ark] Första kontot skapat: ${k.användarnamn} (administratör)`);
-              loggaIn(res, somAnvändare(k));
+              loggaIn(req, res, somAnvändare(k));
               json(res, 200, { ok: true, användare: somAnvändare(k) });
               return;
             }
             if (url === "/auth/lokal") {
               const namn = String(b.användarnamn ?? "").trim().toLowerCase();
-              const nycklar = [`namn:${namn}`, `adress:${req.socket.remoteAddress ?? ""}`];
+              // REGRESSION: spärren låg på namnet ensamt och på socketens adress.
+              // Bakom en proxy är den adressen proxyns – en gissare spärrade alla
+              // – och vem som helst kunde låsa ute administratören med fem
+              // felaktiga försök. Nu: namn + klientens adress (konton.ts).
+              const nycklar = spärrnycklar(namn, klientadress(req, betroddProxy));
               const till = spärr.spärradTill(nycklar);
               if (till) {
                 json(res, 429, { ok: false, error: `För många försök – vänta ${Math.ceil((till - Date.now()) / 60_000)} min.` });
                 return;
               }
               try {
-                const k = konton.logga(namn, String(b.lösenord ?? ""));
+                const k = await konton.logga(namn, String(b.lösenord ?? ""));
                 spärr.lyckat(nycklar);
                 log.info(`  [ark] Inloggad: ${k.namn} (${k.roller.join(", ")})`);
-                loggaIn(res, somAnvändare(k));
+                loggaIn(req, res, somAnvändare(k));
                 json(res, 200, { ok: true, användare: somAnvändare(k) });
               } catch (e) {
                 spärr.misslyckat(nycklar);
@@ -457,7 +641,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 return;
               }
               const k = konton.hämta(u.id)!;
-              konton.logga(k.användarnamn, String(b.nuvarande ?? ""));
+              await konton.logga(k.användarnamn, String(b.nuvarande ?? ""));
               konton.ändra(k.id, { lösenord: String(b.nytt ?? "") });
               json(res, 200, { ok: true });
               return;
@@ -465,7 +649,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
           }
 
           if (url === "/auth/logout") {
-            const rensa = kaka(SESSION_KAKA, "", { maxÅlder: 0, säker: säkerKaka });
+            const rensa = kaka(SESSION_KAKA, "", { maxÅlder: 0, säker: säkerKaka(req) });
             omdirigera(res, auth.läge === "entra" && !saknas.length ? utloggningsUrl(auth) : "/", [rensa]);
             return;
           }
@@ -511,9 +695,10 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               return;
             }
             const body = JSON.parse((await readBody(req)) || "{}");
-            fs.mkdirSync(dir, { recursive: true });
+            const låda = brevlåda(användare);
+            fs.mkdirSync(låda.katalog, { recursive: true });
             // Gammalt svar rensas, annars plockar appen upp fel tolkning.
-            fs.rmSync(responsePath, { force: true });
+            fs.rmSync(låda.response, { force: true });
             // Korrelations-id: svaret hör till EXAKT den här begäran. Utan det
             // kunde ett sent svar på en avbruten (eller parallell) begäran
             // plockas upp av nästa – tolkningen och utvärderingen delar brevlåda.
@@ -546,19 +731,19 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 : {}),
               requestedAt: new Date().toISOString(),
             };
-            fs.writeFileSync(requestPath, JSON.stringify(begäran, null, 2), "utf8");
+            fs.writeFileSync(låda.request, JSON.stringify(begäran, null, 2), "utf8");
             // `via: "claude-code"` = användaren valde Claude Code i kostnadsrutan –
             // bara i utvecklarläget; annars finns ingen som läser brevlådan.
             const medApi = läge === "api" && !(utvecklarläge && body.via === "claude-code");
             if (medApi) {
               log.info(`\n  [ark] Begäran ${id} (${begäran.uppdrag}) – besvaras med API:t.`);
-              void svaraMedApi(begäran);
+              void svaraMedApi(begäran, låda);
             } else {
               // Ersätter en begäran som API:t höll på med (nyckeln kan ha tagits bort).
-              pågående?.ctrl.abort();
+              pågående.get(låda.nyckel)?.ctrl.abort();
               log.info(
-                `\n  [ark] Begäran ${id} (${begäran.uppdrag}) skriven till ${requestPath} – väntar på Claude Code.` +
-                  `\n  [ark] Svaret i ${responsePath} bör innehålla "requestId": "${id}".\n`,
+                `\n  [ark] Begäran ${id} (${begäran.uppdrag}) skriven till ${låda.request} – väntar på Claude Code.` +
+                  `\n  [ark] Svaret i ${låda.response} bör innehålla "requestId": "${id}".\n`,
               );
             }
             json(res, 200, { ok: true, id, besvaras: medApi ? "api" : "claude-code" });
@@ -579,8 +764,14 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             // Bara filnamnet, och bara ofarliga tecken – namnet kommer utifrån.
             const säkert =
               path.basename(namn).replace(/[^\p{L}\p{N}._-]+/gu, "_").slice(-80) || "underlag";
-            const data = await readBytes(req);
-            const mapp = path.join(dir, UNDERLAG);
+            const låda = brevlåda(användare);
+            // Underlag som ingen begäran tog hand om (sidan stängdes) ligger inte kvar.
+            gallraUnderlag();
+            const ledigt = UNDERLAG_TAK - underlagStorlek(låda);
+            if (ledigt <= 0)
+              throw new Kroppsfel("Du har för mycket uppladdat underlag just nu – vänta på svaret, eller försök igen i morgon.");
+            const data = await readBytes(req, Math.min(25_000_000, ledigt));
+            const mapp = låda.underlag;
             fs.mkdirSync(mapp, { recursive: true });
             const fil = `${Date.now().toString(36)}-${säkert}`;
             fs.writeFileSync(path.join(mapp, fil), data);
@@ -641,6 +832,12 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               });
               return;
             }
+            // Läsningen av portalens träd och applikationer görs med portalens
+            // ADMINNYCKEL. Den behövs bara för att välja mål i publiceringsrutan,
+            // och rutan är administratörens (kanPublicera i core/behorighet.ts) –
+            // därför samma roll här. REGRESSION: vilken inloggad som helst kunde
+            // läsa portalen med adminnyckeln.
+            if ((url === "/ea/processer" || url === "/ea/applikationer") && req.method === "GET" && baraAdmin()) return;
             if (url === "/ea/processer" && req.method === "GET") {
               json(res, 200, { ok: true, processer: await listaProcesser(ea) });
               return;
@@ -695,19 +892,20 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
 
           // --- Appen pollar efter svaret.
           if (url === "/response" && req.method === "GET") {
-            if (!fs.existsSync(responsePath)) {
+            const låda = brevlåda(användare);
+            if (!fs.existsSync(låda.response)) {
               res.statusCode = 204; // inget svar ännu
               res.end();
               return;
             }
-            const raw = JSON.parse(fs.readFileSync(responsePath, "utf8"));
+            const raw = JSON.parse(fs.readFileSync(låda.response, "utf8"));
             // Ett svar märkt med ett ANNAT id än den väntande begäran är ett
             // kvarblivet svar på något gammalt – släng det och vänta vidare.
             // Svar utan requestId släpps igenom (bakåtkompatibelt).
-            if (raw?.requestId && fs.existsSync(requestPath)) {
-              const väntande = JSON.parse(fs.readFileSync(requestPath, "utf8"));
+            const väntande = läsBegäran(låda);
+            if (raw?.requestId && väntande) {
               if (väntande?.id && väntande.id !== raw.requestId) {
-                fs.rmSync(responsePath, { force: true });
+                fs.rmSync(låda.response, { force: true });
                 log.warn(
                   `  [ark] Kasserade kvarblivet svar (${raw.requestId}) – väntar på ${väntande.id}.`,
                 );
@@ -716,6 +914,8 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 return;
               }
             }
+            // Svaret är hämtat – underlagen till begäran behövs inte längre.
+            rensaUnderlagFör(låda, väntande);
             json(res, 200, { ok: true, response: raw });
             return;
           }
@@ -966,11 +1166,17 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             if (req.method === "PUT") {
               // En ramserie kan bära en uppladdad bakgrundsbild (krympt i
               // appen, se src/tools/ramar/bild.ts) – därav den högre gränsen.
-              // Ramarna är offentliga: alla inloggade får spara, och skaparen
+              // Alla inloggade läser och skapar; en befintlig serie ändras bara av
+              // skaparen eller en administratör (core/behorighet.ts). Skaparen
               // stämplas vid skapandet (server/atkomst.ts).
+              const befintligSerie = läsJson(file);
+              if (befintligSerie && !kanÄndraRamserie(användare, befintligSerie)) {
+                json(res, 403, { ok: false, error: "Bara den som skapade visualiseringen, eller en administratör, kan ändra den." });
+                return;
+              }
               const serie = prövaRamserie(
                 användare,
-                läsJson(file),
+                befintligSerie,
                 JSON.parse((await readBody(req, 15_000_000)) || "{}"),
               );
               fs.mkdirSync(ramarDir, { recursive: true });
@@ -996,18 +1202,17 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
           // svar som landar efter avbrottet får inte ligga kvar och plockas
           // upp av nästa begäran som om det vore dess.
           if (url === "/cancel" && req.method === "POST") {
-            pågående?.ctrl.abort();
-            pågående = null;
-            fs.rmSync(requestPath, { force: true });
-            fs.rmSync(responsePath, { force: true });
+            const låda = brevlåda(användare);
+            pågående.get(låda.nyckel)?.ctrl.abort();
+            pågående.delete(låda.nyckel);
+            rensaUnderlagFör(låda, läsBegäran(låda));
+            fs.rmSync(låda.request, { force: true });
+            fs.rmSync(låda.response, { force: true });
             json(res, 200, { ok: true });
             return;
           }
         } catch (err) {
-          json(res, err instanceof Kontofel ? err.status : 400, {
-            ok: false,
-            error: err instanceof Error ? err.message : String(err),
-          });
+          svaraMedFel(req, res, err, log);
           return;
         }
 

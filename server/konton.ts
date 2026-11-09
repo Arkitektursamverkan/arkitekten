@@ -18,6 +18,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Användare, Roll } from "../src/core/behorighet";
+import { Användarfel } from "./fel";
 
 export interface Konto {
   /** Stabilt id – byts aldrig, ägarskap och "skapad av" följer det. */
@@ -55,6 +56,31 @@ export function stämmerLösenord(lösenord: string, lagrat: string): boolean {
   return crypto.timingSafeEqual(given, väntad);
 }
 
+/**
+ * Som `stämmerLösenord`, men utan att låsa servern: scrypt körs i Nodes
+ * trådpool. Inloggningen använder den här – med den synkrona stod hela
+ * servern still under varje försök, och en gissare kunde frysa den.
+ */
+export async function stämmerLösenordAsynk(lösenord: string, lagrat: string): Promise<boolean> {
+  const [typ, salt, hash] = lagrat.split("$");
+  if (typ !== "scrypt" || !salt || !hash) return false;
+  const väntad = Buffer.from(hash, "base64url");
+  const given = await new Promise<Buffer>((klar, fel) =>
+    crypto.scrypt(
+      lösenord,
+      Buffer.from(salt, "base64url"),
+      väntad.length,
+      { N: SCRYPT.N, r: SCRYPT.r, p: SCRYPT.p },
+      (err, nyckel) => (err ? fel(err) : klar(nyckel)),
+    ),
+  );
+  return crypto.timingSafeEqual(given, väntad);
+}
+
+/** En hash att pröva mot när namnet är okänt – räknas en gång, inte vid varje försök. */
+let attrapp: string | null = null;
+const attrapphash = () => (attrapp ??= hashaLösenord(crypto.randomBytes(16).toString("hex")));
+
 /** Varför ett lösenord inte duger, eller null. */
 export function prövaLösenord(lösenord: unknown): string | null {
   if (typeof lösenord !== "string" || lösenord.length < MIN_LÄNGD)
@@ -73,14 +99,8 @@ export const somAnvändare = (k: Konto): Användare => ({
   roller: k.roller,
 });
 
-export class Kontofel extends Error {
-  constructor(
-    meddelande: string,
-    readonly status = 400,
-  ) {
-    super(meddelande);
-  }
-}
+/** Ett kontofel visas för användaren (server/fel.ts). */
+export class Kontofel extends Användarfel {}
 
 /** Kontona i en fil. Läses om vid varje anrop – filen är liten och kan ha ändrats av en annan process. */
 export class Kontolager {
@@ -108,10 +128,12 @@ export class Kontolager {
   }
 
   /** Inloggningen. Samma svar för okänt namn och fel lösenord – inget avslöjar vilka konton som finns. */
-  logga(användarnamn: string, lösenord: string): Konto {
+  async logga(användarnamn: string, lösenord: string): Promise<Konto> {
     const k = this.alla().find((x) => x.användarnamn === användarnamn.trim().toLowerCase());
     // Räkna en hash också för ett okänt namn, så att svarstiden inte avslöjar det.
-    const ok = k ? stämmerLösenord(lösenord, k.lösenord) : (stämmerLösenord(lösenord, hashaLösenord("x".repeat(MIN_LÄNGD))), false);
+    const ok = k
+      ? await stämmerLösenordAsynk(lösenord, k.lösenord)
+      : (await stämmerLösenordAsynk(lösenord, attrapphash()), false);
     if (!k || !ok) throw new Kontofel("Fel användarnamn eller lösenord.", 401);
     return k;
   }
@@ -171,25 +193,49 @@ export class Kontolager {
   }
 }
 
+/** Hur många misslyckanden en nyckel tål innan den spärras. */
+export const SPÄRRGRÄNS = 5;
 /**
- * Spärr mot gissade lösenord: efter fem misslyckade försök på ett namn eller
- * från en adress väntar man en minut, sedan längre för varje nytt misslyckande.
- * I minnet – en omstart nollställer, vilket är godtagbart för en spärr.
+ * Det lösare taket per användarnamn, oavsett adress. Det hindrar en gissare
+ * som byter adress, men ligger så högt att ingen kan låsa ute en annan
+ * användare (t.ex. administratören) med några få felaktiga försök.
+ */
+export const NAMNTAK = 50;
+
+/**
+ * Nycklarna för ett inloggningsförsök: kombinationen namn + adress (den
+ * vanliga spärren) och namnet ensamt (det lösa taket). Adressen ensam spärras
+ * inte – bakom en proxy delar alla samma adress, och en enda gissare hade då
+ * låst ute alla.
+ */
+export function spärrnycklar(användarnamn: string, adress: string): string[] {
+  return [`namn+adress:${användarnamn}|${adress}`, `namn:${användarnamn}`];
+}
+
+/**
+ * Spärr mot gissade lösenord: efter `SPÄRRGRÄNS` misslyckade försök på samma
+ * namn från samma adress väntar man en minut, sedan längre för varje nytt
+ * misslyckande; namnet ensamt spärras först vid `NAMNTAK`. I minnet – en
+ * omstart nollställer, vilket är godtagbart för en spärr.
  */
 export class Inloggningsspärr {
   private försök = new Map<string, { antal: number; till: number }>();
 
+  private static gräns(nyckel: string): number {
+    return nyckel.startsWith("namn:") ? NAMNTAK : SPÄRRGRÄNS;
+  }
+
   spärradTill(nycklar: string[], nu = Date.now()): number {
-    return Math.max(0, ...nycklar.map((n) => this.försök.get(n)?.till ?? 0)) > nu
-      ? Math.max(...nycklar.map((n) => this.försök.get(n)?.till ?? 0))
-      : 0;
+    const till = Math.max(0, ...nycklar.map((n) => this.försök.get(n)?.till ?? 0));
+    return till > nu ? till : 0;
   }
 
   misslyckat(nycklar: string[], nu = Date.now()): void {
     for (const n of nycklar) {
       const f = this.försök.get(n) ?? { antal: 0, till: 0 };
       f.antal += 1;
-      if (f.antal >= 5) f.till = nu + 60_000 * 2 ** Math.min(f.antal - 5, 6);
+      const gräns = Inloggningsspärr.gräns(n);
+      if (f.antal >= gräns) f.till = nu + 60_000 * 2 ** Math.min(f.antal - gräns, 6);
       this.försök.set(n, f);
     }
   }
