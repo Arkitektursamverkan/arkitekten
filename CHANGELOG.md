@@ -7,6 +7,10 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- (inget än)
+
+## 0.5.0 – 2026-11-09
+
 - `ARK_AUTH=auto`: Entra när `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` och `ENTRA_CLIENT_SECRET` är satta, annars egna konton – aldrig öppen drift. För installationer där Entra är valfritt (Render).
 - Utan `ARK_ADMINS` läses administratörerna ur `BOOTSTRAP_ADMIN_EMAILS`, så att portalen, plattformen och Arkitekten kan dela en lista – och en app-registrering.
 
