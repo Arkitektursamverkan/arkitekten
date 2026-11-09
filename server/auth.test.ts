@@ -47,6 +47,14 @@ describe("konfigurationen", () => {
     const c = authKonfigUrMiljö({ ENTRA_TENANT_ID: "t", ENTRA_CLIENT_ID: "c", ENTRA_CLIENT_SECRET: "s" });
     expect(c.läge).toBe("entra");
   });
+  it("REGRESSION: på Render var adressen okänd vid första starten – RENDER_EXTERNAL_URL räcker när ARK_BAS_URL saknas", () => {
+    expect(authKonfigUrMiljö({ ARK_AUTH: "auto", RENDER_EXTERNAL_URL: "https://arkitekten.onrender.com/" })).toEqual({
+      läge: "lokal",
+      basUrl: "https://arkitekten.onrender.com",
+    });
+    const egen = authKonfigUrMiljö({ ARK_AUTH: "lokal", ARK_BAS_URL: "https://ark.example.org", RENDER_EXTERNAL_URL: "https://x.onrender.com" });
+    expect(egen).toEqual({ läge: "lokal", basUrl: "https://ark.example.org" });
+  });
   it("ARK_AUTH=auto: Entra med alla uppgifterna, annars egna konton – aldrig öppen", () => {
     const entra = authKonfigUrMiljö({ ARK_AUTH: "auto", ENTRA_TENANT_ID: "t", ENTRA_CLIENT_ID: "c", ENTRA_CLIENT_SECRET: "s" });
     expect(entra.läge).toBe("entra");

@@ -13,7 +13,7 @@
 import { bmtMallFil, läsBmtMall } from "./bmt-mall";
 import fs from "node:fs";
 import path from "node:path";
-import { AUTH_LÄGEN, authKonfigUrMiljö, förstaKontoKod, iProduktion, saknasFörEntra } from "./auth";
+import { AUTH_LÄGEN, authKonfigUrMiljö, basUrlUrMiljö, förstaKontoKod, iProduktion, saknasFörEntra } from "./auth";
 
 export interface Installningar {
   /** Där relativa sökvägar räknas ifrån – projektroten. */
@@ -84,7 +84,7 @@ export function kontrollera(env: NodeJS.ProcessEnv = process.env): Kontroll {
     if (auth.läge === "entra") {
       const saknas = saknasFörEntra(auth);
       if (saknas.length) fel.push(`Inloggningen (Entra ID) saknar ${saknas.join(", ")}.`);
-    } else if (!env.ARK_BAS_URL?.trim() && iProduktion(env)) {
+    } else if (!basUrlUrMiljö(env) && iProduktion(env)) {
       // REGRESSION: utan ARK_BAS_URL var det bara en varning, och kakan
       // kunde sakna Secure. I drift ska adressen stå där.
       fel.push("ARK_BAS_URL saknas – lokala konton i drift kräver appens https-adress (t.ex. https://arkitekten.example.org).");

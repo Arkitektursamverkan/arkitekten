@@ -65,12 +65,12 @@ export function authKonfigUrMiljö(env: NodeJS.ProcessEnv = process.env): AuthKo
   const clientId = env.ENTRA_CLIENT_ID?.trim() ?? "";
   const clientSecret = env.ENTRA_CLIENT_SECRET?.trim() ?? "";
   const begärt = env.ARK_AUTH?.trim().toLowerCase();
-  if (begärt === "dev") return { läge: "dev", basUrl: env.ARK_BAS_URL?.trim() };
+  if (begärt === "dev") return { läge: "dev", basUrl: basUrlUrMiljö(env) || undefined };
   // auto: Entra när alla uppgifterna finns, annars egna konton – aldrig öppen
   // drift. För installationer där Entra är valfritt (Render-blueprinten).
   const allaEntra = Boolean(tenantId && clientId && clientSecret);
-  if (begärt === "auto" && !allaEntra) return { läge: "lokal", basUrl: (env.ARK_BAS_URL?.trim() ?? "").replace(/\/+$/, "") };
-  if (begärt === "lokal") return { läge: "lokal", basUrl: (env.ARK_BAS_URL?.trim() ?? "").replace(/\/+$/, "") };
+  if (begärt === "auto" && !allaEntra) return { läge: "lokal", basUrl: basUrlUrMiljö(env) };
+  if (begärt === "lokal") return { läge: "lokal", basUrl: basUrlUrMiljö(env) };
   if (begärt === "entra" || allaEntra) {
     return {
       läge: "entra",
@@ -78,7 +78,7 @@ export function authKonfigUrMiljö(env: NodeJS.ProcessEnv = process.env): AuthKo
       clientId,
       clientSecret,
       // Ingen standard: adressen är installationens egen (redirect-URI:n byggs av den).
-      basUrl: (env.ARK_BAS_URL?.trim() ?? "").replace(/\/+$/, ""),
+      basUrl: basUrlUrMiljö(env),
       adminRoller: lista(env.ENTRA_ADMIN_ROLLER || "Arkitekten.Admin,Admin"),
       adminGrupper: lista(env.ENTRA_ADMIN_GRUPPER),
       // Samma lista som portalen och plattformen duger, när ARK_ADMINS inte är satt.
@@ -87,6 +87,14 @@ export function authKonfigUrMiljö(env: NodeJS.ProcessEnv = process.env): AuthKo
   }
   return { läge: "öppen" };
 }
+
+/**
+ * Appens publika adress: ARK_BAS_URL, annars den Render ger en webbtjänst
+ * (RENDER_EXTERNAL_URL – onrender.com-adressen). Med en egen domän ska
+ * ARK_BAS_URL sättas, annars blir inloggningens adresser fel.
+ */
+export const basUrlUrMiljö = (env: NodeJS.ProcessEnv = process.env) =>
+  (env.ARK_BAS_URL?.trim() || env.RENDER_EXTERNAL_URL?.trim() || "").replace(/\/+$/, "");
 
 /** Värdena ARK_AUTH får ha (tomt = Entra om uppgifterna finns, annars öppen). */
 export const AUTH_LÄGEN = ["entra", "lokal", "auto", "dev", "oppen"] as const;
