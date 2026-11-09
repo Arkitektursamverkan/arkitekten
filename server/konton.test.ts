@@ -72,7 +72,16 @@ describe("inloggningen", () => {
     expect(me.kropp).toMatchObject({ läge: "lokal", användare: null, förstaKonto: true });
     const kort = await admin("/__ark/auth/forsta", post({ användarnamn: "admin@example.org", namn: "Admin", lösenord: "kort" }));
     expect(kort.status).toBe(400);
-    const ok = await admin("/__ark/auth/forsta", post({ användarnamn: "Admin@Example.org", namn: "Admin", lösenord: "ett långt lösenord" }));
+    // REGRESSION: den som först hittade en ny installation blev administratör.
+    // Med engångskoden satt krävs den – fel eller ingen kod nekas.
+    process.env.SETUP_CODE = "engångskod-123";
+    expect((await admin("/__ark/auth/me")).kropp.kodKrävs).toBe(true);
+    const utanKod = await admin("/__ark/auth/forsta", post({ användarnamn: "x@example.org", namn: "X", lösenord: "ett långt lösenord" }));
+    expect(utanKod.status).toBe(403);
+    const felKod = await admin("/__ark/auth/forsta", post({ användarnamn: "x@example.org", namn: "X", lösenord: "ett långt lösenord", kod: "gissad" }));
+    expect(felKod.status).toBe(403);
+    const ok = await admin("/__ark/auth/forsta", post({ användarnamn: "Admin@Example.org", namn: "Admin", lösenord: "ett långt lösenord", kod: "engångskod-123" }));
+    delete process.env.SETUP_CODE;
     expect(ok.kropp.användare.roller).toContain("admin");
     expect((await admin("/__ark/auth/me")).kropp.användare.namn).toBe("Admin");
   });

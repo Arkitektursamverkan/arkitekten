@@ -132,7 +132,7 @@ bara genom plattformen (`docs/gransnitt.md`). För ALL kod gäller:
    version. Appen gömmer knappar med SAMMA funktioner som servern prövar med;
    skriv aldrig en egen kopia av en regel i en komponent. Lägena är `entra`,
    `lokal` (installationens konton, `server/konton.ts` – lösenord bara som
-   scrypt-hash, aldrig ut ur modulen) och `öppen` (utveckling: alla är admin).
+   scrypt-hash, aldrig ut ur modulen) och `öppen` (utveckling: alla är admin – i drift bara med `ARK_TILLAT_OPPEN=1`).
    Ett lokalt konto läses om vid varje begäran, så ett borttaget konto är
    utloggat direkt. Uppsättning: `docs/inloggning.md`.
 

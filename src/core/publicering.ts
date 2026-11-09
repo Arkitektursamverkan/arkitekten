@@ -83,7 +83,7 @@ export function saknasFörPublicering(u: PubliceringsUtkast): string[] {
 /** Processnumrering: siffror åtskilda av punkter. */
 export const PREFIX = /^\d+(?:\.\d+)*$/;
 
-/** "4.4.3 Allvarlig incident" → { prefix: "4.4.3", namn: "Allvarlig incident" }. */
+/** "1.2.3 Beställ behörighet" → { prefix: "1.2.3", namn: "Beställ behörighet" }. */
 export function delaNamn(namn: string): { prefix?: string; namn: string } {
   const m = /^(\d+(?:\.\d+)*)\s+(.*)$/.exec(namn.trim());
   return m ? { prefix: m[1], namn: m[2].trim() } : { namn: namn.trim() };

@@ -88,6 +88,30 @@ export function authKonfigUrMiljö(env: NodeJS.ProcessEnv = process.env): AuthKo
   return { läge: "öppen" };
 }
 
+/** Värdena ARK_AUTH får ha (tomt = Entra om uppgifterna finns, annars öppen). */
+export const AUTH_LÄGEN = ["entra", "lokal", "auto", "dev", "oppen"] as const;
+
+/** Driften: avbilden sätter NODE_ENV=production. */
+export const iProduktion = (env: NodeJS.ProcessEnv = process.env) => env.NODE_ENV?.trim() === "production";
+
+/**
+ * Engångskoden för det första lokala kontot. I produktion krävs den – annars
+ * blir den som först hittar en ny installation dess administratör. Samma
+ * SETUP_CODE som portalen och Integrationsplattformen.
+ */
+export function förstaKontoKod(env: NodeJS.ProcessEnv = process.env): { krävs: boolean; kod: string } {
+  const kod = env.SETUP_CODE?.trim() ?? "";
+  return { krävs: iProduktion(env) || Boolean(kod), kod };
+}
+
+/** Tidskonstant jämförelse av en angiven kod mot den rätta. */
+export function rättKod(angiven: unknown, rätt: string): boolean {
+  if (!rätt) return false;
+  const a = crypto.createHash("sha256").update(String(angiven ?? "").trim()).digest();
+  const b = crypto.createHash("sha256").update(rätt).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
 /** Saknade uppgifter för Entra – tom lista = komplett. */
 export function saknasFörEntra(k: EntraKonfig): string[] {
   const ut: string[] = [];

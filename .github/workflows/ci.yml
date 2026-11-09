@@ -55,7 +55,8 @@ jobs:
           docker volume create ark-data
           # En tom installation lägger in exempelpaketet.
           docker run --rm -v ark-data:/data arkitekten:ci node_modules/.bin/tsx server/innehallspaket.mts import exempel
-          docker run -d --name ark -p 5173:5173 -v ark-data:/data arkitekten:ci
+          # Röktestet läser utan inloggning; i drift vägrar avbilden öppet läge.
+          docker run -d --name ark -p 5173:5173 -e ARK_TILLAT_OPPEN=1 -v ark-data:/data arkitekten:ci
           docker run -d --name flodestjanst -p 8200:8200 -e PORT=8200 -v ark-data:/data \
             arkitekten:ci node_modules/.bin/tsx server/flodestjanst.mts
 

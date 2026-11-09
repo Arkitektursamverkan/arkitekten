@@ -13,7 +13,7 @@
 import { bmtMallFil, läsBmtMall } from "./bmt-mall";
 import fs from "node:fs";
 import path from "node:path";
-import { authKonfigUrMiljö, saknasFörEntra } from "./auth";
+import { AUTH_LÄGEN, authKonfigUrMiljö, förstaKontoKod, iProduktion, saknasFörEntra } from "./auth";
 
 export interface Installningar {
   /** Där relativa sökvägar räknas ifrån – projektroten. */
@@ -74,6 +74,11 @@ export function kontrollera(env: NodeJS.ProcessEnv = process.env): Kontroll {
   const fel: string[] = [];
   const varningar: string[] = [];
   const auth = authKonfigUrMiljö(env);
+  const begärt = env.ARK_AUTH?.trim().toLowerCase() ?? "";
+  // Ett felstavat värde får inte tyst bli öppen drift.
+  if (begärt && !(AUTH_LÄGEN as readonly string[]).includes(begärt))
+    fel.push(`ARK_AUTH=${begärt} är inget giltigt värde (${AUTH_LÄGEN.join(", ")}).`);
+  const tillåtÖppen = på(env.ARK_TILLAT_OPPEN);
 
   if (auth.läge === "entra" || auth.läge === "lokal") {
     if (auth.läge === "entra") {
@@ -85,10 +90,18 @@ export function kontrollera(env: NodeJS.ProcessEnv = process.env): Kontroll {
     if (!env.ARK_SESSION_SECRET?.trim()) fel.push("ARK_SESSION_SECRET saknas – den signerar sessionerna.");
     else if (env.ARK_SESSION_SECRET.trim().length < 32)
       fel.push("ARK_SESSION_SECRET är för kort – minst 32 tecken.");
-  } else if (auth.läge === "dev") {
-    varningar.push("Inloggning: PROVLÄGE (ARK_AUTH=dev) – vem som helst väljer namn och roll.");
+    if (auth.läge === "lokal" && iProduktion(env) && !förstaKontoKod(env).kod)
+      varningar.push("SETUP_CODE saknas – finns inga konton än kan det första inte skapas.");
   } else {
-    varningar.push("Inloggning: ÖPPEN drift – alla som når appen är administratörer. Bara för utveckling.");
+    const text =
+      auth.läge === "dev"
+        ? "Inloggning: PROVLÄGE (ARK_AUTH=dev) – vem som helst väljer namn och roll."
+        : "Inloggning: ÖPPEN drift – alla som når appen är administratörer. Bara för utveckling.";
+    // I drift startar appen inte så – utom när det är uttryckligen tillåtet
+    // (t.ex. bakom ett eget skyddat nät): ARK_TILLAT_OPPEN=1.
+    if (iProduktion(env) && !tillåtÖppen)
+      fel.push(`${text} Sätt ARK_AUTH=auto (eller entra/lokal), eller ARK_TILLAT_OPPEN=1 om det verkligen är meningen.`);
+    else varningar.push(text);
   }
 
   if (!env.ANTHROPIC_API_KEY?.trim() && !på(env.ARK_UTVECKLARLAGE))

@@ -48,7 +48,7 @@ export function AnvändarKontext({ användare, läge = "entra", children }: Inlo
 type Tillstånd =
   | { typ: "laddar" }
   | { typ: "inloggad"; värde: Inloggad }
-  | { typ: "utloggad"; läge: Inloggningsläge; fel?: string; förstaKonto?: boolean };
+  | { typ: "utloggad"; läge: Inloggningsläge; fel?: string; förstaKonto?: boolean; kodKrävs?: boolean };
 
 /**
  * Installationens symbolstil (server/symbolstilar.ts). Prövas här också – en
@@ -112,7 +112,7 @@ export function Inloggningsgrind({ children }: { children: ReactNode }) {
         setT(
           b.användare
             ? { typ: "inloggad", värde: { användare: b.användare, läge } }
-            : { typ: "utloggad", läge, fel: tidigareFel ?? b.fel, förstaKonto: b.förstaKonto === true },
+            : { typ: "utloggad", läge, fel: tidigareFel ?? b.fel, förstaKonto: b.förstaKonto === true, kodKrävs: b.kodKrävs === true },
         );
       } catch {
         if (levande) setT({ typ: "inloggad", värde: { användare: LOKAL_ANVÄNDARE, läge: "öppen" } });
@@ -124,11 +124,21 @@ export function Inloggningsgrind({ children }: { children: ReactNode }) {
   }, [tidigareFel]);
 
   if (t.typ === "laddar") return <div className="ark-inloggning"><p className="ark-hint">Läser inloggningen …</p></div>;
-  if (t.typ === "utloggad") return <Inloggningsruta läge={t.läge} fel={t.fel} förstaKonto={t.förstaKonto} />;
+  if (t.typ === "utloggad") return <Inloggningsruta läge={t.läge} fel={t.fel} förstaKonto={t.förstaKonto} kodKrävs={t.kodKrävs} />;
   return <Kontext.Provider value={t.värde}>{children}</Kontext.Provider>;
 }
 
-function Inloggningsruta({ läge, fel, förstaKonto = false }: { läge: Inloggningsläge; fel?: string; förstaKonto?: boolean }) {
+function Inloggningsruta({
+  läge,
+  fel,
+  förstaKonto = false,
+  kodKrävs = false,
+}: {
+  läge: Inloggningsläge;
+  fel?: string;
+  förstaKonto?: boolean;
+  kodKrävs?: boolean;
+}) {
   const [namn, setNamn] = useState("");
   const [roll, setRoll] = useState("user");
   const utseende = useUtseende();
@@ -144,7 +154,7 @@ function Inloggningsruta({ läge, fel, förstaKonto = false }: { läge: Inloggni
         <p className="ark-hint">{utseende.namn ? `Processritaren · ${utseende.namn}` : "Processritaren"}</p>
         {fel && <p className="ark-inloggning-fel">{fel}</p>}
         {läge === "lokal" ? (
-          <LokalInloggning förstaKonto={förstaKonto} />
+          <LokalInloggning förstaKonto={förstaKonto} kodKrävs={kodKrävs} />
         ) : läge === "dev" ? (
           <form
             className="ark-inloggning-dev"

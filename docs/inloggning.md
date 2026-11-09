@@ -17,6 +17,12 @@ Reglerna finns på ett enda ställe, `src/core/behorighet.ts`.
 | `öppen` | Inget av ovan | Alla är samma lokala administratör. **Bara för utveckling** – servern varnar vid start. |
 | `dev` | `ARK_AUTH=dev` | Man skriver namn och väljer roll själv. **Bara för prov** – slå aldrig på det i en riktig installation. |
 
+I avbilden (`NODE_ENV=production`) startar appen inte i öppen drift eller
+provläget – sätt `ARK_AUTH=auto`, `entra` eller `lokal`. Är öppen drift
+verkligen meningen (t.ex. bakom ett eget skyddat nät): `ARK_TILLAT_OPPEN=1`.
+Ett okänt värde på `ARK_AUTH` är ett fel. Med lokala konton kräver det första
+kontot engångskoden `SETUP_CODE` (samma som portalens och plattformens).
+
 Står `ARK_AUTH=entra` men en uppgift saknas vägras inloggningen. Appen faller
 alltså inte tyst tillbaka till öppen drift. Både `entra` och `lokal` kräver
 `ARK_SESSION_SECRET` (minst 32 tecken) – annars startar servern inte.

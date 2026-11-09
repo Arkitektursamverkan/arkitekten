@@ -66,7 +66,7 @@ function läsFlöde(flowsDir: string, id: string): SavedFlow | null {
 }
 
 /**
- * Processnumret ur flödets namn ("2.2.7 Uthyrning av nyproduktion" → "2.2.7").
+ * Processnumret ur flödets namn ("1.2.3 Beställ behörighet" → "1.2.3").
  *
  * Prefixet kopplar en scen till en processnod i portalen när processen inte är
  * publicerad med ett nod-id – samma numrering som processkartan bär. Det härleds här och
@@ -213,7 +213,7 @@ export function skapaHanterare(flowsDir: string = FLOWS_DIR, stilarDir: string =
 if (process.argv[1] && /flodestjanst\.mts$/.test(process.argv[1])) {
   const server = http.createServer(skapaHanterare());
   // Ruttningen är SYNKRON och kan ta över tio sekunder för en stor process
-  // (4.4.3 har 131 objekt). Under tiden står Nodes event-loop stilla, och med
+  // (över hundra objekt). Under tiden står Nodes event-loop stilla, och med
   // förvalet 5 s hann keep-alive-timern på de VÄNTANDE anslutningarna gå ut i
   // samma ögonblick som loopen släpptes – Integrationsplattformen fick en
   // tom `httpx.ReadError` mitt i en hämtning och hela synken lades ner.

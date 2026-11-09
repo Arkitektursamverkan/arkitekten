@@ -74,13 +74,13 @@ inte det som råkar ligga i editorn.
 Id:t måste matcha `^[a-z0-9-]{1,64}$`. Fel svarar `{ ok: false, error }`.
 
 
-## Mätt på riktiga processer
+## Mätt på verkliga processer (namnen utbytta)
 
 | Modell | Objekt | Kanter | Scen | Tid |
 |---|---|---|---|---|
-| 2.2.7 Uthyrning av nyproduktion | 104 | 98 | 112 kB | ~1,9 s |
-| 2.3.1.14 Omförhandling | 27 | 25 | 27 kB | <0,2 s |
-| 2.1.0 Köhantering | 7 | 6 | 10 kB | <0,1 s |
+| Stor process | 104 | 98 | 112 kB | ~1,9 s |
+| Mellanstor process | 27 | 25 | 27 kB | <0,2 s |
+| Liten process | 7 | 6 | 10 kB | <0,1 s |
 
 Tiden går åt till den kollisionsundvikande routningen och växer med antalet
 objekt. För 200 processer betyder det några minuter per full hämtning – planera
