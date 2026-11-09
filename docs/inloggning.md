@@ -12,6 +12,7 @@ Reglerna finns på ett enda ställe, `src/core/behorighet.ts`.
 | Läge | När | Vem är man |
 |---|---|---|
 | `entra` | `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID` och `ENTRA_CLIENT_SECRET` är satta (eller `ARK_AUTH=entra`) | Kontot i Entra. Rollen kommer ur approller eller grupper. |
+| `entra` eller `lokal` | `ARK_AUTH=auto` – Entra när alla tre uppgifterna är satta, annars egna konton (aldrig öppen drift) | Som raderna ovan och nedan. |
 | `lokal` | `ARK_AUTH=lokal` | Ett konto i installationens kontofil (`ARK_KONTON`). Det första besöket skapar administratören. |
 | `öppen` | Inget av ovan | Alla är samma lokala administratör. **Bara för utveckling** – servern varnar vid start. |
 | `dev` | `ARK_AUTH=dev` | Man skriver namn och väljer roll själv. **Bara för prov** – slå aldrig på det i en riktig installation. |
@@ -106,6 +107,7 @@ Två vägar:
    # Signerar sessionskakan – utan den loggas alla ut vid omstart.
    ARK_SESSION_SECRET=<openssl rand -hex 32>
    # Reserv tills rollerna är tilldelade: e-post eller objekt-id som alltid är admin.
+   # Utan ARK_ADMINS används BOOTSTRAP_ADMIN_EMAILS (samma lista som portalen).
    ARK_ADMINS=admin@example.org
    # Valfritt: andra rollvärden som ger admin (förval Arkitekten.Admin,Admin).
    # ENTRA_ADMIN_ROLLER=Arkitekten.Admin

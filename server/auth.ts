@@ -66,8 +66,12 @@ export function authKonfigUrMiljö(env: NodeJS.ProcessEnv = process.env): AuthKo
   const clientSecret = env.ENTRA_CLIENT_SECRET?.trim() ?? "";
   const begärt = env.ARK_AUTH?.trim().toLowerCase();
   if (begärt === "dev") return { läge: "dev", basUrl: env.ARK_BAS_URL?.trim() };
+  // auto: Entra när alla uppgifterna finns, annars egna konton – aldrig öppen
+  // drift. För installationer där Entra är valfritt (Render-blueprinten).
+  const allaEntra = Boolean(tenantId && clientId && clientSecret);
+  if (begärt === "auto" && !allaEntra) return { läge: "lokal", basUrl: (env.ARK_BAS_URL?.trim() ?? "").replace(/\/+$/, "") };
   if (begärt === "lokal") return { läge: "lokal", basUrl: (env.ARK_BAS_URL?.trim() ?? "").replace(/\/+$/, "") };
-  if (begärt === "entra" || (tenantId && clientId && clientSecret)) {
+  if (begärt === "entra" || allaEntra) {
     return {
       läge: "entra",
       tenantId,
@@ -77,7 +81,8 @@ export function authKonfigUrMiljö(env: NodeJS.ProcessEnv = process.env): AuthKo
       basUrl: (env.ARK_BAS_URL?.trim() ?? "").replace(/\/+$/, ""),
       adminRoller: lista(env.ENTRA_ADMIN_ROLLER || "Arkitekten.Admin,Admin"),
       adminGrupper: lista(env.ENTRA_ADMIN_GRUPPER),
-      adminKonton: lista(env.ARK_ADMINS),
+      // Samma lista som portalen och plattformen duger, när ARK_ADMINS inte är satt.
+      adminKonton: lista(env.ARK_ADMINS || env.BOOTSTRAP_ADMIN_EMAILS),
     };
   }
   return { läge: "öppen" };
