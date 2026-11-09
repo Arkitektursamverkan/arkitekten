@@ -7,6 +7,10 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- (inget än)
+
+## 0.7.0 – 2026-11-09
+
 - Utan `ARK_BAS_URL` används `RENDER_EXTERNAL_URL` (adressen Render ger tjänsten), så en ny Render-installation startar innan den egna adressen är ifylld.
 - **Säkerhet: flödestjänsten lämnar aldrig ut processer i någons egen katalog** (Mina processer) – de saknas i listan och ger 404 på sitt id.
 - **Säkerhet: flödestjänsten kan kräva en nyckel.** Med `ARK_FLODESTJANST_NYCKEL` satt kräver varje `/api/*`-anrop huvudet `X-Arkitekten-Nyckel` med samma värde (401 annars); `/health` är öppen. Utan variabeln är allt som förut, med en varning vid start. **Uppgradering:** sätt samma värde hos Arkitekten och Integrationsplattformen.
