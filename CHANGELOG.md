@@ -7,7 +7,9 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
-- (inget än)
+- **Säkerhet: i drift startar Arkitekten inte öppen.** Utan inloggning (eller med ett felstavat `ARK_AUTH`) blev alla som nådde appen administratörer. Nu vägrar avbilden (`NODE_ENV=production`) att starta i öppet läge och provläge, utom med `ARK_TILLAT_OPPEN=1`, och ett okänt `ARK_AUTH` är ett fel. **Uppgradering:** en installation som medvetet kör öppen måste sätta `ARK_TILLAT_OPPEN=1` – eller hellre `ARK_AUTH=auto`.
+- **Säkerhet: det första lokala kontot kräver engångskoden `SETUP_CODE`** i drift (samma som portalens och plattformens), så den som först hittar en ny installation kan inte ta den.
+- Organisationsspecifika processnamn i kommentarer och README ersatta med påhittade.
 
 ## 0.5.0 – 2026-11-09
 

@@ -158,6 +158,20 @@ describe("kontrollen vid start", () => {
     expect([...fel, ...varningar].join(" ")).not.toContain(hemligt);
   });
 
+  it("REGRESSION: en avbild utan ARK_AUTH startade öppen – alla var administratörer. I drift startar öppen drift och provläget inte – utom uttryckligen tillåtet", () => {
+    expect(kontrollera({ NODE_ENV: "production" }).fel.join(" ")).toContain("ÖPPEN");
+    expect(kontrollera({ NODE_ENV: "production", ARK_AUTH: "dev" }).fel.join(" ")).toContain("PROVLÄGE");
+    const tillåten = kontrollera({ NODE_ENV: "production", ARK_TILLAT_OPPEN: "1" });
+    expect(tillåten.fel).toEqual([]);
+    expect(tillåten.varningar.join(" ")).toContain("ÖPPEN");
+  });
+  it("REGRESSION: ett felstavat ARK_AUTH (local) blev tyst öppen drift – nu ett fel", () => {
+    expect(kontrollera({ ARK_AUTH: "local" }).fel.join(" ")).toContain("ARK_AUTH=local");
+  });
+  it("auto utan Entra i drift blir egna konton och startar", () => {
+    const k = kontrollera({ NODE_ENV: "production", ARK_AUTH: "auto", ARK_SESSION_SECRET: "x".repeat(40), SETUP_CODE: "kod" });
+    expect(k.fel).toEqual([]);
+  });
   it("öppen drift varnar", () => {
     expect(kontrollera({}).varningar.join(" ")).toContain("ÖPPEN");
   });

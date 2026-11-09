@@ -52,6 +52,8 @@ import {
   SESSION_KAKA,
   SESSION_SEKUNDER,
   authKonfigUrMiljö,
+  förstaKontoKod,
+  rättKod,
   avslutaInloggning,
   devAnvändare,
   kaka,
@@ -351,7 +353,9 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               läge: auth.läge,
               användare: vem(req),
               // Lokala konton utan ett enda konto: första besöket skapar administratören.
-              ...(auth.läge === "lokal" && !konton.finnsNågot() ? { förstaKonto: true } : {}),
+              ...(auth.läge === "lokal" && !konton.finnsNågot()
+                ? { förstaKonto: true, kodKrävs: förstaKontoKod().krävs }
+                : {}),
               ...(saknas.length ? { fel: `Inloggningen är inte färdigkonfigurerad: ${saknas.join(", ")} saknas.` } : {}),
             });
             return;
@@ -403,6 +407,16 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             if (url === "/auth/forsta") {
               if (konton.finnsNågot()) {
                 json(res, 409, { ok: false, error: "Det finns redan konton – logga in." });
+                return;
+              }
+              const kod = förstaKontoKod();
+              if (kod.krävs && !kod.kod) {
+                json(res, 403, { ok: false, error: "SETUP_CODE är inte satt – det första kontot kan inte skapas utan den." });
+                return;
+              }
+              if (kod.krävs && !rättKod(b.kod, kod.kod)) {
+                log.warn("  [ark] Första kontot: fel engångskod.");
+                json(res, 403, { ok: false, error: "Fel engångskod." });
                 return;
               }
               const k = konton.skapa({

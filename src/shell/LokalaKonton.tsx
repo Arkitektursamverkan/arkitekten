@@ -20,7 +20,8 @@ async function skicka(väg: string, metod: string, kropp?: unknown): Promise<Rec
 const MIN_LÄNGD = 10;
 
 /** Inloggningen – eller, när installationen saknar konton, det första kontot. */
-export function LokalInloggning({ förstaKonto }: { förstaKonto: boolean }) {
+export function LokalInloggning({ förstaKonto, kodKrävs = false }: { förstaKonto: boolean; kodKrävs?: boolean }) {
+  const [kod, setKod] = useState("");
   const [användarnamn, setAnvändarnamn] = useState("");
   const [namn, setNamn] = useState("");
   const [lösenord, setLösenord] = useState("");
@@ -34,7 +35,11 @@ export function LokalInloggning({ förstaKonto }: { förstaKonto: boolean }) {
     setArbetar(true);
     setFel(null);
     try {
-      await skicka(förstaKonto ? "/__ark/auth/forsta" : "/__ark/auth/lokal", "POST", { användarnamn, namn, lösenord });
+      await skicka(
+        förstaKonto ? "/__ark/auth/forsta" : "/__ark/auth/lokal",
+        "POST",
+        förstaKonto ? { användarnamn, namn, lösenord, kod } : { användarnamn, namn, lösenord },
+      );
       location.reload();
     } catch (err) {
       setFel(err instanceof Error ? err.message : String(err));
@@ -51,6 +56,16 @@ export function LokalInloggning({ förstaKonto }: { förstaKonto: boolean }) {
         </p>
       )}
       {fel && <p className="ark-inloggning-fel">{fel}</p>}
+      {förstaKonto && kodKrävs && (
+        <input
+          className="ark-input"
+          value={kod}
+          onChange={(e) => setKod(e.target.value)}
+          placeholder="Engångskod (SETUP_CODE från installationen)"
+          aria-label="Engångskod"
+          autoComplete="off"
+        />
+      )}
       <input
         className="ark-input"
         value={användarnamn}
@@ -83,7 +98,7 @@ export function LokalInloggning({ förstaKonto }: { förstaKonto: boolean }) {
           autoComplete="new-password"
         />
       )}
-      <button className="ark-btn ark-btn--primary" type="submit" disabled={arbetar || !användarnamn.trim() || !lösenord}>
+      <button className="ark-btn ark-btn--primary" type="submit" disabled={arbetar || !användarnamn.trim() || !lösenord || (förstaKonto && kodKrävs && !kod.trim())}>
         {förstaKonto ? "Skapa administratören" : "Logga in"}
       </button>
     </form>
