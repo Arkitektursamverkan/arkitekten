@@ -35,10 +35,20 @@ export interface EaKonfig {
 import type { EaApplikation, EaProcess } from "../src/core/publicering";
 export type { EaApplikation, EaProcess };
 
+/**
+ * Portalens API-adress. En hel URL används som den är; ett ensamt `host:port`
+ * – det en plattform som Render ger för en intern tjänst – blir
+ * `http://host:port/api/v1`.
+ */
+export function eaApiUrl(rå: string | undefined): string {
+  const värde = (rå?.trim() || "http://localhost:8000/api/v1").replace(/\/+$/, "");
+  return värde.includes("://") ? värde : `http://${värde}/api/v1`;
+}
+
 export function eaKonfigUrMiljö(env: NodeJS.ProcessEnv = process.env): EaKonfig | null {
   const nyckel = env.EA_API_KEY?.trim();
   if (!nyckel) return null;
-  return { url: (env.EA_API_URL?.trim() || "http://localhost:8000/api/v1").replace(/\/+$/, ""), nyckel };
+  return { url: eaApiUrl(env.EA_API_URL), nyckel };
 }
 
 async function anrop(k: EaKonfig, väg: string, init: RequestInit = {}): Promise<unknown> {

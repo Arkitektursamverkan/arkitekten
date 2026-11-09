@@ -31,8 +31,8 @@ systemprocess. En administratör lägger in det under **Inställningar →
 Exempelinnehåll**, eller i containern:
 
 ```sh
-docker compose exec arkitekten node_modules/.bin/tsx server/innehallspaket.mts list
-docker compose exec arkitekten node_modules/.bin/tsx server/innehallspaket.mts import exempel
+docker compose exec -u node arkitekten node_modules/.bin/tsx server/innehallspaket.mts list
+docker compose exec -u node arkitekten node_modules/.bin/tsx server/innehallspaket.mts import exempel
 ```
 
 Paketet byggs av `scripts/bygg-exempelpaket.mts` ur text som regelmotorn
@@ -42,13 +42,13 @@ tolkar – kör skriptet igen när mellanlagret ändras.
 
 ```sh
 # Exportera (utan användarnas egna processer):
-docker compose exec arkitekten node_modules/.bin/tsx server/innehallspaket.mts export /data/export --namn min-organisation --utan-egna
+docker compose exec -u node arkitekten node_modules/.bin/tsx server/innehallspaket.mts export /data/export --namn min-organisation --utan-egna
 docker compose cp arkitekten:/data/export ./paket
 
 # Importera – pröva först:
 docker compose cp ./paket arkitekten:/data/import
-docker compose exec arkitekten node_modules/.bin/tsx server/innehallspaket.mts import /data/import --torrkorning
-docker compose exec arkitekten node_modules/.bin/tsx server/innehallspaket.mts import /data/import
+docker compose exec -u node arkitekten node_modules/.bin/tsx server/innehallspaket.mts import /data/import --torrkorning
+docker compose exec -u node arkitekten node_modules/.bin/tsx server/innehallspaket.mts import /data/import
 ```
 
 ## Säkerhetskopiering
