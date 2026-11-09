@@ -16,6 +16,19 @@ portalen går inte att slå på utan plattformen.
 `server/flodestjanst.mts`, en egen process ur Arkitektens avbild (`:8200`). Den
 kan bara läsa – ingen väg ändrar ett flöde.
 
+**Nyckeln.** Med `ARK_FLODESTJANST_NYCKEL` satt (samma värde hos Arkitekten och
+plattformen) kräver varje `/api/*`-anrop huvudet `X-Arkitekten-Nyckel` med det
+värdet; annars `401` med `{ ok: false, error }`. `/health` är alltid öppen.
+Utan variabeln svarar tjänsten som förut och varnar vid start. Startar
+Arkitekten tjänsten själv (`ARK_FLODESTJANST_PORT`) får barnet nyckeln – och
+bara det ur miljön som tjänsten läser (`BARNETS_MILJÖ` i
+`server/flodestjanst-barn.ts`), inga andra hemligheter.
+
+**Egna processer lämnas aldrig ut.** Ett flöde i en användares egen katalog
+(ytan `egen`, Mina processer – `ytaFör` i `src/core/behorighet.ts`) saknas i
+listan och ger `404` på sitt id. Fel som inte är avsiktliga besked ger ett
+allmänt `error` – detaljerna står i tjänstens logg.
+
 | Väg | Svar |
 |---|---|
 | `GET /health` | `{ ok, kontrakt, antal }` |

@@ -18,10 +18,18 @@
  * eller "flodesschema" (Systemprocess). Plattformen filtrerar på den och
  * portalen avgör var bilden visas – på processkartan eller hos en applikation.
  *
+ * ÅTKOMSTEN. Med `ARK_FLODESTJANST_NYCKEL` satt kräver varje `/api/*`-anrop
+ * huvudet `X-Arkitekten-Nyckel` med samma värde (jämfört tidskonstant), annars
+ * 401; `/health` är alltid öppen. Utan nyckeln svarar tjänsten som förut, men
+ * varnar vid start. Processer i en användares EGEN katalog (ytan "egen",
+ * Mina processer – core/behorighet.ts) lämnas ALDRIG ut: de saknas i listan
+ * och ger 404 på sitt id.
+ *
  *   FLOWS_DIR=flows PORT=8200 npx tsx server/flodestjanst.mts
  */
 
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { SavedFlow } from "@/core/flow-store";
@@ -33,6 +41,8 @@ import { renderSvgSized } from "@/tools/flowchart/export/svg";
 import { sättSymbolstil } from "@/tools/affarsprocess/symbolstil";
 import { valdStil } from "./symbolstilar";
 import { organisationUrMiljö, sättOrganisation } from "@/core/organisation";
+import { ytaFör } from "@/core/behorighet";
+import { Användarfel } from "./fel";
 
 const FLOWS_DIR = process.env.FLOWS_DIR ?? "flows";
 /**
@@ -44,6 +54,8 @@ export const KONTRAKT = 1;
 const PORT = Number(process.env.PORT ?? 8200);
 /** Samma katalog som appen – portalens bilder får installationens symbolstil. */
 const STILAR_DIR = process.env.STILAR_DIR ?? "stilar";
+/** Huvudet som bär nyckeln (kontraktet med Integrationsplattformen). */
+export const NYCKELHUVUD = "x-arkitekten-nyckel";
 /** Samma skydd mot path traversal som bryggan (server/brygga.ts). */
 const SAFE_ID = /^[a-z0-9-]{1,64}$/;
 
@@ -59,10 +71,36 @@ function fel(res: ServerResponse, status: number, error: string) {
   json(res, status, { ok: false, error });
 }
 
+/**
+ * Får flödet lämnas ut? Inte om det ligger i en användares egen katalog –
+ * samma härledning av ytan som appen och bryggan (core/behorighet.ts).
+ *
+ * REGRESSION: tjänsten lämnade ut ALLA flöden, också andras "Mina
+ * processer", med hela innehållet.
+ */
+function utlämnbart(flow: { ägare?: unknown; category?: unknown }): boolean {
+  const ägare = flow.ägare as { id?: unknown } | undefined;
+  return (
+    ytaFör({
+      ägare: ägare && typeof ägare.id === "string" ? { id: ägare.id, namn: "" } : undefined,
+      category: typeof flow.category === "string" ? flow.category : undefined,
+    }) !== "egen"
+  );
+}
+
 function läsFlöde(flowsDir: string, id: string): SavedFlow | null {
   const fil = path.join(flowsDir, `${id}.json`);
   if (!fs.existsSync(fil)) return null;
-  return JSON.parse(fs.readFileSync(fil, "utf8")) as SavedFlow;
+  const flöde = JSON.parse(fs.readFileSync(fil, "utf8")) as SavedFlow;
+  return utlämnbart(flöde as { ägare?: unknown; category?: unknown }) ? flöde : null;
+}
+
+/** Stämmer nyckeln i huvudet? Tidskonstant jämförelse (på hashar, så längden inte läcker). */
+function rättNyckel(given: string | string[] | undefined, nyckel: string): boolean {
+  const g = Array.isArray(given) ? given[0] : given;
+  if (typeof g !== "string" || !g) return false;
+  const h = (v: string) => crypto.createHash("sha256").update(v, "utf8").digest();
+  return crypto.timingSafeEqual(h(g), h(nyckel));
 }
 
 /**
@@ -85,6 +123,7 @@ function listaFlöden(flowsDir: string) {
   for (const f of fs.readdirSync(flowsDir).filter((f) => f.endsWith(".json"))) {
     try {
       const flow = JSON.parse(fs.readFileSync(path.join(flowsDir, f), "utf8"));
+      if (!utlämnbart(flow)) continue;
       const steps = Array.isArray(flow.draft?.steps) ? flow.draft.steps : [];
       ut.push({
         id: flow.id,
@@ -139,7 +178,7 @@ function versionsval(sp: URLSearchParams): ScenOptioner["version"] {
   if (!v) return undefined;
   if (v === "aktuell" || v === "fastslagen") return v;
   const n = Number(v);
-  if (!Number.isInteger(n) || n < 0) throw new Error(`Ogiltig version: ${v}`);
+  if (!Number.isInteger(n) || n < 0) throw new Användarfel(`Ogiltig version: ${v}`);
   return n;
 }
 
@@ -147,7 +186,11 @@ function versionsval(sp: URLSearchParams): ScenOptioner["version"] {
  * Begärandehanteraren, skild från uppstarten så att tester kan starta tjänsten
  * på egen port mot en egen katalog.
  */
-export function skapaHanterare(flowsDir: string = FLOWS_DIR, stilarDir: string = STILAR_DIR) {
+export function skapaHanterare(
+  flowsDir: string = FLOWS_DIR,
+  stilarDir: string = STILAR_DIR,
+  nyckel: string = process.env.ARK_FLODESTJANST_NYCKEL?.trim() ?? "",
+) {
   // Slutets reservbana är portalbanan – samma namn som i appen.
   sättOrganisation(organisationUrMiljö(process.env));
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -163,6 +206,11 @@ export function skapaHanterare(flowsDir: string = FLOWS_DIR, stilarDir: string =
 
       if (väg === "/health") {
         return json(res, 200, { ok: true, kontrakt: KONTRAKT, antal: listaFlöden(flowsDir).length });
+      }
+
+      // Allt under /api kräver nyckeln när installationen har en.
+      if (nyckel && (väg === "/api" || väg.startsWith("/api/")) && !rättNyckel(req.headers[NYCKELHUVUD], nyckel)) {
+        return fel(res, 401, "Nyckel saknas eller är fel (X-Arkitekten-Nyckel).");
       }
 
       if (väg === "/api/flows") {
@@ -204,7 +252,12 @@ export function skapaHanterare(flowsDir: string = FLOWS_DIR, stilarDir: string =
 
       return fel(res, 404, "Okänd väg.");
     } catch (e) {
-      return fel(res, 400, e instanceof Error ? e.message : String(e));
+      // Bara ett Användarfel når klienten med sin text; resten (t.ex. ett
+      // filsystemsfel med en sökväg) loggas här. REGRESSION: felets text,
+      // med sökvägar, gick rakt ut.
+      if (e instanceof Användarfel) return fel(res, e.status, e.message);
+      console.warn(`[flödestjänst] FEL i ${väg}: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+      return fel(res, 400, "Flödet kunde inte läsas eller ritas.");
     }
   };
 }
@@ -221,6 +274,10 @@ if (process.argv[1] && /flodestjanst\.mts$/.test(process.argv[1])) {
   // orkar vänta (dess timeout är 60 s).
   server.keepAliveTimeout = 120_000;
   server.headersTimeout = 130_000;
+  if (!process.env.ARK_FLODESTJANST_NYCKEL?.trim())
+    console.warn(
+      "[flödestjänst] VARNING: ARK_FLODESTJANST_NYCKEL är inte satt – /api svarar vem som helst som når porten.",
+    );
   server.listen(PORT, () => {
     console.log(`[flödestjänst] läser ${path.resolve(FLOWS_DIR)} – lyssnar på :${PORT}`);
   });

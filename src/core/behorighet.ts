@@ -159,17 +159,29 @@ export function kanSkapa(u: Användare | null | undefined, flow: HarYta): boolea
 }
 
 /* ------------------------------------------------------------------ */
-/* Visualisering (ramserier) – offentliga för alla inloggade           */
+/* Visualisering (ramserier) – alla läser, skaparen ändrar             */
 /* ------------------------------------------------------------------ */
 
 export interface HarSkapare {
   skapadAv?: Ägare;
 }
 
-/** Alla inloggade läser och ändrar ramserier; bara den som skapade den (eller admin) tar bort. */
-export function kanTaBortRamserie(u: Användare | null | undefined, serie: HarSkapare): boolean {
+/**
+ * Alla inloggade läser ramserier och skapar nya; bara den som skapade en serie
+ * (eller admin) ändrar och tar bort den. En serie utan skapare (från före
+ * fältet) är administratörens.
+ *
+ * REGRESSION: vem som helst kunde spara över någon annans serie – utan
+ * historik var det en tyst förlust av den andras arbete.
+ */
+export function kanÄndraRamserie(u: Användare | null | undefined, serie: HarSkapare): boolean {
   if (!u) return false;
   return ärAdmin(u) || serie.skapadAv?.id === u.id;
+}
+
+/** Samma regel som att ändra – den som får skriva över serien får också ta bort den. */
+export function kanTaBortRamserie(u: Användare | null | undefined, serie: HarSkapare): boolean {
+  return kanÄndraRamserie(u, serie);
 }
 
 /* ------------------------------------------------------------------ */

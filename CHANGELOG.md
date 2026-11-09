@@ -7,7 +7,17 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
-- (inget än)
+- Utan `ARK_BAS_URL` används `RENDER_EXTERNAL_URL` (adressen Render ger tjänsten), så en ny Render-installation startar innan den egna adressen är ifylld.
+- **Säkerhet: flödestjänsten lämnar aldrig ut processer i någons egen katalog** (Mina processer) – de saknas i listan och ger 404 på sitt id.
+- **Säkerhet: flödestjänsten kan kräva en nyckel.** Med `ARK_FLODESTJANST_NYCKEL` satt kräver varje `/api/*`-anrop huvudet `X-Arkitekten-Nyckel` med samma värde (401 annars); `/health` är öppen. Utan variabeln är allt som förut, med en varning vid start. **Uppgradering:** sätt samma värde hos Arkitekten och Integrationsplattformen.
+- **Säkerhet: flödestjänsten som barnprocess ärver inte längre hela miljön** – bara katalogerna, organisationens namn och nyckeln, inga API-nycklar eller sessionshemligheter.
+- **Säkerhet: AI-brevlådan är per användare.** En inloggad kunde förut hämta en annans AI-svar och avbryta en annans begäran. Uppladdade underlag tas bort när svaret är hämtat, gallras efter ett dygn och får vara högst 100 MB per användare. Utvecklarläget (`ARK_UTVECKLARLAGE`) har kvar EN brevlåda i `.ark/`.
+- **Säkerhet: en för stor begäran avvisas med 413** utan att läsas in i minnet, också före inloggningen.
+- **Säkerhet: inloggningsspärren låser namn + adress** i stället för namnet ensamt, så en gissare inte kan låsa ute administratören; namnet ensamt spärras först efter 50 fel. Nytt: `ARK_BETRODD_PROXY=1` tar klientens adress ur `X-Forwarded-For` bakom en proxy. Lösenordsprövningen låser inte längre servern.
+- **Säkerhet: sessionskakan får `Secure`** också när proxyn säger https (`X-Forwarded-Proto`). Lokala konton i drift startar inte utan `ARK_BAS_URL`. **Uppgradering:** sätt `ARK_BAS_URL` (t.ex. på Render, där den är `sync: false`).
+- **Säkerhet: en visualisering ändras bara av den som skapade den** (eller en administratör); alla läser och skapar nya som förut.
+- **Säkerhet: serverns felbesked går inte ut med sökvägar** – bara avsiktliga besked når användaren, resten loggas. Inloggningssidan visar bara kända felkoder ur adressen, inte fri text.
+- **Säkerhet: portalens processträd och applikationer** (`/__ark/ea/processer`, `/__ark/ea/applikationer`) läses bara av administratörer – samma roll som får publicera.
 
 ## 0.6.0 – 2026-11-09
 

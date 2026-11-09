@@ -437,6 +437,12 @@ Rutan kan också skicka begäran till Claude Code i stället (`via:
 brevlådan som utan nyckel). Bara i utvecklarläget – annars erbjuder rutan
 den inte, och servern bortser från `via`.
 
+**Brevlådan är per användare utanför utvecklarläget**
+(`<ARK_DIR>/anvandare/<hash av användar-id>/`, med `underlag/` i samma
+katalog), så att ingen kan hämta en annans svar. I utvecklarläget (och i öppen
+drift) finns EN brevlåda direkt i `.ark/` – den nedan. Underlagen tas bort när
+svaret är hämtat och gallras efter ett dygn (`server/brygga.ts`).
+
 När du (Claude Code) besvarar en tolkningsbegäran: läs `.ark/request.json`,
 skriv `.ark/response.json` och **kopiera `id` ur begäran till fältet
 `requestId` i svaret**. Det är korrelationen som hindrar att ett sent svar på

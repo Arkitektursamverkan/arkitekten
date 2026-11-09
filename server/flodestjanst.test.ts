@@ -206,3 +206,82 @@ describe("flödestjänsten och publiceringen", () => {
     expect(await svg.text()).toMatch(/^<svg/);
   });
 });
+
+describe("flödestjänstens åtkomst", () => {
+  let katalog: string;
+  let öppen: http.Server;
+  let låst: http.Server;
+  let öppenBas: string;
+  let låstBas: string;
+  const NYCKEL = "en-delad-nyckel-mellan-tjanst-och-plattform";
+
+  const lyssna = async (s: http.Server) => {
+    await new Promise<void>((klar) => s.listen(0, klar));
+    return `http://127.0.0.1:${(s.address() as { port: number }).port}`;
+  };
+
+  beforeAll(async () => {
+    katalog = fs.mkdtempSync(path.join(os.tmpdir(), "flodestjanst-atkomst-"));
+    const flöde = (id: string, extra: Record<string, unknown> = {}) =>
+      fs.writeFileSync(
+        path.join(katalog, `${id}.json`),
+        JSON.stringify({
+          id,
+          name: id,
+          savedAt: "2026-10-08T00:00:00.000Z",
+          rawText: "",
+          draft: { diagramType: "affarsprocess", steps: [] },
+          versions: [{ id: "v1", savedAt: "2026-10-08T00:00:00.000Z", status: "fastslagen", rawText: "", draft: {} }],
+          ...extra,
+        }),
+      );
+    flöde("ap-gemensam");
+    flöde("ap-demo", { category: "Demo" });
+    flöde("ap-annas-egen", { ägare: { id: "konto-anna", namn: "Anna" } });
+    öppenBas = await lyssna((öppen = http.createServer(skapaHanterare(katalog, "stilar", ""))));
+    låstBas = await lyssna((låst = http.createServer(skapaHanterare(katalog, "stilar", NYCKEL))));
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((klar) => öppen.close(() => klar()));
+    await new Promise<void>((klar) => låst.close(() => klar()));
+    fs.rmSync(katalog, { recursive: true, force: true });
+  });
+
+  it("REGRESSION: tjänsten lämnade ut andras Mina processer – nu saknas de i listan och ger 404", async () => {
+    const d = await (await fetch(`${öppenBas}/api/flows`)).json();
+    const id = d.flows.map((f: { id: string }) => f.id).sort();
+    expect(id).toEqual(["ap-demo", "ap-gemensam"]);
+    for (const vad of ["", "/scen", "/svg"])
+      expect((await fetch(`${öppenBas}/api/flows/ap-annas-egen${vad}`)).status).toBe(404);
+    expect((await fetch(`${öppenBas}/api/flows/ap-gemensam`)).status).toBe(200);
+  });
+
+  it("REGRESSION: tjänsten svarade alla utan nyckel – med ARK_FLODESTJANST_NYCKEL krävs X-Arkitekten-Nyckel", async () => {
+    expect((await fetch(`${låstBas}/api/flows`)).status).toBe(401);
+    const fel = await fetch(`${låstBas}/api/flows/ap-gemensam`, { headers: { "X-Arkitekten-Nyckel": "gissad" } });
+    expect(fel.status).toBe(401);
+    expect(fel.headers.get("content-type")).toContain("application/json");
+    const rätt = await fetch(`${låstBas}/api/flows`, { headers: { "X-Arkitekten-Nyckel": NYCKEL } });
+    expect(rätt.status).toBe(200);
+    expect((await rätt.json()).flows.length).toBe(2);
+    // Hälsan är öppen – plattformen och avbildens kontroll når den utan nyckel.
+    expect((await fetch(`${låstBas}/health`)).status).toBe(200);
+  });
+
+  it("utan nyckel svarar tjänsten som förut (bakåtkompatibelt)", async () => {
+    expect((await fetch(`${öppenBas}/api/flows`)).status).toBe(200);
+  });
+
+  it("REGRESSION: ett fel i en begäran gick ut med sin text – nu bara avsiktliga besked", async () => {
+    const r = await fetch(`${öppenBas}/api/flows/ap-gemensam/scen?version=-1`);
+    expect(r.status).toBe(400);
+    expect((await r.json()).error).toBe("Ogiltig version: -1");
+    fs.writeFileSync(path.join(katalog, "ap-trasig.json"), "{ inte json");
+    const t = await fetch(`${öppenBas}/api/flows/ap-trasig`);
+    const text = await t.text();
+    expect(text).not.toContain(katalog);
+    expect(text).toContain("kunde inte läsas");
+    fs.rmSync(path.join(katalog, "ap-trasig.json"));
+  });
+});

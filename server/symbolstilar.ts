@@ -13,6 +13,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { Användarfel } from "./fel";
 import { NEUTRAL_STIL, läsSymbolstil, type Symbolstil } from "../src/tools/affarsprocess/symbolstil";
 
 const VALD = "vald.json";
@@ -70,7 +71,7 @@ export function valdStil(dir: string): Symbolstil {
 /** Väljer en stil (administratören). Ett okänt id är ett fel, inte ett tyst byte. */
 export function väljStil(dir: string, id: string): Symbolstil {
   const stil = läsStilar(dir).stilar.find((s) => s.id === id);
-  if (!stil) throw new Error(`Symbolstilen ${id} finns inte.`);
+  if (!stil) throw new Användarfel(`Symbolstilen ${id} finns inte.`, 404);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, VALD), JSON.stringify({ id }, null, 2), "utf8");
   cache = null;

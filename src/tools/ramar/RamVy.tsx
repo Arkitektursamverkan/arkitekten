@@ -11,7 +11,7 @@
  * eftersom de pekar ut sina mål med stabila nycklar och inte med lägen.
  */
 
-import { kanTaBortRamserie } from "@/core/behorighet";
+import { kanTaBortRamserie, kanÄndraRamserie } from "@/core/behorighet";
 import { useAnvändare } from "@/shell/Inloggning";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -79,7 +79,7 @@ export function RamVy({
   /** Serien ett verktyg bett om att få öppnad (AI-presentationen). */
   öppnaSerie?: { id: string; nonce: number } | null;
 }) {
-  /** Ramarna är offentliga; bara skaparen (eller en administratör) tar bort en serie. */
+  /** Alla läser ramarna; bara skaparen (eller en administratör) ändrar och tar bort en serie. */
   const användare = useAnvändare();
   const [store, setStore] = useState<RamStore | null>(null);
   const [serier, setSerier] = useState<RamserieSammanfattning[]>([]);
@@ -356,7 +356,16 @@ export function RamVy({
         )}
         <span className="ark-ramar-hoger">
           {osparad && <span className="ark-ramar-osparad">Osparade ändringar</span>}
-          <button className="ark-btn ark-btn--primary" onClick={spara} disabled={!osparad}>
+          <button
+            className="ark-btn ark-btn--primary"
+            onClick={spara}
+            disabled={!osparad || !kanÄndraRamserie(användare, serie)}
+            title={
+              kanÄndraRamserie(användare, serie)
+                ? undefined
+                : "Bara den som skapade visualiseringen, eller en administratör, kan spara ändringar i den."
+            }
+          >
             Spara
           </button>
           <button className="ark-btn" onClick={() => setPresenterar(true)} disabled={!basSvg}>
