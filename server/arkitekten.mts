@@ -19,6 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { aiLäge, skapaBrygga, type AiModuler, type Hanterare } from "./brygga";
 import { installningarUrMiljö, kontrollera, type Installningar } from "./installningar";
+import { flödestjänstPort, startaFlödestjänst } from "./flodestjanst-barn";
 
 const TYPER: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -135,11 +136,32 @@ if (process.argv[1] && /arkitekten\.mts$/.test(process.argv[1])) {
       } satisfies AiModuler;
     },
   });
+  // Där flödestjänsten inte kan vara en egen tjänst med samma disk (Render):
+  // en egen process här, se server/flodestjanst-barn.ts.
+  let flödesPort: number | null;
+  try {
+    flödesPort = flödestjänstPort();
+  } catch (e) {
+    console.error(`[arkitekten] FEL: ${e instanceof Error ? e.message : String(e)}`);
+    process.exit(1);
+  }
+  let stänger = false;
+  const barn = flödesPort === null ? null : startaFlödestjänst(root, flödesPort);
+  barn?.on("exit", (kod, signal) => {
+    if (stänger) return;
+    console.error(`[arkitekten] FEL: flödestjänsten avslutades (${signal ?? kod}) – Arkitekten avslutas också.`);
+    process.exit(1);
+  });
+
   const server = skapaServer(inst, brygga);
   server.listen(inst.port, () => {
     console.log(`[arkitekten] ${inst.version} lyssnar på :${inst.port} – AI: ${aiLäge(inst.utvecklarläge)}`);
   });
-  const stäng = () => server.close(() => process.exit(0));
+  const stäng = () => {
+    stänger = true;
+    barn?.kill("SIGTERM");
+    server.close(() => process.exit(0));
+  };
   process.on("SIGTERM", stäng);
   process.on("SIGINT", stäng);
 }

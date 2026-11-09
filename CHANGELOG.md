@@ -9,6 +9,13 @@ funktioner, en ny korrigering för rättelser.
 
 - (inget än)
 
+## 0.4.0 – 2026-11-09
+
+- **Går att köra på Render och liknande plattformar.** Med `ARK_FLODESTJANST_PORT` startar Arkitekten flödestjänsten själv, som en egen process i samma container – för plattformar där två tjänster inte kan dela en disk. Dör flödestjänsten avslutas Arkitekten också, så att plattformen startar om båda. Utan variabeln är allt som förut.
+- `EA_API_URL` kan vara en intern `host:port` och blir då `http://host:port/api/v1`.
+- Avbilden startar som root och går över till `node` (`docker/start.sh`), efter att ha gett `node` en datadisk som monterats som root. Med `user:` i compose körs den som förut. Kör kommandon i containern med `docker compose exec -u node arkitekten …`, så att nya filer ägs av `node`.
+
+
 ## 0.3.4 – 2026-11-05
 
 - Affärsprocess: ett steg i kedjan – även ett som AI:n eller regelparsern tolkat fram – tas bort med "Ta bort ur kedjan" i inspektören; kedjan sluts runt luckan. "+ Lägg till aktivitet efter" lägger en ny aktivitet direkt efter steget (efter en regels grenar). En vald kedjepil ger knappen "Bryt kedjan här" uppe till vänster. Ångra tar tillbaka allt.

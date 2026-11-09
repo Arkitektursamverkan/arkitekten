@@ -35,6 +35,10 @@ describe("EA-portalens klient", () => {
     expect(eaKonfigUrMiljö({})).toBeNull();
     expect(eaKonfigUrMiljö({ EA_API_KEY: "x" })?.url).toBe("http://localhost:8000/api/v1");
     expect(eaKonfigUrMiljö({ EA_API_KEY: "x", EA_API_URL: "https://ea/api/v1/" })?.url).toBe("https://ea/api/v1");
+    // Render ger en intern tjänsts adress som host:port.
+    expect(eaKonfigUrMiljö({ EA_API_KEY: "x", EA_API_URL: "ea-api-x7k2:8000" })?.url).toBe(
+      "http://ea-api-x7k2:8000/api/v1",
+    );
   });
 
   it("läser processträdet med nyckeln och plockar ut förälder och nummer", async () => {
