@@ -47,6 +47,16 @@ describe("konfigurationen", () => {
     const c = authKonfigUrMiljö({ ENTRA_TENANT_ID: "t", ENTRA_CLIENT_ID: "c", ENTRA_CLIENT_SECRET: "s" });
     expect(c.läge).toBe("entra");
   });
+  it("ARK_AUTH=auto: Entra med alla uppgifterna, annars egna konton – aldrig öppen", () => {
+    const entra = authKonfigUrMiljö({ ARK_AUTH: "auto", ENTRA_TENANT_ID: "t", ENTRA_CLIENT_ID: "c", ENTRA_CLIENT_SECRET: "s" });
+    expect(entra.läge).toBe("entra");
+    expect(authKonfigUrMiljö({ ARK_AUTH: "auto", ENTRA_TENANT_ID: "t", ENTRA_CLIENT_ID: "c" }).läge).toBe("lokal");
+    expect(authKonfigUrMiljö({ ARK_AUTH: "auto", ARK_BAS_URL: "https://ark.example.org/" })).toEqual({ läge: "lokal", basUrl: "https://ark.example.org" });
+  });
+  it("administratörerna kan komma från BOOTSTRAP_ADMIN_EMAILS, som i portalen", () => {
+    const c = authKonfigUrMiljö({ ENTRA_TENANT_ID: "t", ENTRA_CLIENT_ID: "c", ENTRA_CLIENT_SECRET: "s", BOOTSTRAP_ADMIN_EMAILS: "Anna@example.org" });
+    expect(c.läge === "entra" && c.adminKonton).toEqual(["anna@example.org"]);
+  });
   it("REGRESSION: ARK_AUTH=entra med en saknad uppgift får inte falla tillbaka till öppen drift", () => {
     expect(authKonfigUrMiljö({ ARK_AUTH: "entra", ENTRA_TENANT_ID: "t" }).läge).toBe("entra");
   });
