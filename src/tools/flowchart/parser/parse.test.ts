@@ -2,19 +2,19 @@ import { describe, expect, it } from "vitest";
 import { parseToModel, textToDraft } from "./parse";
 import { validateModel } from "./validate";
 
-const FELANMALAN = `Felanmälan ny
-Fel uppkommer → Medarbetare → Startar Portalen → Väljer ny felanmälan från startsidan → Fyller i formulär för felanmälan → Väljer skicka in formuläret för felanmälan →→ Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att felanmälan har inkommit
+const DRIFTFRAGA = `Driftfråga ny
+Fel uppkommer → Medarbetare → Startar Portalen → Väljer ny driftfråga från startsidan → Fyller i formulär för driftfråga → Väljer skicka in formuläret för driftfråga →→ Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att driftfråga har inkommit
 
-Felanmälan inkommer i SP-listan "Incident" → Power Automate flödet "INC → nytt ärende → informera anv → skriva till logg" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse på felanmälan skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
+Driftfråga inkommer i SP-listan "Inkorgen" → Power Automate flödet "DRF → nytt ärende → informera anv → skriva till logg" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse på driftfråga skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
 
-const BESTALLNING = `Beställning ny
-Behov av produkt, tjänst eller någon form av hjälp - Startar Portalen - Väljer ny beställning från startsidan - Fyller i formulär för beställning - Om kommunikationsinsats väljs så tillhandahålls andra frågor - därefter skickas en notis till samtliga handläggare på kommunikationsavdelningen i form av mejl och chat meddelande i Team - Om en beställningsvara har valts - Handläggare utses utifrån beställningsvara - annars ingen handläggare - Kommer till en sida med tack för ditt ärende`;
+const INKOPSORDER = `Inköpsorder ny
+Behov av produkt, tjänst eller någon form av hjälp - Startar Portalen - Väljer ny inköpsorder från startsidan - Fyller i formulär för inköpsorder - Om kommunikationsinsats väljs så tillhandahålls andra frågor - därefter skickas en notis till samtliga handläggare på kommunikationsavdelningen i form av mejl och chat meddelande i Team - Om en inköpsordersvara har valts - Handläggare utses utifrån inköpsordersvara - annars ingen handläggare - Kommer till en sida med tack för ditt ärende`;
 
-describe("parseToModel – felanmälan", () => {
-  const model = parseToModel(FELANMALAN);
+describe("parseToModel – driftfråga", () => {
+  const model = parseToModel(DRIFTFRAGA);
 
   it("sätter titel", () => {
-    expect(model.title).toBe("Felanmälan ny");
+    expect(model.title).toBe("Driftfråga ny");
   });
 
   it("skapar noder", () => {
@@ -86,8 +86,8 @@ describe("parseToModel – felanmälan", () => {
   });
 });
 
-describe("parseToModel – beställning (inline-beslut + annars)", () => {
-  const model = parseToModel(BESTALLNING);
+describe("parseToModel – inköpsorder (inline-beslut + annars)", () => {
+  const model = parseToModel(INKOPSORDER);
 
   it("skapar beslutsnoder för 'Om ... väljs'", () => {
     const decisions = model.nodes.filter((n) => n.type === "decision");
@@ -154,7 +154,7 @@ Anger kommentar → Power Automate flödet "Kommentarer - SRQ, INC och UTV" trig
  */
 describe("REGRESSION: banan bärs vidare i sekvensflödet, aldrig av ett datalager", () => {
   const TEXT = `Chatt med användaren
-Chatt ska startas → Handläggaren öppnar Portalen → Väljer befintlig felanmälan → Loggpost sparas i SP-listan "Kommentar" → Klart`;
+Chatt ska startas → Handläggaren öppnar Portalen → Väljer befintlig driftfråga → Loggpost sparas i SP-listan "Kommentar" → Klart`;
 
   it("ett steg utan egen banregel fortsätter i föregående stegs bana", () => {
     const d = textToDraft(TEXT);

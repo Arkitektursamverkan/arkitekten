@@ -10,17 +10,18 @@
  * men de prövas nu där trädet faktiskt ritas.
  */
 
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { ProcessKatalog } from "./ProcessKatalog";
 import { AnvändarKontext } from "./Inloggning";
 import type { FlowSummary } from "@/core/flow-store";
+import { användTestärendetyper, återställÄrendetyper } from "@/core/test-arendetyper";
 
 /** Två processer med samma kortnamn i olika målgrupper – det svåra fallet. */
 const FLÖDEN: FlowSummary[] = [
   {
-    id: "utvecklingsforslag-kommentera-handlaggare",
-    name: "Utvecklingsförslag - kommentera ärendet (handläggare)",
+    id: "verksamhetsforslag-kommentera-handlaggare",
+    name: "Verksamhetsförslag - kommentera ärendet (handläggare)",
     savedAt: "2026-07-29T10:00:00.000Z",
     stepCount: 9,
     versionCount: 1,
@@ -29,8 +30,8 @@ const FLÖDEN: FlowSummary[] = [
     actor: "Handläggare",
   },
   {
-    id: "utvecklingsforslag-kommentera-godkannare",
-    name: "Utvecklingsförslag - kommentera ärendet (godkännare)",
+    id: "verksamhetsforslag-kommentera-godkannare",
+    name: "Verksamhetsförslag - kommentera ärendet (godkännare)",
     savedAt: "2026-07-29T10:00:00.000Z",
     stepCount: 9,
     versionCount: 1,
@@ -39,8 +40,8 @@ const FLÖDEN: FlowSummary[] = [
     actor: "Godkännare",
   },
   {
-    id: "felanmalan-paminn-mig-handlaggare",
-    name: "Felanmälan - påminn mig (handläggare)",
+    id: "driftfraga-paminn-mig-handlaggare",
+    name: "Driftfråga - påminn mig (handläggare)",
     savedAt: "2026-07-29T10:00:00.000Z",
     stepCount: 6,
     versionCount: 2,
@@ -63,9 +64,13 @@ function rita(flöden: FlowSummary[] = FLÖDEN) {
   return öppnade;
 }
 
+// Påhittade ärendetyper – standardlistan är en viss installations portal.
+beforeEach(användTestärendetyper);
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  återställÄrendetyper();
 });
 
 /**
@@ -85,18 +90,18 @@ it("REGRESSION: en nivå i taget – samlingarna först, inte alla kort", () => 
   // NIVÅ 1: samlingen, med vad den innehåller och hur många.
   const rad = screen.getByRole("button", { name: /^Systemprocesser/ });
   expect(within(rad).getByText("3")).toBeTruthy();
-  expect(rad.textContent).toContain("Utvecklingsförslag");
+  expect(rad.textContent).toContain("Verksamhetsförslag");
   // Inga kort på den här nivån – det var just dem man fick skrolla förbi.
   expect(screen.queryByText("Påminn mig")).toBeNull();
 
   // NIVÅ 2: grenarna i samlingen.
   gåTill("Systemprocesser");
-  expect(screen.getByRole("button", { name: /^Felanmälan/ })).toBeTruthy();
-  expect(screen.getByRole("button", { name: /^Utvecklingsförslag/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /^Driftfråga/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /^Verksamhetsförslag/ })).toBeTruthy();
   expect(screen.queryByText("Påminn mig")).toBeNull();
 
   // NIVÅ 3: processerna, med målgruppen som rubrik.
-  gåTill("Utvecklingsförslag");
+  gåTill("Verksamhetsförslag");
   expect(screen.getAllByText("Kommentera ärendet")).toHaveLength(2);
   expect(screen.getByRole("heading", { name: "Handläggaren" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Godkännaren" })).toBeTruthy();
@@ -104,13 +109,13 @@ it("REGRESSION: en nivå i taget – samlingarna först, inte alla kort", () => 
 
 it("brödsmulan bär vägen tillbaka", () => {
   rita();
-  gåTill("Systemprocesser", "Utvecklingsförslag");
+  gåTill("Systemprocesser", "Verksamhetsförslag");
   expect(screen.getAllByText("Kommentera ärendet")).toHaveLength(2);
 
   // Ett steg upp: grenarna igen.
   fireEvent.click(screen.getByRole("button", { name: "Systemprocesser" }));
   expect(screen.queryByText("Kommentera ärendet")).toBeNull();
-  expect(screen.getByRole("button", { name: /^Felanmälan/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /^Driftfråga/ })).toBeTruthy();
 
   // Hela vägen hem.
   fireEvent.click(screen.getByRole("button", { name: "Alla samlingar" }));
@@ -119,22 +124,22 @@ it("brödsmulan bär vägen tillbaka", () => {
 
 it("kortet bär kortnamnet, och hela namnet finns kvar som hovertext", () => {
   rita();
-  gåTill("Systemprocesser", "Utvecklingsförslag");
+  gåTill("Systemprocesser", "Verksamhetsförslag");
 
   // Ärendetyp och roll står redan som rubriker – kortet visar det som skiljer.
   expect(screen.getAllByText("Kommentera ärendet")).toHaveLength(2);
 
   const kort = screen.getAllByText("Kommentera ärendet")[0].closest("button")!;
-  expect(kort.getAttribute("title")).toContain("Utvecklingsförslag - kommentera ärendet");
+  expect(kort.getAttribute("title")).toContain("Verksamhetsförslag - kommentera ärendet");
 });
 
 it("sökningen plattar ut strukturen – träffarna står i en lista", () => {
   rita();
-  gåTill("Systemprocesser", "Utvecklingsförslag");
+  gåTill("Systemprocesser", "Verksamhetsförslag");
 
   // Söker man vet man inte var något ligger; då är nivåerna i vägen.
   fireEvent.change(screen.getByPlaceholderText("Sök process …"), { target: { value: "påminn" } });
-  expect(screen.getByText("Felanmälan - påminn mig (handläggare)")).toBeTruthy();
+  expect(screen.getByText("Driftfråga - påminn mig (handläggare)")).toBeTruthy();
   expect(screen.queryByText("Kommentera ärendet")).toBeNull();
   expect(screen.queryByRole("button", { name: "Alla samlingar" })).toBeNull();
 
@@ -147,13 +152,13 @@ it("statusfiltret skiljer det som gäller från arbetsmaterialet", () => {
   rita();
 
   fireEvent.click(screen.getByRole("button", { name: "Fastslagna" }));
-  gåTill("Systemprocesser", "Felanmälan");
+  gåTill("Systemprocesser", "Driftfråga");
   expect(screen.getByText("Påminn mig")).toBeTruthy();
 
   fireEvent.click(screen.getByRole("button", { name: "Utkast" }));
   // Grenen tömdes av filtret – då finns den inte att stå i heller.
   expect(screen.queryByText("Påminn mig")).toBeNull();
-  gåTill("Systemprocesser", "Utvecklingsförslag");
+  gåTill("Systemprocesser", "Verksamhetsförslag");
   expect(screen.getAllByText("Kommentera ärendet")).toHaveLength(2);
 });
 
@@ -161,17 +166,17 @@ it("läget 'Senast ändrade' visar hela namnet – där finns inga rubriker att 
   rita();
 
   fireEvent.click(screen.getByRole("button", { name: "Senast ändrade" }));
-  expect(screen.getByText("Felanmälan - påminn mig (handläggare)")).toBeTruthy();
+  expect(screen.getByText("Driftfråga - påminn mig (handläggare)")).toBeTruthy();
   // Kortnamnet ensamt hade varit tvetydigt utan ärendetypen ovanför.
   expect(screen.queryByText("Påminn mig")).toBeNull();
 });
 
 it("ett klick på ett kort öppnar processen", () => {
   const öppnade = rita();
-  gåTill("Systemprocesser", "Felanmälan");
+  gåTill("Systemprocesser", "Driftfråga");
 
   fireEvent.click(screen.getByText("Påminn mig").closest("button")!);
-  expect(öppnade).toEqual(["felanmalan-paminn-mig-handlaggare"]);
+  expect(öppnade).toEqual(["driftfraga-paminn-mig-handlaggare"]);
 });
 
 it("en tom katalog erbjuder att nollställa filtren i stället för att bara tiga", () => {
@@ -322,8 +327,8 @@ it("utan skalets vägar visas inga strukturknappar alls", () => {
 it("REGRESSION: en samling utan kategori går att döpa om – då blir den en", () => {
   const utanKategori: FlowSummary[] = [
     {
-      id: "ap-kohantering",
-      name: "Köhantering",
+      id: "ap-lagerhantering",
+      name: "Lagerhantering",
       savedAt: "2026-09-04T10:00:00.000Z",
       stepCount: 6,
       versionCount: 1,
@@ -348,7 +353,7 @@ it("REGRESSION: en samling utan kategori går att döpa om – då blir den en",
   fireEvent.change(fält, { target: { value: "Verksamhetsprocesser" } });
   fireEvent.keyDown(fält, { key: "Enter" });
 
-  expect(onDöpOmGren).toHaveBeenCalledWith(["ap-kohantering"], {
+  expect(onDöpOmGren).toHaveBeenCalledWith(["ap-lagerhantering"], {
     category: "Verksamhetsprocesser",
   });
 });

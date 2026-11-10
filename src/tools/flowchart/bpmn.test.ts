@@ -7,11 +7,11 @@ import { toDrawioXml } from "./export/drawio";
 import { toMermaid } from "./export/mermaid";
 import { renderSvg } from "./export/svg";
 
-const EXAMPLE = `Felanmälan ny
-Fel uppkommer → Startar Portalen → Fyller i formulär → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att felanmälan har inkommit`;
+const EXAMPLE = `Driftfråga ny
+Fel uppkommer → Startar Portalen → Fyller i formulär → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att driftfråga har inkommit`;
 
 /** Har en namngiven mottagare → ger ett riktigt meddelandeflöde ut ur poolen. */
-const MED_MOTTAGARE = `Felanmälan ny
+const MED_MOTTAGARE = `Driftfråga ny
 Fel uppkommer → Startar Portalen → Fyller i formulär → Mejl skickas till handläggaren → Loggpost skapas`;
 
 describe("BPMN-anpassning", () => {

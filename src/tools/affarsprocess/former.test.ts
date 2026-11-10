@@ -219,12 +219,12 @@ describe("forumets pratbubbla", () => {
 describe("forumets mått", () => {
   /**
    * REGRESSION: bubblan blåstes upp runt texten – 251 × 140 för
-   * "Avdelningsledningsgruppen" när aktiviteterna bredvid var 132 × 54.
+   * ett långt gruppnamn när aktiviteterna bredvid var 132 × 54.
    * Forumet står i aktivitetens ställe och är lika stort, svansen inräknad
    * (beslut 2026-10-13: "för stor, fel dimension").
    */
   it("REGRESSION: forumet är ungefär lika stort som en aktivitet med samma namn", () => {
-    for (const namn of ["Fatta beslut", "Avhandla agendapunkter", "Avdelningsledningsgruppen"]) {
+    for (const namn of ["Fatta beslut", "Avhandla agendapunkter", "Förvaltningsledningsgrupp"]) {
       const f = textEtikettMått("forum", namn);
       const a = textEtikettMått("aktivitet", namn);
       expect(f.h, namn).toBeLessThanOrEqual(Math.max(a.h, 54) * 1.15);

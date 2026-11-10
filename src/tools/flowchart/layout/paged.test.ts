@@ -10,7 +10,7 @@ A → B → C → D → E → F → G → H → I → J → K → L`;
 
 /** Fyra banor och ett flöde som är många gånger bredare än en A4. */
 const BRETT = `Testflöde
-A startar → B i portalen → C i portalen → D i portalen → Felanmälan inkommer i SP-listan Incident → Power Automate flödet triggas → Mejl skickas till handläggaren → E i portalen → Loggpost skapas → F i portalen → G avslutar`;
+A startar → B i portalen → C i portalen → D i portalen → Driftfråga inkommer i SP-listan Inkorgen → Power Automate flödet triggas → Mejl skickas till handläggaren → E i portalen → Loggpost skapas → F i portalen → G avslutar`;
 
 describe("sidformat: flera SIDOR i full skala", () => {
   const model = parseToModel(LONG);
@@ -150,7 +150,7 @@ describe("REGRESSION: redigering fungerar i ALLA format", () => {
   // fria layouten, så allt ligger i samma rymd.
   const BREDD = [null, 1600, 1000, 777];
   const draft = textToDraft(`Testflöde
-A startar → B i portalen → C i portalen → D i portalen → Felanmälan inkommer i SP-listan Incident → Power Automate flödet triggas → Mejl skickas till handläggaren → E i portalen → Loggpost skapas → F i portalen → G avslutar`);
+A startar → B i portalen → C i portalen → D i portalen → Driftfråga inkommer i SP-listan Inkorgen → Power Automate flödet triggas → Mejl skickas till handläggaren → E i portalen → Loggpost skapas → F i portalen → G avslutar`);
 
   it("en nod går att flytta i varje format", () => {
     for (const bredd of BREDD) {
@@ -211,7 +211,7 @@ A startar → B i portalen → C i portalen → D i portalen → Felanmälan ink
 
 describe("datalager-artefakter i layouten", () => {
   const MED_LAGER = `Test
-Fyller i formulär → Felanmälan inkommer i SP-listan Incident → Power Automate flödet triggas → Loggpost skapas`;
+Fyller i formulär → Driftfråga inkommer i SP-listan Inkorgen → Power Automate flödet triggas → Loggpost skapas`;
 
   it("två datalager hamnar aldrig ovanpå varandra", () => {
     // Bådas aktiviteter kan ligga längst till vänster i var sin bana – då fick
@@ -281,7 +281,7 @@ describe("REGRESSION: en bana med bara datalager reserverar ingen nodrad", () =>
   // både högre än de andra i auto-läge OCH omöjlig att dra ihop lika långt –
   // golvet låg 56 px över de övrigas.
   const utkast = textToDraft(`Test
-Fyller i formulär → Felanmälan inkommer i SP-listan Incident → Power Automate flödet triggas → Loggpost skapas`);
+Fyller i formulär → Driftfråga inkommer i SP-listan Inkorgen → Power Automate flödet triggas → Loggpost skapas`);
   const modell = compileDraft(utkast);
   const lo = layoutModel(modell, { pageWidth: null });
 
@@ -325,7 +325,7 @@ Fyller i formulär → Felanmälan inkommer i SP-listan Incident → Power Autom
 describe("REGRESSION: sidhänvisningarna sitter rätt och säger vad de betyder", () => {
   // Ett ingående märke som inte fick plats till vänster vändes åt höger. Då
   // hamnade det mitt på nodens UTGÅENDE kant, och delen såg ut att komma in
-  // bakifrån. Båda "del 3"-märkena i Felanmälans del 4 låg dessutom i gapet
+  // bakifrån. Båda "del 3"-märkena i Driftfrågas del 4 låg dessutom i gapet
   // mellan två sammankopplade noder och såg ut att höra till kopplingen.
   const m = parseToModel(BRETT);
   const lo = layoutModel(m, { pageWidth: 777 });
@@ -687,7 +687,7 @@ describe("banhöjd per del i flersidigt läge", () => {
 describe("datalager vid en dels högerkant", () => {
   /**
    * Ett flöde där FYRA listskrivningar hänger på ett och samma steg långt ut
-   * till höger – formen finns i "Reduktion/rabatt – godkänn reduktion", där ett
+   * till höger – formen finns i ett godkännandeflöde, där ett
    * klick sätter status, en flagga, skapar en post i en annan lista och loggar.
    */
   const draft = textToDraft(
@@ -752,33 +752,44 @@ describe("datalager vid en dels högerkant", () => {
  * koppling som inte mynnade ut i någonting, i de flesta flersidiga processer.
  */
 // Innehållet (flows/) ligger inte i git – i en ren klon hoppas testerna över.
-const FÖRÄNDRING = "flows/bestallning-forandring.json";
-describe.skipIf(!fs.existsSync(FÖRÄNDRING))("REGRESSION: hänvisningens stubbe sitter fast i formen", () => {
-  if (!fs.existsSync(FÖRÄNDRING)) return;
-  const flow = JSON.parse(fs.readFileSync(FÖRÄNDRING, "utf8"));
-  const lo = layoutModel(compileDraft(flow.draft), { pageWidth: 777, scale: 0.65, shrinkToContent: true });
-  const under = lo.pageRefs.filter((r) => Math.abs(r.fromX - r.toX) > 0.5 && r.toY > r.fromY);
-
-  it("flödet har märken som sitter snett under ett beslut", () => {
-    expect(under.map((r) => r.text).sort()).toEqual(["Nej · från del 2", "Nej · till del 3"]);
-  });
-
-  it("stubben börjar på rombens kontur, inte i rutans hörn", () => {
-    for (const r of under) {
-      const n = lo.nodes.find((x) => x.node.id === r.nodeId)!;
-      expect(n.node.type).toBe("decision");
-      // Rombens undre kant: lika långt upp från spetsen som i sidled från mitten.
-      const frånMitt = Math.abs(r.fromX - (n.x + n.w / 2)) / n.w;
-      expect(r.fromY).toBeCloseTo(n.y + n.h * (1 - frånMitt), 5);
-      expect(r.fromY).toBeLessThan(n.y + n.h);
+// Alla flöden med ett märke snett under en symbol prövas, så att testet inte
+// hänger på en viss installations flödesnamn.
+const MED_SNEDA_MÄRKEN = (() => {
+  if (!fs.existsSync("flows")) return [];
+  return fs
+    .readdirSync("flows")
+    .filter((f) => f.endsWith(".json") && !f.startsWith("ap-"))
+    .map((f) => JSON.parse(fs.readFileSync(`flows/${f}`, "utf8")))
+    .filter((flow) => flow.draft?.steps && flow.draft.diagramType !== "affarsprocess")
+    .map((flow) => {
+      const lo = layoutModel(compileDraft(flow.draft), { pageWidth: 777, scale: 0.65, shrinkToContent: true });
+      const under = lo.pageRefs.filter((r) => Math.abs(r.fromX - r.toX) > 0.5 && r.toY > r.fromY);
+      return { id: flow.id as string, lo, under };
+    })
+    .filter((x) => x.under.length > 0);
+})();
+describe.skipIf(MED_SNEDA_MÄRKEN.length === 0)("REGRESSION: hänvisningens stubbe sitter fast i formen", () => {
+  it("stubben börjar på formens kontur, inte i rutans hörn", () => {
+    for (const { id, lo, under } of MED_SNEDA_MÄRKEN) {
+      for (const r of under) {
+        // Bara rombens kontur mäts här; märken under andra objekt hoppas över.
+        const n = lo.nodes.find((x) => x.node.id === r.nodeId);
+        if (n?.node.type !== "decision") continue;
+        // Rombens undre kant: lika långt upp från spetsen som i sidled från mitten.
+        const frånMitt = Math.abs(r.fromX - (n.x + n.w / 2)) / n.w;
+        expect(r.fromY, id).toBeCloseTo(n.y + n.h * (1 - frånMitt), 5);
+        expect(r.fromY, id).toBeLessThan(n.y + n.h);
+      }
     }
   });
 
   it("vägen är vinkelrät: rakt ner, sedan vågrätt in i märket", () => {
-    for (const r of under) {
-      const väg = hänvisningsStubbe(r);
-      expect(väg).toHaveLength(3);
-      expect(väg[1]).toEqual({ x: r.fromX, y: r.toY });
+    for (const { under } of MED_SNEDA_MÄRKEN) {
+      for (const r of under) {
+        const väg = hänvisningsStubbe(r);
+        expect(väg).toHaveLength(3);
+        expect(väg[1]).toEqual({ x: r.fromX, y: r.toY });
+      }
     }
   });
 
@@ -793,7 +804,7 @@ describe.skipIf(!fs.existsSync(FÖRÄNDRING))("REGRESSION: hänvisningens stubbe
   });
 
   it("ett märke rakt åt sidan har kvar sin raka stubbe", () => {
-    const rak = lo.pageRefs.find((r) => r.fromY === r.toY)!;
-    expect(hänvisningsStubbe(rak)).toHaveLength(2);
+    const raka = MED_SNEDA_MÄRKEN.flatMap(({ lo }) => lo.pageRefs.filter((r) => r.fromY === r.toY));
+    for (const rak of raka) expect(hänvisningsStubbe(rak)).toHaveLength(2);
   });
 });

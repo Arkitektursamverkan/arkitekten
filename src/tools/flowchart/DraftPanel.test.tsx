@@ -15,7 +15,7 @@ import { DraftPanel } from "./DraftPanel";
 import { normalizeOrder, type ProcessDraft } from "@/core/draft";
 import { textToDraft } from "./parser/toDraft";
 
-const TEXT = `Felanmälan ny
+const TEXT = `Driftfråga ny
 Fel uppkommer → Startar Portalen → Fyller i formulär → Power Automate flödet triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas) → Mejl skickas till handläggaren`;
 
 const ROW_HEIGHT = 40;

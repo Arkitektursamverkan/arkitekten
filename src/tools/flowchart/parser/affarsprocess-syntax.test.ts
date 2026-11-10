@@ -69,7 +69,7 @@ describe("textToDraft med satellitannoteringar", () => {
 describe("[Forum] – steget är ett forum i kedjan", () => {
   /**
    * REGRESSION: forum fanns bara som SATELLIT ([Forum: X]), och AI:n hängde
-   * "Avdelningsledningsgruppen" som en extra bubbla bredvid fyra steg i rad.
+   * "Ledningsgruppen" som en extra bubbla bredvid fyra steg i rad.
    * Metoden säger något annat: ett forum "kan användas istället för en
    * aktivitet om det är viktigt att aktiviteten alltid ska genomföras i
    * mötesform" (beslut 2026-10-13).

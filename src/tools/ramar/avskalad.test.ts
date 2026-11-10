@@ -12,7 +12,7 @@ import { setPresentationsKoppling, setPresentationsLäge } from "@/core/draft";
 import { avskalaAp, närmasteSida, renderAvskaladSvg } from "./avskalad";
 import { snäppMotMittlinjer } from "./AvskaladVy";
 
-const L = "Uthyrning";
+const L = "Utlåning";
 const steg = (id: string, type: DraftStep["type"], text: string, extra: Partial<DraftStep> = {}): DraftStep => ({
   id,
   type,
@@ -21,23 +21,23 @@ const steg = (id: string, type: DraftStep["type"], text: string, extra: Partial<
   sourceIndex: -1,
   ...extra,
 });
-const KK = { namn: "Kundkoordinator", huki: "U" as const };
+const KK = { namn: "Lånehandläggare", huki: "U" as const };
 
 /** Samma form som demoflödet: två regler, en återkoppling, en gren som tar slut. */
 const DRAFT: ProcessDraft = {
   ...emptyDraft(),
-  title: "Uthyrning",
+  title: "Utlåning",
   lanes: [makeLane(L, 0)],
   steps: [
-    steg("publicera", "activity", "Publicerar lägenhet", {
-      ap: { input: "Uthyrningsbar lägenhet", roller: [KK], applikationer: ["Fastighetssystemet"], output: "Lägenhet publicerad" },
+    steg("publicera", "activity", "Publicerar utrustning", {
+      ap: { input: "Utlånbar utrustning", roller: [KK], applikationer: ["Utlåningssystemet"], output: "Utrustning publicerad" },
     }),
     steg("anmal", "activity", "Anmäler intresse", { ap: { roller: [{ namn: "Sökande", huki: "U" }], output: "Intresse anmält" } }),
-    steg("visa", "activity", "Visar lägenhet", { ap: { roller: [{ namn: "Förvaltare", huki: "U" }], output: null } }),
+    steg("visa", "activity", "Visar utrustning", { ap: { roller: [{ namn: "Förvaltare", huki: "U" }], output: null } }),
     steg("vill", "decision", "Vill sökande?", { gateway: "exclusive" }),
     steg("nasta", "activity", "Bearbetar nästa", { branchOf: { stepId: "vill", label: "Nej" }, ap: { output: null } }),
     steg("kredit", "activity", "Utför kreditupplysning", { ap: { roller: [KK], applikationer: ["Creditsafe"], output: null } }),
-    steg("avtal", "activity", "Skickar avtal", { ap: { roller: [KK], output: "Lägenhet uthyrd" } }),
+    steg("avtal", "activity", "Skickar avtal", { ap: { roller: [KK], output: "Utrustning utlånad" } }),
   ],
   removedEdges: [edgeKey("nasta", "kredit")],
   extraEdges: [{ source: "nasta", target: "visa" }],
@@ -48,9 +48,9 @@ const bild = () => avskalaAp(compileAp(DRAFT));
 describe("avskalad presentationsstil", () => {
   it("zonerna är rollerna som UTFÖR stegen, i den ordning de dyker upp", () => {
     const b = bild();
-    expect(b.zoner.map((z) => z.namn)).toEqual(["Kundkoordinator", "Sökande", "Förvaltare"]);
+    expect(b.zoner.map((z) => z.namn)).toEqual(["Lånehandläggare", "Sökande", "Förvaltare"]);
     const zonAv = (id: string) => b.zoner[b.rutor.find((r) => r.id === id)!.zon].namn;
-    expect(zonAv("kredit")).toBe("Kundkoordinator");
+    expect(zonAv("kredit")).toBe("Lånehandläggare");
     // Regeln och steget utan roll följer steget före sig.
     expect(zonAv("vill")).toBe("Förvaltare");
     expect(zonAv("nasta")).toBe("Förvaltare");
@@ -211,7 +211,7 @@ describe("avskalaAp – forum i kedjan", () => {
 describe("avskalaAp – mötesprocessens fel (2026-10-13)", () => {
   const AC = { namn: "Avdelningschef", huki: "U" as const };
   const EC = { namn: "Enhetschefer", huki: "U" as const };
-  const GR = { namn: "Avdelningsledningsgruppen", huki: "U" as const };
+  const GR = { namn: "Ledningsgruppen", huki: "U" as const };
   const MÖTE: ProcessDraft = {
     ...emptyDraft(),
     title: "Möte",

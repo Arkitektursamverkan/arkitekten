@@ -14,10 +14,11 @@
  * dess plats (ARK_E2E_ROT) ärvs av arbetsprocesserna. Allt tas bort efteråt.
  *
  * Några tester gäller processer som bara en installation har (en presentation
- * med ramserie, en lång affärsprocess med räls under kedjan). Det innehållet
- * får aldrig ligga i repot (invariant 12), så de testerna hoppar över – utom
- * när ARK_E2E_INNEHALL pekar ut en installations innehåll (katalogen som har
- * `flows/`). Dess flöden läggs då in i MALLEN, alltså i den tillfälliga
+ * med ramserie, en lång affärsprocess med räls under kedjan). Varken det
+ * innehållet eller testerna, som nämner dess processer, ligger i repot
+ * (invariant 12): installationen har dem i sin `.lokalt/e2e/` och kopierar in
+ * dem i e2e/ för att köra dem. De hoppar över – utom när ARK_E2E_INNEHALL
+ * pekar ut installationens innehåll (katalogen som har `flows/`). Dess flöden läggs då in i MALLEN, alltså i den tillfälliga
  * kopian; originalet läses bara.
  */
 

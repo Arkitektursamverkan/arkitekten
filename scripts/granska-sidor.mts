@@ -33,8 +33,8 @@ for (const fil of fs.readdirSync(flowsDir).filter((f) => f.endsWith(".json"))) {
 
 granska(
   "Exempelflödet",
-  textToDraft(`Felanmälan ny
-Fel uppkommer → Medarbetare → Startar portalen → Väljer ny felanmälan från startsidan → Fyller i formulär för felanmälan → Väljer skicka in formuläret för felanmälan → Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att felanmälan har inkommit
+  textToDraft(`Driftfråga ny
+Fel uppkommer → Medarbetare → Startar portalen → Väljer ny driftfråga från startsidan → Fyller i formulär för driftfråga → Väljer skicka in formuläret för driftfråga → Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att driftfråga har inkommit
 
-Felanmälan inkommer i SP-listan "Incident" → Power Automate flödet "INC nytt ärende" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`),
+Driftfråga inkommer i SP-listan "Inkorgen" → Power Automate flödet "DRF nytt ärende" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`),
 );

@@ -36,14 +36,14 @@ const skrivNamn = (v: string) =>
 it("lämnar över verktyg, namn, utgångspunkt och text", () => {
   const onSkapa = rita();
 
-  skrivNamn("Felanmälan – ny (användare)");
+  skrivNamn("Driftfråga – ny (användare)");
   fireEvent.change(screen.getByPlaceholderText(/En rad per spår/), {
     target: { value: "Medarbetare → Startar portalen" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Skapa process" }));
 
   expect(onSkapa).toHaveBeenCalledWith("flowchart", {
-    namn: "Felanmälan – ny (användare)",
+    namn: "Driftfråga – ny (användare)",
     // Förvalet kommer ur SAMMA regler som trädet – ett flödesschema hör till
     // portalen tills man säger något annat.
     kategori: "Systemprocesser",
@@ -93,9 +93,9 @@ it("utan namn går det inte att skapa något", () => {
  * beskedet kommer ett arbetspass för sent.
  */
 it("ett upptaget namn stoppas här, inte först vid sparningen", () => {
-  rita(["Felanmälan - ny (användare)"]);
+  rita(["Driftfråga - ny (användare)"]);
 
-  skrivNamn("felanmälan - ny (användare)"); // versaler ska inte hjälpa
+  skrivNamn("driftfråga - ny (användare)"); // versaler ska inte hjälpa
   expect(screen.getByText(/finns redan en process med det namnet/)).toBeTruthy();
   expect((screen.getByRole("button", { name: "Skapa process" }) as HTMLButtonElement).disabled).toBe(
     true,

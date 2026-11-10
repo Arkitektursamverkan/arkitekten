@@ -10,7 +10,7 @@ import { compileDraft, setEdgeSides, setEdgeWaypoint } from "@/core/draft";
 import { textToDraft } from "./parser/toDraft";
 import { filterByPerspective } from "./perspective";
 
-const TEXT = `Felanmälan ny
+const TEXT = `Driftfråga ny
 Fel uppkommer → Startar Portalen → Fyller i formulär → Mejl skickas till handläggaren → Power Automate flödet triggas → Loggpost skapas`;
 
 const draft = textToDraft(TEXT);

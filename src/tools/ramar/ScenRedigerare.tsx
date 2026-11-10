@@ -607,7 +607,7 @@ export function ScenRedigerare(props: {
             <input
               className="ark-input"
               value={puls.text ?? ""}
-              placeholder="Etikett, t.ex. Felanmälan"
+              placeholder="Etikett, t.ex. Driftfråga"
               onChange={(e) => ändraRs((x) => ändraPuls(x, puls.id, (p) => ({ ...p, text: e.target.value })))}
               aria-label="Pulsens etikett"
             />

@@ -829,7 +829,7 @@ export function layoutAp(model: ApModel, opts?: ApLayoutOptions): ApLayout {
     const cellW = Math.max(...lösa.map((n) => dim(n).w)) + d.satGapX;
     const cellH = lösaRadH + d.satGapY / 2;
     const bredd = pageWidth ?? Math.max(...ut.map((p) => p.x + p.w), d.margin * 2);
-    // En KARTA (t.ex. "Huvudprocess Kund", "4.4 IT") har bara rutor och inga
+    // En KARTA (t.ex. "Huvudprocess Leverans", "4.4 Drift") har bara rutor och inga
     // pilar: allt är löst, kedjan är tom och det finns ingen bredd att räkna
     // rutnätet efter. Utan det egna fallet blev raden en enda lodrät kolumn
     // och utlägget 0 px brett – kartan syntes inte alls i EA-portalen. Ett

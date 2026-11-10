@@ -103,7 +103,7 @@ it("följer perspektivet – dolda systemsteg står inte i rutan", () => {
   const model = compileDraft(
     draftMed([
       steg("s1", "activity", "Hantera ärendet"),
-      steg("s2", "integration", "Anropa fastighetssystemets API", { laneId: "Power Automate" }),
+      steg("s2", "integration", "Anropa ärendesystemets API", { laneId: "Power Automate" }),
     ]),
   );
 

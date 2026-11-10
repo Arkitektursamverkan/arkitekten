@@ -12,7 +12,7 @@ import { addManualEdge, compileDraft, removeEdge, restoreEdge } from "./draft";
 import { textToDraft } from "@/tools/flowchart/parser/toDraft";
 
 const TEXT = `Test
-A startar → B i portalen → Felanmälan inkommer i SP-listan Incident → Power Automate flödet triggas → Mejl skickas till handläggaren → C avslutar`;
+A startar → B i portalen → Driftfråga inkommer i SP-listan Inkorgen → Power Automate flödet triggas → Mejl skickas till handläggaren → C avslutar`;
 
 const utkast = textToDraft(TEXT);
 const bas = compileDraft(utkast);

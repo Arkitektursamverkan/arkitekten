@@ -266,7 +266,7 @@ function capitalize(s: string): string {
 
 /**
  * Gör en kort, boxvänlig etikett av en lång fras.
- * "Väljer ny felanmälan från startsidan" -> "Väljer ny felanmälan"
+ * "Väljer ny driftfråga från startsidan" -> "Väljer ny driftfråga"
  * Behåller hela frasen om den redan är kort.
  */
 export function shortLabel(raw: string): string {

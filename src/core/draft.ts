@@ -896,7 +896,7 @@ export function compileDraft(draft: ProcessDraft): ProcessModel {
         // ETT SLUT ÄR ETT SLUT. Står det sist i sin kedja lämnar det ingen
         // öppen utgång – annars återförenades grenen med nästa steg i
         // huvudflödet, slutet fick en pil ut och gjordes om till en aktivitet
-        // ("Inget att ta vidare" i Innovation - demo, 2026-10-01). Ett slut
+        // ("Inget att ta vidare" i en demoprocess, 2026-10-01). Ett slut
         // MITT i en kedja lämnas som förut: där säger stegen efter emot det.
         merges = [];
       } else {

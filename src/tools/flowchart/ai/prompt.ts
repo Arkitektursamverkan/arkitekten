@@ -186,7 +186,7 @@ const AP_METODEN = `METODENS REGLER – följ dem alltid
   så ritas det som en pratbubbla i förädlingskedjan i stället för en
   aktivitetsruta. Det är fortfarande ett steg (\`type: "activity"\`): det
   namnges verb + substantiv, lämnar ett resultat, har sina roller och kräver
-  en beskrivning. Mötets eller gruppens NAMN ("Avdelningsledningsgruppen")
+  en beskrivning. Mötets eller gruppens NAMN ("Ledningsgruppen")
   skrivs i \`note\`, inte som en egen symbol.
   Exempel: \`Fatta beslut [Forum] [Roll: Avdelningschef, Enhetschefer]\`.
   Använd det för de steg som ÄR mötet – det som avhandlas och beslutas där –

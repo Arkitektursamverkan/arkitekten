@@ -12,8 +12,8 @@
  *
  * Ingenting skrivs till `flows/` – skriptet läser bara (invariant 11).
  *
- *   npx tsx scripts/scen.mts ap-2-2-7-uthyrning-av-nyproduktion --jamfor
- *   npx tsx scripts/scen.mts ap-2-1-0-kohantering scen.json
+ *   npx tsx scripts/scen.mts ap-<flödes-id> --jamfor
+ *   npx tsx scripts/scen.mts ap-<flödes-id> scen.json
  *   npx tsx scripts/scen.mts --alla --jamfor
  */
 

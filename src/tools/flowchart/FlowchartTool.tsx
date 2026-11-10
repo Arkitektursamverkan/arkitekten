@@ -96,10 +96,10 @@ import { useHelskärm } from "@/render/helskarm";
 
 const PAGE_ORDER: PageFormatId[] = ["word", "free", "wide", "a4p", "a4l"];
 
-const EXAMPLE = `Felanmälan ny
-Fel uppkommer → Medarbetare → Startar portalen → Väljer ny felanmälan från startsidan → Fyller i formulär för felanmälan → Väljer skicka in formuläret för felanmälan → Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att felanmälan har inkommit
+const EXAMPLE = `Driftfråga ny
+Fel uppkommer → Medarbetare → Startar portalen → Väljer ny driftfråga från startsidan → Fyller i formulär för driftfråga → Väljer skicka in formuläret för driftfråga → Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att driftfråga har inkommit
 
-Felanmälan inkommer i SP-listan "Incident" → Power Automate flödet "INC nytt ärende" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
+Driftfråga inkommer i SP-listan "Inkorgen" → Power Automate flödet "DRF nytt ärende" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
 
 function download(name: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -215,10 +215,10 @@ export function FlowchartTool({
 
   /**
    * Namnet i sparfältet innan något öppnats. NEUTRALT med flit: hette det som
-   * ett verkligt flöde ("Felanmälan ny") såg exemplet ut att VARA det sparade
+   * ett verkligt flöde ("Driftfråga ny") såg exemplet ut att VARA det sparade
    * flödet med samma namn, och en sparning hade skrivit en version på det.
    */
-  const [flowName, setFlowName] = useState("Exempel – felanmälan");
+  const [flowName, setFlowName] = useState("Exempel – driftfråga");
   /**
    * Id:t på flödet som redigeras (null = exempel eller nytt, inte sparat än).
    * Verktyget äger det, för flödet kan öppnas både ur panelens bibliotek och

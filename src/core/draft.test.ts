@@ -46,14 +46,14 @@ import {
 } from "./draft";
 import { textToDraft } from "@/tools/flowchart/parser/toDraft";
 
-const TEXT = `Felanmälan ny
+const TEXT = `Driftfråga ny
 Fel uppkommer → Medarbetare → Startar Portalen → Fyller i formulär → Power Automate flödet triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas) → Mejl skickas till handläggaren`;
 
 describe("textToDraft – platt steglista", () => {
   const draft = textToDraft(TEXT);
 
   it("sätter titel och ursprung", () => {
-    expect(draft.title).toBe("Felanmälan ny");
+    expect(draft.title).toBe("Driftfråga ny");
     expect(draft.meta.origin).toBe("rules");
   });
 
@@ -1077,8 +1077,8 @@ describe("automatiska slut-event", () => {
 
 describe("BPMN-korrekthet i kompileringen", () => {
   // Eget flöde: behöver både datalager och notifieringar.
-  const BPMN_TEXT = `Felanmälan
-Fel uppkommer → Fyller i formulär → Felanmälan inkommer i SP-listan "Incident" → Power Automate flödet triggas → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
+  const BPMN_TEXT = `Driftfråga
+Fel uppkommer → Fyller i formulär → Driftfråga inkommer i SP-listan "Inkorgen" → Power Automate flödet triggas → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
   const draft = textToDraft(BPMN_TEXT);
   const model = compileDraft(draft);
 
@@ -1180,7 +1180,7 @@ describe("dataassociationer pekar på verkliga utförare", () => {
 
   it("läsningen får passera en gateway", () => {
     const m = bygg(
-      "Fyller i formulär → Felanmälan inkommer i SP-listan Incident (↓ Om hög prioritet → Teamschatt skapas) → Power Automate flödet triggas",
+      "Fyller i formulär → Driftfråga inkommer i SP-listan Inkorgen (↓ Om hög prioritet → Teamschatt skapas) → Power Automate flödet triggas",
     );
     const ds = m.dataStores[0];
     const läs = m.dataAssociations.filter((a) => a.dataStoreId === ds.id && a.direction === "read");
@@ -1200,7 +1200,7 @@ describe("dataassociationer pekar på verkliga utförare", () => {
 
   it("varje association pekar på en nod som finns i modellen", () => {
     const m = bygg(
-      "Fyller i formulär → Felanmälan inkommer i SP-listan Incident → Power Automate flödet triggas → Mejl skickas till handläggaren → Loggpost skapas",
+      "Fyller i formulär → Driftfråga inkommer i SP-listan Inkorgen → Power Automate flödet triggas → Mejl skickas till handläggaren → Loggpost skapas",
     );
     expect(m.dataAssociations.length).toBeGreaterThan(0);
     for (const a of m.dataAssociations) {
@@ -1325,28 +1325,37 @@ Fel uppkommer → Power Automate flödet triggas (↓ Om hög prioritet → Team
   });
 
   // Innehållet (flows/) ligger inte i git – i en ren klon hoppas testet över.
-  it.skipIf(!fs.existsSync("flows/bestallning-ny.json"))("parallella steg staplas lodrätt som default; kort höjd sprider på färre rader", () => {
-    // Använder det verkliga flödet – där har Power Automate genuint parallella
-    // steg (samma rank). AUTO staplar dem lodrätt (flera rader) så sidbredden
-    // hålls; drar man in banan lägre sprids de i sidled på FÄRRE rader.
-    const flow = JSON.parse(fs.readFileSync("flows/bestallning-ny.json", "utf8"));
-    // Testet mäter MOTORNS radläggning – de manuellt dragna positionerna i
-    // den sparade filen nollas, annars ligger noderna där de släpptes
-    // oavsett vad radläggningen bestämmer.
-    const grund = clearPositions(flow.draft);
+  // Alla flöden med genuint parallella steg i Power Automate-banan prövas, så
+  // att testet inte hänger på en viss installations flödesnamn.
+  it.skipIf(!fs.existsSync("flows"))("parallella steg staplas lodrätt som default; kort höjd sprider på färre rader", () => {
+    // Där har Power Automate genuint parallella steg (samma rank). AUTO
+    // staplar dem lodrätt (flera rader) så sidbredden hålls; drar man in
+    // banan lägre sprids de i sidled på FÄRRE rader.
     const rader = (draft: any) => {
       const vy = filterByPerspective(compileDraft(draft), "system");
       const lay = layoutModel(vy);
-      const lane = lay.lanes.find((l) => l.id === "Power Automate")!;
+      const lane = lay.lanes.find((l) => l.id === "Power Automate");
+      if (!lane) return 0;
       const yer = lay.nodes
         .filter((n) => n.node.laneId === "Power Automate")
         .map((n) => Math.round((n.y + n.h / 2 - lane.y) / 30));
       return new Set(yer).size;
     };
-    const auto = rader(grund);
-    const lågt = rader(setLaneHeight(grund, "Power Automate", 130));
-    expect(auto).toBeGreaterThan(1); // parallella steg → flera rader som default
-    expect(lågt).toBeLessThan(auto); // lägre bana → färre rader
+    let prövade = 0;
+    for (const fil of fs.readdirSync("flows").filter((f) => f.endsWith(".json") && !f.startsWith("ap-"))) {
+      const flow = JSON.parse(fs.readFileSync(`flows/${fil}`, "utf8"));
+      if (!flow.draft?.steps || flow.draft.diagramType === "affarsprocess") continue;
+      // Testet mäter MOTORNS radläggning – de manuellt dragna positionerna i
+      // den sparade filen nollas, annars ligger noderna där de släpptes
+      // oavsett vad radläggningen bestämmer.
+      const grund = clearPositions(flow.draft);
+      const auto = rader(grund);
+      if (auto <= 1) continue; // inga parallella steg i banan
+      const lågt = rader(setLaneHeight(grund, "Power Automate", 130));
+      expect(lågt, fil).toBeLessThan(auto); // lägre bana → färre rader
+      prövade++;
+    }
+    if (prövade === 0) console.warn("inget flöde med parallella Power Automate-steg att pröva");
   });
 
   it("manuell höjd GÖR banan högre", () => {

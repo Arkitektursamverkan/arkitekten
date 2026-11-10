@@ -25,7 +25,7 @@ import path from "node:path";
 import { compileDraft } from "../src/core/draft";
 import { senasteFastslagna, versionsBeteckning } from "../src/core/status";
 import { flowActor, type FlowSummary } from "../src/core/flow-store";
-import { byggFlödesträd, ÄRENDETYPER } from "../src/core/flow-tree";
+import { byggFlödesträd, ärendetyper } from "../src/core/flow-tree";
 import { filterByPerspective } from "../src/tools/flowchart/perspective";
 import { layoutModel, PAGE_FORMATS } from "../src/tools/flowchart/layout/layout";
 import { renderSvgSized } from "../src/tools/flowchart/export/svg";
@@ -37,10 +37,10 @@ const FLÖDEN = "flows";
 const UT = "Export";
 
 const valdTyp = (process.argv[2] ?? "avvikelse").toLowerCase();
-const typ = ÄRENDETYPER.find((t) => t.id === valdTyp);
+const typ = ärendetyper().find((t) => t.id === valdTyp);
 if (!typ) {
   console.error(
-    `Okänd ärendetyp "${valdTyp}". Välj en av: ${ÄRENDETYPER.map((t) => t.id).join(", ")}`,
+    `Okänd ärendetyp "${valdTyp}". Välj en av: ${ärendetyper().map((t) => t.id).join(", ")}`,
   );
   process.exit(1);
 }

@@ -37,17 +37,17 @@ function fakeStorage(): Storage {
   });
 }
 
-const TEXT = `Felanmälan ny
+const TEXT = `Driftfråga ny
 Fel uppkommer → Startar portalen → Fyller i formulär → Mejl skickas till handläggaren`;
 
 describe("flowId", () => {
   it("gör filnamnssäkra id:n av svenska namn", () => {
-    expect(flowId("Felanmälan ny")).toBe("felanmalan-ny");
-    expect(flowId("Beställning – ny vara")).toBe("bestallning-ny-vara");
+    expect(flowId("Driftfråga ny")).toBe("driftfraga-ny");
+    expect(flowId("Inköpsorder – ny vara")).toBe("inkopsorder-ny-vara");
   });
 
   it("ger samma id för samma namn, så omsparning skriver över", () => {
-    expect(flowId("Felanmälan ny")).toBe(flowId("felanmälan NY"));
+    expect(flowId("Driftfråga ny")).toBe(flowId("driftfråga NY"));
   });
 
   it("faller tillbaka på ett giltigt id för nonsensnamn", () => {
@@ -64,14 +64,14 @@ describe("flödesbibliotek i localStorage", () => {
 
   it("sparar, listar och laddar ett flöde", async () => {
     const draft = textToDraft(TEXT);
-    await saveFlowVersion(store, ({ name: "Felanmälan ny", rawText: TEXT, draft }));
+    await saveFlowVersion(store, ({ name: "Driftfråga ny", rawText: TEXT, draft }));
 
     const list = await store.list();
     expect(list).toHaveLength(1);
-    expect(list[0].name).toBe("Felanmälan ny");
+    expect(list[0].name).toBe("Driftfråga ny");
     expect(list[0].stepCount).toBe(draft.steps.length);
 
-    const loaded = await store.load("felanmalan-ny");
+    const loaded = await store.load("driftfraga-ny");
     expect(loaded.rawText).toBe(TEXT);
     expect(loaded.draft.steps).toHaveLength(draft.steps.length);
   });
@@ -299,7 +299,7 @@ describe("statusar på versionerna", () => {
   });
 
   const spara = (extra: Partial<SaveInput> = {}) =>
-    saveFlowVersion(store, { name: "Felanmälan ny", rawText: TEXT, draft, ...extra });
+    saveFlowVersion(store, { name: "Driftfråga ny", rawText: TEXT, draft, ...extra });
 
   it("en sparning utan angiven status blir utkast – aldrig fastslagen av misstag", async () => {
     const sparad = await spara();
@@ -375,7 +375,7 @@ describe("placering i katalogen", () => {
   }
 
   it("flyttar utan att lägga till en version eller ändra savedAt", async () => {
-    const före = await skapa("Felanmälan ny", { category: "Demo" });
+    const före = await skapa("Driftfråga ny", { category: "Demo" });
 
     const efter = await sättPlacering(store, före.id, {
       category: "Demo",
@@ -406,27 +406,27 @@ describe("placering i katalogen", () => {
    * något om placeringen ska inte heller ändra den.
    */
   it("REGRESSION: en sparning utan placering behåller den som står i filen", async () => {
-    const flow = await skapa("Felanmälan ny", { category: "Demo" });
-    await sättPlacering(store, flow.id, { category: "Portalen", subcategory: "Felanmälan" });
+    const flow = await skapa("Driftfråga ny", { category: "Demo" });
+    await sättPlacering(store, flow.id, { category: "Portalen", subcategory: "Driftfråga" });
 
     const draft = textToDraft(TEXT);
     const efter = await saveFlowVersion(store, {
       id: flow.id,
-      name: "Felanmälan ny",
+      name: "Driftfråga ny",
       rawText: TEXT + "\nB gör något mer",
       draft,
     });
 
     expect(efter.category).toBe("Portalen");
-    expect(efter.subcategory).toBe("Felanmälan");
+    expect(efter.subcategory).toBe("Driftfråga");
   });
 
   it("men en TOM sträng är ett aktivt val och tar bort kategorin", async () => {
-    const flow = await skapa("Felanmälan ny", { category: "Demo", subcategory: "Utbildning" });
+    const flow = await skapa("Driftfråga ny", { category: "Demo", subcategory: "Utbildning" });
     const draft = textToDraft(TEXT);
     const efter = await saveFlowVersion(store, {
       id: flow.id,
-      name: "Felanmälan ny",
+      name: "Driftfråga ny",
       rawText: TEXT,
       draft,
       category: "",
@@ -471,10 +471,10 @@ describe("publicering i EA-portalen", () => {
   let store: FlowStore;
   const PUB = {
     eaNodId: "62911b03-0000-0000-0000-000000000000",
-    eaNodNamn: "4.4.3  Allvarlig IT-säkerhets/GDPR-incident",
+    eaNodNamn: "4.4.3  Allvarlig driftstörning",
     eaPrefix: "4.4.3",
     ägare: "IT-chef",
-    beskrivning: "Hur en allvarlig incident hanteras.",
+    beskrivning: "Hur en allvarlig driftstörning hanteras.",
     publiceradAt: "2026-10-08T10:00:00.000Z",
   };
 

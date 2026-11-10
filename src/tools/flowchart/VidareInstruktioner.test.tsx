@@ -5,13 +5,13 @@ import { VidareInstruktioner, exempelInstruktioner, vidareInstruktion } from "./
 
 afterEach(cleanup);
 
-const AI = "Omvärldsbevakning\nBehov → Granska Message Center";
+const AI = "Licensinventering\nBehov → Granska licensrapporten";
 
 it("önskemålet bär den NUVARANDE AI-beskrivningen och justeringarna – det är tolkningen som justeras", () => {
   const t = vidareInstruktion(AI, "Rollen är Systemförvaltare");
-  expect(t).toContain("Granska Message Center");
+  expect(t).toContain("Granska licensrapporten");
   expect(t).toContain("Rollen är Systemförvaltare");
-  expect(t.indexOf("Granska Message Center")).toBeLessThan(t.indexOf("Rollen är Systemförvaltare"));
+  expect(t.indexOf("Granska licensrapporten")).toBeLessThan(t.indexOf("Rollen är Systemförvaltare"));
 });
 
 it("visas inte förrän det finns en AI-beskrivning", () => {
@@ -43,16 +43,16 @@ it("misslyckas anropet står instruktionerna kvar", async () => {
 });
 
 const OMV =
-  "Omvärldsbevakning system - M365\nBehov av omvärldsbevakning → Aktivera Global Reader-behörighet [IT: PIM] → " +
-  "Granska Message Center [IT: Microsoft 365 Admin Center] [Ut: Granskade meddelanden] → Bedöm påverkan på verksamheten → " +
-  "Behövs åtgärder? (↓ Ja → Initiera åtgärder [Ut: Åtgärder initierade]) → Omvärldsbevakning genomförd";
+  "Licensinventering system - CRM\nBehov av licensinventering → Hämta användarlista [IT: Katalogtjänst] → " +
+  "Granska licensrapporten [IT: Licensportalen] [Ut: Granskade licenser] → Bedöm påverkan på verksamheten → " +
+  "Behövs åtgärder? (↓ Ja → Initiera åtgärder [Ut: Åtgärder initierade]) → Licensinventering genomförd";
 
 it("exemplen byggs ur processens egna steg – utan satelliter, start, slut eller grenetiketter", () => {
   const ex = exempelInstruktioner(OMV, "affarsprocess");
-  expect(ex).toContain("Rollen som utför ”Aktivera Global Reader-behörighet” är …");
+  expect(ex).toContain("Rollen som utför ”Hämta användarlista” är …");
   expect(ex).toContain("Vid Nej på ”Behövs åtgärder?” ska …");
   expect(ex).not.toContain("[");
-  expect(ex).not.toContain("Behov av omvärldsbevakning");
+  expect(ex).not.toContain("Behov av licensinventering");
   expect(ex).not.toMatch(/”Ja”/);
 });
 

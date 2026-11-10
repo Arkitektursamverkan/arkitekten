@@ -9,9 +9,9 @@ import { messageFlowAndel, messageFlowLandning } from "../layout/edge-router";
 import { compileDraft, setEdgeLabel, setEdgeSides, setEdgeWaypoint } from "@/core/draft";
 import { textToDraft } from "../parser/toDraft";
 
-const model = parseToModel(`Felanmälan ny
-Fel uppkommer → Startar Portalen → Fyller i formulär → Skicka felanmälan → Får bekräftelse via mejl
-Felanmälan inkommer i SP-listan "Incident" → Power Automate flödet triggas → Loggpost skapas`);
+const model = parseToModel(`Driftfråga ny
+Fel uppkommer → Startar Portalen → Fyller i formulär → Skicka driftfråga → Får bekräftelse via mejl
+Driftfråga inkommer i SP-listan "Inkorgen" → Power Automate flödet triggas → Loggpost skapas`);
 
 describe("exportörer", () => {
   it("Mermaid innehåller flowchart och noder", () => {
@@ -97,7 +97,7 @@ Fel uppkommer → Fyller i formulär → Power Automate flödet triggas → Logg
 
 describe("alla kopplingar ritas ortogonalt", () => {
   const model = parseToModel(`Test
-Fyller i formulär → Felanmälan inkommer i SP-listan Incident → Power Automate flödet triggas → Mejl skickas till handläggaren`);
+Fyller i formulär → Driftfråga inkommer i SP-listan Inkorgen → Power Automate flödet triggas → Mejl skickas till handläggaren`);
 
   it("dataassociationer har räta vinklar, inte en rak diagonal", () => {
     const svg = renderSvg(model);
@@ -117,7 +117,7 @@ describe("REGRESSION: pilspetsarna pekar rakt", () => {
   // markörens innehåll, så spetsen hamnade vid sidan av linjen i stället för
   // på den – de streckade pilarna såg ut att peka snett in i sitt mål.
   const svg = renderSvg(parseToModel(`Test
-Fyller i formulär → Felanmälan inkommer i SP-listan Incident → Power Automate flödet triggas → Mejl skickas till handläggaren`));
+Fyller i formulär → Driftfråga inkommer i SP-listan Inkorgen → Power Automate flödet triggas → Mejl skickas till handläggaren`));
 
   const markörer = [...svg.matchAll(/<marker\b[^>]*>/g)].map((m) => m[0]);
 

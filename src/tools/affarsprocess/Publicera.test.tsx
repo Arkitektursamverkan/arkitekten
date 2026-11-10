@@ -12,14 +12,14 @@ import { PubliceraKnapp } from "./Publicera";
 
 const PROCESSER: EaProcess[] = [
   { id: "stöd", namn: "4 Stödprocesser", prefix: "4", struktur: true, källa: "EXTERN" },
-  { id: "it", namn: "4.4 IT", prefix: "4.4", förälderId: "stöd", struktur: true, källa: "EXTERN" },
-  { id: "443", namn: "4.4.3  Allvarlig incident", prefix: "4.4.3", förälderId: "it", struktur: false, källa: "EXTERN" },
+  { id: "it", namn: "4.4 Drift", prefix: "4.4", förälderId: "stöd", struktur: true, källa: "EXTERN" },
+  { id: "443", namn: "4.4.3  Allvarlig driftstörning", prefix: "4.4.3", förälderId: "it", struktur: false, källa: "EXTERN" },
 ];
 
 function flöde(status: "utkast" | "fastslagen"): SavedFlow {
   return {
-    id: "ap-4-4-3-incident",
-    name: "4.4.3 Allvarlig incident",
+    id: "ap-4-4-3-driftstorning",
+    name: "4.4.3 Allvarlig driftstörning",
     savedAt: "2026-10-01T00:00:00.000Z",
     rawText: "",
     draft: { diagramType: "affarsprocess", steps: [] } as unknown as SavedFlow["draft"],
@@ -98,7 +98,7 @@ describe("Publicera i EA-portalen", () => {
     expect(anrop.some((a) => a.väg === "/__ark/ea/synka")).toBe(false);
 
     fireEvent.change(screen.getByLabelText("Processägare *"), { target: { value: "IT-chef" } });
-    fireEvent.change(screen.getByLabelText("Beskrivning *"), { target: { value: "Så hanteras en incident." } });
+    fireEvent.change(screen.getByLabelText("Beskrivning *"), { target: { value: "Så hanteras en driftstörning." } });
     fireEvent.click(screen.getByRole("button", { name: "Publicera" }));
 
     await waitFor(() => expect(screen.getByText(/är publicerad under/)).toBeTruthy());
@@ -110,7 +110,7 @@ describe("Publicera i EA-portalen", () => {
       eaNodId: "443",
       eaPrefix: "4.4.3",
       ägare: "IT-chef",
-      beskrivning: "Så hanteras en incident.",
+      beskrivning: "Så hanteras en driftstörning.",
     });
     expect(sparad.publicering?.egenNod).toBeUndefined();
     expect(sparad.versions).toHaveLength(1);
@@ -178,7 +178,7 @@ describe("Publicera i EA-portalen", () => {
   describe("avpublicering", () => {
     const PUB = {
       eaNodId: "443",
-      eaNodNamn: "4.4.3  Allvarlig incident",
+      eaNodNamn: "4.4.3  Allvarlig driftstörning",
       eaPrefix: "4.4.3",
       ägare: "IT-chef",
       beskrivning: "Syftet.",

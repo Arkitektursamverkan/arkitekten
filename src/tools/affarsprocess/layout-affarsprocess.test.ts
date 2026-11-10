@@ -37,7 +37,7 @@ const KEDJA = draftMed([
     ap: { roller: [{ namn: "Handläggare", huki: "U" }], krav: ["GDPR"] },
   }),
   steg("a2", "activity", "Genomför urval", {
-    ap: { applikationer: ["Fastighetssystemet"] },
+    ap: { applikationer: ["Ärendesystemet"] },
   }),
 ]);
 
@@ -370,7 +370,7 @@ describe("layoutAp – raka streck", () => {
   });
 
   /**
-   * REGRESSION: en KARTA ("2 Huvudprocess Kund", "4.4 IT") är bara rutor
+   * REGRESSION: en KARTA ("2 Huvudprocess Leverans", "4.4 Drift") är bara rutor
    * utan pilar. Bredden räknades bara på kedjans kolumner, och en karta har
    * inga – utlägget blev 0 px brett, scenen fick `bredd: 0` och EA-portalen
    * ritade en tom yta där kartan skulle stå.
@@ -379,7 +379,7 @@ describe("layoutAp – raka streck", () => {
     const lo = layoutAp({
       title: "Huvudprocess",
       meta: { sourceText: "", sourceFragments: [], warnings: [] },
-      nodes: ["Uthyrning", "Felanmälan", "Avflyttning", "Fakturering"].map((label, i) => ({
+      nodes: ["Försäljning", "Driftfråga", "Leverans", "Fakturering"].map((label, i) => ({
         id: `p${i}`,
         kind: "aktivitet" as const,
         label,
@@ -656,7 +656,7 @@ describe("layoutAp – satelliter", () => {
               { namn: "Enhetschefer", huki: "U" },
             ],
             applikationer: ["Teams"],
-            forum: "Avdelningsledningsgruppen",
+            forum: "Ledningsgruppen",
             output: null,
           },
         }),

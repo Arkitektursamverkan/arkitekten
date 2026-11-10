@@ -405,7 +405,7 @@ export function textEtikettMått(
   if (kind === "forum") {
     // Forumet står i en AKTIVITETS ställe och är lika stort som en, SVANSEN
     // INRÄKNAD. Vi blåste förut upp en ballong runt texten – 251 × 140 för
-    // "Avdelningsledningsgruppen", dubbelt så bred och nästan tre gånger så
+    // ett långt gruppnamn, dubbelt så bred och nästan tre gånger så
     // hög som aktiviteterna bredvid (beslut 2026-10-13: "för stor, fel
     // dimension"). Kroppen får aktivitetens texthöjd; bara sidorna får några
     // pixlar extra, eftersom ellipsen rundar av där raderna slutar.

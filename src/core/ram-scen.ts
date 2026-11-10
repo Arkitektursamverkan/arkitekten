@@ -80,13 +80,13 @@ export interface FigurMarkering {
   färg: string;
 }
 
-/** En puls FRÅN en figur TILL en annan – t.ex. en felanmälan till huvudkontoret. */
+/** En puls FRÅN en figur TILL en annan – t.ex. en driftfråga till huvudkontoret. */
 export interface ScenPuls {
   id: string;
   från: string;
   till: string;
   färg: string;
-  /** Kort etikett mitt på pulsen, t.ex. "Felanmälan". */
+  /** Kort etikett mitt på pulsen, t.ex. "Driftfråga". */
   text?: string;
 }
 

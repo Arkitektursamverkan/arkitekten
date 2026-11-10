@@ -77,14 +77,14 @@ describe("besvara – tolkning och utvärdering", () => {
 });
 
 const FÖRENKLAD = {
-  aiText: "Uthyrning\nPublicerar lägenhet → Visar lägenhet → Skriver avtal",
-  title: "Uthyrning",
+  aiText: "Utlåning\nPublicerar utrustning → Visar utrustning → Skriver avtal",
+  title: "Utlåning",
   subtitle: null,
-  lanes: [{ id: "Uthyrning", title: "Uthyrning" }],
+  lanes: [{ id: "Utlåning", title: "Utlåning" }],
   steps: [
-    { id: "publicera", type: "activity", text: "Publicerar lägenhet [Roll: Kundkoordinator U]", laneId: "Uthyrning" },
-    { id: "visa", type: "activity", text: "Visar lägenhet [Roll: Förvaltare U]", laneId: "Uthyrning" },
-    { id: "avtal", type: "activity", text: "Skriver avtal [Roll: Kundkoordinator U]", laneId: "Uthyrning" },
+    { id: "publicera", type: "activity", text: "Publicerar utrustning [Roll: Lånehandläggare U]", laneId: "Utlåning" },
+    { id: "visa", type: "activity", text: "Visar utrustning [Roll: Förvaltare U]", laneId: "Utlåning" },
+    { id: "avtal", type: "activity", text: "Skriver avtal [Roll: Lånehandläggare U]", laneId: "Utlåning" },
   ],
 };
 const SCEN = { bakgrund: { typ: "stad" }, figurer: [{ id: "kontor", typ: "huvudkontor", namn: "Kundcenter", x: 1200, y: 545 }] };
@@ -94,9 +94,9 @@ const ram = (...id: string[]) => ({
 });
 const PRESENTATIONSBEGÄRAN = {
   uppdrag: "presentation",
-  rawText: JSON.stringify({ namn: "Uthyrning", beskrivning: "Uthyrning\nA → B" }),
+  rawText: JSON.stringify({ namn: "Utlåning", beskrivning: "Utlåning\nA → B" }),
   diagramType: "affarsprocess",
-  källa: { flödeId: "ap-uthyrning", namn: "Uthyrning" },
+  källa: { flödeId: "ap-utlaning", namn: "Utlåning" },
 };
 
 describe("besvara – presentation", () => {
@@ -114,7 +114,7 @@ describe("besvara – presentation", () => {
     expect(sista(anrop[2].meddelanden)).toContain("finnsinte");
     // Svaret har Claude Codes form och går rent genom appens egen kontroll.
     expect(svar).toEqual({ förenklad: FÖRENKLAD, presentation: rätt });
-    const källa = { ...PRESENTATIONSBEGÄRAN.källa, beskrivning: "Uthyrning\nA → B" };
+    const källa = { ...PRESENTATIONSBEGÄRAN.källa, beskrivning: "Utlåning\nA → B" };
     expect(byggPresentation(svar, källa).anmärkningar).toEqual([]);
   });
 
@@ -196,13 +196,13 @@ describe("besvara – rutin", () => {
     const svar = await besvara(
       {
         uppdrag: "rutin",
-        rawText: JSON.stringify({ fil: ".ark/underlag/x-rutin.docx", filnamn: "rutin.docx", krav: "Rutin för mejllogg" }),
+        rawText: JSON.stringify({ fil: ".ark/underlag/x-rutin.docx", filnamn: "rutin.docx", krav: "Rutin för loggutdrag" }),
       },
       { fråga, läsUnderlag: async (s) => (lästa.push(s), DOCX) },
     );
     expect(lästa).toEqual([".ark/underlag/x-rutin.docx"]);
     expect(svar).toEqual({ rutin: "Gå till Lösningar\n  Obs: kräver behörighet" });
-    expect(JSON.stringify(anrop[0].meddelanden)).toContain("Rutin för mejllogg");
+    expect(JSON.stringify(anrop[0].meddelanden)).toContain("Rutin för loggutdrag");
     expect(JSON.stringify(anrop[0].meddelanden)).toContain("Gå till Lösningar");
   });
 });

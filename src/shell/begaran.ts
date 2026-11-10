@@ -6,7 +6,7 @@
  * monteras om, och i utvecklingsläge varje gång filen sparas (Fast Refresh kör
  * om alla effekter). Då började verktyget om på processen: tomt mellanlager,
  * och eftersom en ny process sparas direkt skrevs det TOMMA flödet som en ny
- * version ovanpå det användaren hunnit rita (Innovation - demo, 2026-10-01).
+ * version ovanpå det användaren hunnit rita (en demoprocess, 2026-10-01).
  *
  * `senast` är verktygets egen anteckning (en ref) om vilken nonce det redan
  * tagit hand om. Den skyddar mot omkörda effekter; att skalet dessutom släpper

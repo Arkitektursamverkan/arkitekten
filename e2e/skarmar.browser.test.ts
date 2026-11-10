@@ -11,8 +11,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { findChromium, harFlöde, KRÄVER_INNEHÅLL, startaAppen } from "./harness";
 
 const chromium = findChromium();
-// Gäller en installations egen process – aldrig i repot (invariant 12).
-const innehåll = harFlöde("ap-demo-uthyrning-ordinarie");
+// Vilken affärsprocess som helst duger – exempelpaketets finns i varje rigg.
+const PROCESS = "ap-exempel-rekrytering";
+const innehåll = harFlöde(PROCESS);
 const ramarFingeravtryck = (dir: string) => (fs.existsSync(dir) ? fs.readdirSync(dir).sort().join(",") : "");
 
 describe.skipIf(!chromium || !innehåll)(`Ramar – kontrollen och skärmarna${innehåll ? "" : KRÄVER_INNEHÅLL}`, () => {
@@ -26,7 +27,7 @@ describe.skipIf(!chromium || !innehåll)(`Ramar – kontrollen och skärmarna${i
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.getByRole("button", { name: /Visualisering/ }).first().click();
     await page.waitForTimeout(800);
-    await page.selectOption('select[aria-label="Process"]', "ap-demo-uthyrning-ordinarie");
+    await page.selectOption('select[aria-label="Process"]', PROCESS);
     await page.fill('input[aria-label="Seriens namn"]', "Prov (sparas inte)");
     await page.getByRole("button", { name: "Skapa" }).click();
     await page.waitForTimeout(1000);

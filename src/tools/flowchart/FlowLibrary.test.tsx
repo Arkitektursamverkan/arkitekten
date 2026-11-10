@@ -16,7 +16,7 @@ import { FlowLibrary, type FlowLibraryHandle } from "./FlowLibrary";
 import { textToDraft } from "./parser/toDraft";
 import type { SavedFlow } from "@/core/flow-store";
 
-const TEXT = `Felanmälan ny
+const TEXT = `Driftfråga ny
 Fel uppkommer → Startar Portalen → Mejl skickas till handläggaren`;
 const DRAFT = textToDraft(TEXT);
 const VIEW = { perspective: "system" as const, pageFormat: "free", scale: 1 };
@@ -59,7 +59,7 @@ async function visa(props: Partial<Parameters<typeof FlowLibrary>[0]> = {}) {
   const onSaved = vi.fn();
   render(
     <FlowLibrary
-      name="Felanmälan ny"
+      name="Driftfråga ny"
       onNameChange={() => {}}
       kategori=""
       onKategoriChange={() => {}}
@@ -137,8 +137,8 @@ describe("statusvalet i sparraden", () => {
     // Tillsammans gjorde de att ett tryck på Spara i ett flöde man inte rört
     // skrev en utkastversion 1.1 ovanpå huvudversionen 1.0.
     const flöde: SavedFlow = {
-      id: "felanmalan-ny",
-      name: "Felanmälan ny",
+      id: "driftfraga-ny",
+      name: "Driftfråga ny",
       savedAt: "2026-07-12T08:00:00.000Z",
       rawText: TEXT,
       draft: DRAFT,
@@ -151,14 +151,14 @@ describe("statusvalet i sparraden", () => {
     await waitFor(() => expect(screen.getByText(/nu: 1\.0/)).toBeTruthy());
     expect(screen.getByRole("button", { name: "Fastslagen" }).className).toContain("active");
     spara();
-    await waitFor(() => expect(lager.filer.get("felanmalan-ny")!.versions).toHaveLength(1));
-    expect(lager.filer.get("felanmalan-ny")!.versions[0].status).toBe("fastslagen");
+    await waitFor(() => expect(lager.filer.get("driftfraga-ny")!.versions).toHaveLength(1));
+    expect(lager.filer.get("driftfraga-ny")!.versions[0].status).toBe("fastslagen");
   });
 
   it("men så snart innehållet ÄR ändrat är förvalet utkast igen", async () => {
     const flöde: SavedFlow = {
-      id: "felanmalan-ny",
-      name: "Felanmälan ny",
+      id: "driftfraga-ny",
+      name: "Driftfråga ny",
       savedAt: "2026-07-12T08:00:00.000Z",
       rawText: TEXT,
       draft: DRAFT,
@@ -169,7 +169,7 @@ describe("statusvalet i sparraden", () => {
     lager.filer.set(flöde.id, flöde);
     // Ett ANNAT innehåll i editorn – det är innehållet som styr förvalet, inte
     // `dirty` (se `innehålletÄndrat` i FlowLibrary).
-    const ändrad = textToDraft("Felanmälan ny\nEtt helt annat steg → Klart");
+    const ändrad = textToDraft("Driftfråga ny\nEtt helt annat steg → Klart");
     await visa({ currentId: flöde.id, dirty: true, draft: ändrad, rawText: "annat" });
     await waitFor(() => expect(screen.getByText(/nu: 1\.0/)).toBeTruthy());
     expect(screen.getByRole("button", { name: "Utkast" }).className).toContain("active");
@@ -180,10 +180,10 @@ describe("statusvalet i sparraden", () => {
     // `dirty` är falskt efter en återgång (baslinjen blir den återlagda
     // versionen), men innehållet skiljer sig från historikens sista post – och
     // lagringen skriver då en version. Ett eget villkor här sa tvärtom.
-    const gammal = textToDraft("Felanmälan ny\nGammalt steg → Klart");
+    const gammal = textToDraft("Driftfråga ny\nGammalt steg → Klart");
     const flöde: SavedFlow = {
-      id: "felanmalan-ny",
-      name: "Felanmälan ny",
+      id: "driftfraga-ny",
+      name: "Driftfråga ny",
       savedAt: "2026-07-12T08:00:00.000Z",
       rawText: TEXT,
       draft: DRAFT,
@@ -222,8 +222,8 @@ describe("statusvalet i sparraden", () => {
 
   it("ett öppnat flöde visar vilken version det står på, och att en omsparning inte ger en ny", async () => {
     const flöde: SavedFlow = {
-      id: "felanmalan-ny",
-      name: "Felanmälan ny",
+      id: "driftfraga-ny",
+      name: "Driftfråga ny",
       savedAt: "2026-07-12T08:00:00.000Z",
       rawText: TEXT,
       draft: DRAFT,
@@ -245,8 +245,8 @@ describe("statusvalet i sparraden", () => {
 
   it("versionslistan visar beteckning och status, nyast först", async () => {
     const flöde: SavedFlow = {
-      id: "felanmalan-ny",
-      name: "Felanmälan ny",
+      id: "driftfraga-ny",
+      name: "Driftfråga ny",
       savedAt: "2026-07-12T08:00:00.000Z",
       rawText: TEXT,
       draft: DRAFT,
@@ -281,8 +281,8 @@ describe("statusvalet i sparraden", () => {
  * FlowchartTool gör det.
  */
 function Värd({ börjaNy }: { börjaNy: (starta: () => void) => void }) {
-  const [flowId, setFlowId] = useState<string | null>("felanmalan-ny");
-  const [namn, setNamn] = useState("Felanmälan ny");
+  const [flowId, setFlowId] = useState<string | null>("driftfraga-ny");
+  const [namn, setNamn] = useState("Driftfråga ny");
   const [sparaNu, setSparaNu] = useState(false);
   const bibliotek = useRef<FlowLibraryHandle>(null);
   useEffect(() => {
@@ -292,7 +292,7 @@ function Värd({ börjaNy }: { börjaNy: (starta: () => void) => void }) {
   }, [sparaNu]);
   börjaNy(() => {
     setFlowId(null);
-    setNamn("Felanmälan ny 2");
+    setNamn("Driftfråga ny 2");
     setSparaNu(true);
   });
   return (
@@ -319,8 +319,8 @@ function Värd({ börjaNy }: { börjaNy: (starta: () => void) => void }) {
 
 it("REGRESSION: en ny process som sparas direkt blev en ny version av den som var öppen, efter frågan 'Byta namn?'", async () => {
   const gammal: SavedFlow = {
-    id: "felanmalan-ny",
-    name: "Felanmälan ny",
+    id: "driftfraga-ny",
+    name: "Driftfråga ny",
     savedAt: "2026-07-01T08:00:00.000Z",
     rawText: TEXT,
     draft: DRAFT,
@@ -329,13 +329,13 @@ it("REGRESSION: en ny process som sparas direkt blev en ny version av den som va
   lager.filer.set(gammal.id, gammal);
   let starta = () => {};
   render(<Värd börjaNy={(s) => (starta = s)} />);
-  await waitFor(() => expect(screen.getByText(/Versioner av "Felanmälan ny"/)).toBeTruthy());
+  await waitFor(() => expect(screen.getByText(/Versioner av "Driftfråga ny"/)).toBeTruthy());
 
   await act(async () => starta());
 
   await waitFor(() => expect(lager.filer.size).toBe(2));
-  expect(lager.filer.get("felanmalan-ny")).toBe(gammal);
-  expect(lager.filer.get("felanmalan-ny-2")?.name).toBe("Felanmälan ny 2");
+  expect(lager.filer.get("driftfraga-ny")).toBe(gammal);
+  expect(lager.filer.get("driftfraga-ny-2")?.name).toBe("Driftfråga ny 2");
   expect(window.confirm).not.toHaveBeenCalledWith(expect.stringContaining("Byta namn"));
 });
 
