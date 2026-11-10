@@ -66,7 +66,7 @@ import {
   utloggningsUrl,
   öppenAnvändare,
 } from "./auth";
-import { bytYta, prövaRamserie, prövaSparning } from "./atkomst";
+import { bytYta, prövaPublicering, prövaRamserie, prövaSparning } from "./atkomst";
 import { läsStilar, valdStil, väljStil } from "./symbolstilar";
 import { Inloggningsspärr, Kontofel, Kontolager, somAnvändare, spärrnycklar, utåt } from "./konton";
 import { ALLMÄNT_FEL, Användarfel, Kroppsfel } from "./fel";
@@ -823,6 +823,31 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 // Portalens webbadress – rutan länkar till processen där.
                 webb: (process.env.EA_WEBB_URL?.trim() ?? "").replace(/\/+$/, ""),
               });
+              return;
+            }
+            // Publiceringen på FLÖDET (core/publicering.ts) skrivs bara här,
+            // aldrig med en vanlig sparning: admin + gemensam katalog
+            // (prövaPublicering i server/atkomst.ts). Ingen ny version.
+            const pubMatch = /^\/ea\/publicering\/([^/]+)$/.exec(url);
+            if (pubMatch && (req.method === "PUT" || req.method === "DELETE")) {
+              const id = decodeURIComponent(pubMatch[1]);
+              const file = path.join(flowsDir, `${id}.json`);
+              const befintlig = SAFE_ID.test(id) ? läsJson(file) : null;
+              if (!befintlig || !kanLäsa(användare, befintlig)) {
+                json(res, 404, { ok: false, error: "Flödet finns inte." });
+                return;
+              }
+              const b = req.method === "PUT" ? JSON.parse((await readBody(req)) || "{}") : null;
+              const prövad = prövaPublicering(användare, befintlig, b ? (b.publicering ?? {}) : null);
+              if (!prövad.ok) {
+                json(res, prövad.status, { ok: false, error: prövad.fel });
+                return;
+              }
+              fs.writeFileSync(file, JSON.stringify(prövad.värde, null, 2), "utf8");
+              log.info(
+                `  [ark] ${b ? "Publicerade" : "Avpublicerade"} ${FLOWS}/${id}.json i EA-portalen (${användare.namn})`,
+              );
+              json(res, 200, { ok: true, flow: prövad.värde });
               return;
             }
             if (!ea) {

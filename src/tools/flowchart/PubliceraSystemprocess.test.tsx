@@ -44,6 +44,15 @@ function bygg(start: SavedFlow) {
       const metod = init.method ?? "GET";
       anrop.push({ väg: url, metod });
       if (url === "/__ark/flows") return svar({ ok: true, flows: [] });
+      // Publiceringen skrivs av bryggan (server/atkomst.ts prövaPublicering) –
+      // aldrig med en vanlig sparning.
+      if (url.startsWith("/__ark/ea/publicering/")) {
+        const id = decodeURIComponent(url.slice("/__ark/ea/publicering/".length));
+        const { publicering: _gammal, ...utan } = filer.get(id)!;
+        const ny = metod === "PUT" ? { ...utan, publicering: JSON.parse(String(init.body)).publicering } : utan;
+        filer.set(id, ny as SavedFlow);
+        return svar({ ok: true, flow: ny });
+      }
       if (url.startsWith("/__ark/flows/")) {
         const id = decodeURIComponent(url.slice("/__ark/flows/".length));
         if (metod === "PUT") {

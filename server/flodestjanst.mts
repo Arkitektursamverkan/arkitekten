@@ -142,8 +142,11 @@ function listaFlöden(flowsDir: string) {
         // Var i EA-portalen processen är publicerad (core/publicering.ts).
         // Plattformen speglar bara publicerade flöden, och portalen kopplar
         // flödet till noden på `eaNodId` – inte på numret, som en ny process
-        // utan processnummer inte har.
-        ...(flow.publicering?.eaNodId
+        // utan processnummer inte har. BARA den gemensamma katalogen
+        // publiceras (kanPublicera): en publicering på en Demo-process följer
+        // aldrig med ut, så plattformens `endast_publicerade` aldrig hämtar den.
+        // REGRESSION: en publicering i Demo – där alla får spara – gick ut.
+        ...(flow.publicering?.eaNodId && ytaFör(flow) === "gemensam"
           ? {
               publicering: {
                 eaNodId: flow.publicering.eaNodId,
@@ -240,6 +243,10 @@ export function skapaHanterare(
         }
         res.statusCode = 200;
         res.setHeader("content-type", "image/svg+xml; charset=utf-8");
+        // En SVG som öppnas direkt i en flik är ett dokument som kan bära skript.
+        // Bilden ska bara visas: inga skript, inga hämtningar, bara egna stilar.
+        res.setHeader("x-content-type-options", "nosniff");
+        res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'");
         if (ärAp) {
           const { lo, textScale } = byggUtlägg(flöde, { version });
           res.end(renderApSvg(lo, { textScale }));

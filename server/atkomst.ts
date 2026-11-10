@@ -5,12 +5,15 @@
  *
  * Reglerna själva bor i src/core/behorighet.ts. Här står det som bara servern
  * kan avgöra: vad som redan ligger i filen, och att ÄGARFÄLTEN (`ägare`,
- * `skapadAv`) aldrig följer med en vanlig sparning från webbläsaren.
+ * `skapadAv`) och PUBLICERINGEN (`publicering`) aldrig följer med en vanlig
+ * sparning från webbläsaren.
  */
 
+import { läsPublicering } from "../src/core/publicering";
 import {
   DEMO_KATEGORI,
   kanByttaYta,
+  kanPublicera,
   kanRedigera,
   kanSkapa,
   ytaFör,
@@ -47,8 +50,13 @@ function personI(ä: unknown): Ägare | undefined {
  *   därefter det som står i filen. Ägaren byts när processen flyttas mellan
  *   ytor; skaparen står still för alltid. Flöden från före fältet har ingen. En klient som tappade fältet hade annars i tysthet
  *   flyttat en egen process till den gemensamma katalogen.
+ * - Publiceringen tas likaså ur filen, aldrig ur begäran: den skrivs bara av
+ *   `prövaPublicering` (admin + gemensam katalog, samma regel som
+ *   `kanPublicera`). REGRESSION: en vanlig PUT bar publiceringen, så den som
+ *   fick spara i Demo kunde skicka ut en process till EA-portalen.
  * - Byter sparningen yta ändå (kategorin sattes till eller från Demo) prövas
- *   det som ett byte av yta.
+ *   det som ett byte av yta – och publiceringen följer inte med ut ur den
+ *   gemensamma katalogen.
  * - Historiken får inte ha tappat filens senaste version. Två personer som
  *   sparar samma process samtidigt hade annars skrivit över varandras
  *   versioner (invariant 11) – den som kommer sist får ladda om i stället.
@@ -59,7 +67,7 @@ export function prövaSparning(
   befintlig: Flöde | null,
   ny: Flöde,
 ): Prövning<Flöde> {
-  const { ägare: _ignorerad, skapadAv: _ocksåIgnorerad, ...kropp } = ny;
+  const { ägare: _ignorerad, skapadAv: _ocksåIgnorerad, publicering: _serverns, ...kropp } = ny;
   if (!befintlig) {
     const ägare = ägareVidSkapande(u, läge, kropp);
     // I öppen drift finns bara den lokala användaren – ett namn som inte säger något.
@@ -84,6 +92,8 @@ export function prövaSparning(
   const till = ytaFör(ut);
   if (till !== ytaFör(befintlig) && !kanByttaYta(u, befintlig, till))
     return nej(403, `Du kan inte flytta processen till ${till === "demo" ? "Demo" : "den ytan"}.`);
+  // Filens publicering står kvar – så länge processen ligger kvar i den gemensamma katalogen.
+  if (befintlig.publicering !== undefined && till === "gemensam") ut.publicering = befintlig.publicering;
 
   const sista = befintlig.versions?.[befintlig.versions.length - 1];
   if (sista?.id && Array.isArray(ut.versions)) {
@@ -125,7 +135,9 @@ export function bytYta(u: Användare, befintlig: Flöde, byte: YtByte): Prövnin
   if (!["gemensam", "demo", "egen"].includes(byte.till)) return nej(400, "Okänd yta.");
   if (!kanByttaYta(u, befintlig, byte.till))
     return nej(403, "Du har inte behörighet att flytta processen dit.");
-  const { ägare: _gammal, ...kropp } = befintlig;
+  // Publiceringen följer inte med: bara den gemensamma katalogen publiceras
+  // (kanPublicera), och en process som flyttats dit igen publiceras på nytt.
+  const { ägare: _gammal, publicering: _publicering, ...kropp } = befintlig;
   const kategori = byte.category?.trim() || undefined;
   const under = byte.subcategory === undefined ? befintlig.subcategory : byte.subcategory.trim() || undefined;
   const utanDemo = (k: string | undefined) =>
@@ -149,6 +161,25 @@ export function bytYta(u: Användare, befintlig: Flöde, byte: YtByte): Prövnin
         värde: { ...kropp, category: utanDemo(kategori ?? befintlig.category), subcategory: under },
       };
   }
+}
+
+/**
+ * Publicerar (eller avpublicerar, `null`) en process i EA-portalen.
+ *
+ * Bara administratören, och bara i den gemensamma katalogen – `kanPublicera`,
+ * samma regel som gömmer knappen. Som placeringen (invariant 11): posten
+ * SPRIDS, ingen ny version och ingen ny `savedAt`.
+ */
+export function prövaPublicering(u: Användare, befintlig: Flöde, publicering: unknown): Prövning<Flöde> {
+  if (!kanPublicera(u, befintlig))
+    return nej(403, "Bara administratörer publicerar, och bara processer i den gemensamma katalogen.");
+  if (publicering === null) {
+    const { publicering: _borttagen, ...resten } = befintlig;
+    return { ok: true, värde: resten };
+  }
+  const p = läsPublicering(publicering);
+  if (!p) return nej(400, "Publiceringen saknar nod, processägare eller beskrivning.");
+  return { ok: true, värde: { ...befintlig, publicering: p } };
 }
 
 /** Ramserien som ska skrivas: skaparen sätts vid skapandet och följer sedan med. */

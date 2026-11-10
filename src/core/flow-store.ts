@@ -486,6 +486,19 @@ export async function sättPublicering(
   id: string,
   publicering: Publicering,
 ): Promise<SavedFlow> {
+  // Mot disk skriver BRYGGAN fältet (admin + gemensam katalog, server/atkomst.ts) –
+  // en vanlig sparning bär det aldrig.
+  if (store.kind === "disk") {
+    return normalizeFlow(
+      (
+        await bridgeJson(`/__ark/ea/publicering/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ publicering }),
+        })
+      ).flow,
+    );
+  }
   const flow = await store.load(id);
   const nästa: SavedFlow = { ...flow, publicering };
   await store.save(nästa);
@@ -501,6 +514,11 @@ export async function sättPublicering(
  * publicerade flöden och gallrar resten.
  */
 export async function taBortPublicering(store: FlowStore, id: string): Promise<SavedFlow> {
+  if (store.kind === "disk") {
+    return normalizeFlow(
+      (await bridgeJson(`/__ark/ea/publicering/${encodeURIComponent(id)}`, { method: "DELETE" })).flow,
+    );
+  }
   const { publicering: _borttagen, ...resten } = await store.load(id);
   await store.save(resten);
   return resten;
