@@ -136,7 +136,7 @@ describe("Entra ur portalen vid start", () => {
   });
 
   it("väntar med omförsök på en portal som startar senare", async () => {
-    const { f, anrop } = portal((i, metod) => (metod === "GET" && anrop.filter((a) => a.metod === "GET").length < 4 ? null : SVAR));
+    const { f, anrop } = portal((_i, metod) => (metod === "GET" && anrop.filter((a) => a.metod === "GET").length < 4 ? null : SVAR));
     const env: NodeJS.ProcessEnv = { ...BAS };
     const r = await förberedInstallation({ env, arkDir: nyKatalog(), logg: tyst().logg, fetch: f, ...klocka() });
     expect(r.källa).toBe("portalen");
