@@ -217,9 +217,24 @@ interface OidcFärd {
 
 const slump = () => crypto.randomBytes(24).toString("base64url");
 
-/** Bara en väg inom appen – aldrig en annan värd (öppen omdirigering). */
+/**
+ * Bara en väg inom appen – aldrig en annan värd (öppen omdirigering).
+ *
+ * Vägen tolkas som webbläsaren tolkar den, mot en fast bas, och måste stanna
+ * på samma origin. Det som skickas vidare är den TOLKADE vägen.
+ * REGRESSION: `/\ond.se` och `/<tab>/ond.se` klarade prefixkontrollen, men
+ * webbläsaren läser `\` som `/` och stryker tabbar – båda blev `//ond.se`.
+ */
 export function säkerTillbaka(t: string | null | undefined): string {
-  return t && t.startsWith("/") && !t.startsWith("//") ? t : "/";
+  if (!t || !t.startsWith("/")) return "/";
+  const bas = "http://arkitekten.invalid";
+  try {
+    const u = new URL(t, bas);
+    if (u.origin !== bas) return "/";
+    return `${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return "/";
+  }
 }
 
 /** Påbörjar inloggningen: adressen till Entra och kakan som minns färden. */

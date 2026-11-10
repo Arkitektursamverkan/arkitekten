@@ -12,6 +12,7 @@ import os from "node:os";
 import path from "node:path";
 import { betroddaProxyer, klientadress, skapaBrygga, type AiModuler } from "./brygga";
 import { Inloggningsspärr, spärrnycklar } from "./konton";
+import { säkerTillbaka } from "./auth";
 import { skapaServer } from "./arkitekten.mjs";
 import { installningarUrMiljö } from "./installningar";
 import { skapaHanterare } from "./flodestjanst.mjs";
@@ -270,5 +271,14 @@ describe("inloggningsspärrens minne", () => {
     // Två timmar senare: båda har gått ut och glöms vid nästa fel.
     spärr.misslyckat(spärrnycklar("cecilia", "192.0.2.1"), t0 + 2 * 60 * 60_000);
     expect(spärr.storlek).toBe(2);
+  });
+});
+
+describe("tillbaka efter inloggningen", () => {
+  it("REGRESSION: vägar som webbläsaren läser som en annan värd släpptes igenom", () => {
+    for (const ond of ["/\\evil.com", "/\t/evil.com", "//evil.com", "https://evil.com", "/\\/evil.com", "\\\\evil.com", "javascript:alert(1)", ""])
+      expect(säkerTillbaka(ond)).toBe("/");
+    expect(säkerTillbaka("/#/process/x")).toBe("/#/process/x");
+    expect(säkerTillbaka("/ramar?serie=a#b")).toBe("/ramar?serie=a#b");
   });
 });
