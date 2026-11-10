@@ -232,8 +232,9 @@ describe("inloggningsspärren", () => {
     expect(spärr.spärradTill(spärrnycklar("anna", "10.0.1.1"))).toBeGreaterThan(0);
   });
 
-  it("REGRESSION: bakom en proxy var alla samma adress – med ARK_BETRODD_PROXY är klienten första ledet i X-Forwarded-For", () => {
-    const req = { headers: { "x-forwarded-for": "203.0.113.9, 10.0.0.1" }, socket: { remoteAddress: "10.0.0.1" } } as unknown as IncomingMessage;
+  it("REGRESSION: bakom en proxy var alla samma adress – med ARK_BETRODD_PROXY är klienten ledet proxyn lade till", () => {
+    // Proxyn lägger klientens adress SIST (sakerhet-3.test.ts: det första ledet kan klienten ha skrivit själv).
+    const req = { headers: { "x-forwarded-for": "198.51.100.7, 203.0.113.9" }, socket: { remoteAddress: "10.0.0.1" } } as unknown as IncomingMessage;
     expect(klientadress(req, true)).toBe("203.0.113.9");
     expect(klientadress(req, false)).toBe("10.0.0.1");
   });

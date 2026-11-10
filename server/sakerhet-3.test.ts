@@ -7,10 +7,11 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import fs from "node:fs";
-import http from "node:http";
+import http, { type IncomingMessage } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { skapaBrygga, type AiModuler } from "./brygga";
+import { betroddaProxyer, klientadress, skapaBrygga, type AiModuler } from "./brygga";
+import { Inloggningsspärr, spärrnycklar } from "./konton";
 import { skapaServer } from "./arkitekten.mjs";
 import { installningarUrMiljö } from "./installningar";
 import { skapaHanterare } from "./flodestjanst.mjs";
@@ -229,5 +230,45 @@ describe("flödestjänstens felhantering", () => {
     } finally {
       await new Promise<void>((klar) => tjänst.close(() => klar()));
     }
+  });
+});
+
+describe("klientens adress bakom proxyer", () => {
+  const req = (xff: string) =>
+    ({ headers: { "x-forwarded-for": xff }, socket: { remoteAddress: "10.0.0.9" } }) as unknown as IncomingMessage;
+
+  it("REGRESSION: första ledet i X-Forwarded-For togs – det skriver klienten själv", () => {
+    // Klienten skrev "1.2.3.4" själv; proxyn lade till den verkliga adressen sist.
+    expect(klientadress(req("1.2.3.4, 203.0.113.9"), 1)).toBe("203.0.113.9");
+    expect(klientadress(req("1.2.3.4, 203.0.113.9, 10.0.0.2"), 2)).toBe("203.0.113.9");
+    expect(klientadress(req("1.2.3.4, 203.0.113.9"), 0)).toBe("10.0.0.9");
+    // För få led: socketens adress.
+    expect(klientadress(req("203.0.113.9"), 2)).toBe("10.0.0.9");
+  });
+
+  it("ARK_BETRODD_PROXY är ett antal; de gamla på-värdena betyder en", () => {
+    for (const v of ["1", "true", "ja", "on", "TRUE"]) expect(betroddaProxyer(v)).toBe(1);
+    expect(betroddaProxyer("2")).toBe(2);
+    for (const v of [undefined, "", "0", "nej", "-1", "1.5"]) expect(betroddaProxyer(v)).toBe(0);
+  });
+});
+
+describe("inloggningsspärrens minne", () => {
+  it("REGRESSION: spärren växte utan gräns – nu ett tak, äldst ut", () => {
+    const spärr = new Inloggningsspärr(100);
+    for (let i = 0; i < 1000; i++) spärr.misslyckat(spärrnycklar(`namn${i}`, `10.0.${i >> 8}.${i & 255}`));
+    expect(spärr.storlek).toBeLessThanOrEqual(100);
+  });
+
+  it("utgångna poster utan spärr glöms, en pågående spärr står kvar", () => {
+    const spärr = new Inloggningsspärr();
+    const t0 = Date.now();
+    const gissare = spärrnycklar("anna", "203.0.113.9");
+    for (let i = 0; i < 5; i++) spärr.misslyckat(gissare, t0);
+    spärr.misslyckat(spärrnycklar("bo", "198.51.100.1"), t0);
+    expect(spärr.spärradTill(gissare, t0 + 1000)).toBeGreaterThan(0);
+    // Två timmar senare: båda har gått ut och glöms vid nästa fel.
+    spärr.misslyckat(spärrnycklar("cecilia", "192.0.2.1"), t0 + 2 * 60 * 60_000);
+    expect(spärr.storlek).toBe(2);
   });
 });

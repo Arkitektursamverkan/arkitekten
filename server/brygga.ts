@@ -206,16 +206,37 @@ function json(res: ServerResponse, status: number, body: unknown) {
 }
 
 /**
- * Klientens adress. Bakom en betrodd proxy (ARK_BETRODD_PROXY) är det första
- * ledet i X-Forwarded-For; annars socketens – som bakom en proxy är proxyns
- * egen. Sätt bara ARK_BETRODD_PROXY när appen INTE kan nås förbi proxyn:
- * annars kan vem som helst skriva huvudet själv.
+ * ARK_BETRODD_PROXY som ANTAL betrodda proxyer framför appen. "1", "true",
+ * "ja" och "on" (de gamla på-värdena) är en proxy; tomt, "0" eller något
+ * annat är av.
  */
-export function klientadress(req: IncomingMessage, betroddProxy: boolean): string {
-  if (betroddProxy) {
+export function betroddaProxyer(v: string | undefined): number {
+  const t = v?.trim().toLowerCase() ?? "";
+  if (/^(true|ja|on)$/.test(t)) return 1;
+  const n = Number(t);
+  return Number.isInteger(n) && n > 0 && n <= 10 ? n : 0;
+}
+
+/**
+ * Klientens adress. Bakom n betrodda proxyer (ARK_BETRODD_PROXY=n) är det
+ * led nummer n RÄKNAT FRÅN HÖGER i X-Forwarded-For: varje proxy lägger till
+ * adressen den fick begäran från sist, så de n sista leden är skrivna av
+ * proxyer vi litar på. Det som står till vänster om dem kan klienten ha
+ * skrivit själv. Annars socketens adress – som bakom en proxy är proxyns.
+ *
+ * REGRESSION: det FÖRSTA ledet togs, och det skriver klienten själv – en
+ * gissare som bytte huvudet vid varje försök slapp inloggningsspärren.
+ */
+export function klientadress(req: IncomingMessage, proxyer: number | boolean): string {
+  const n = typeof proxyer === "boolean" ? (proxyer ? 1 : 0) : proxyer;
+  if (n > 0) {
     const xff = req.headers["x-forwarded-for"];
-    const första = (Array.isArray(xff) ? xff[0] : xff)?.split(",")[0]?.trim();
-    if (första) return första;
+    const led = (Array.isArray(xff) ? xff.join(",") : (xff ?? ""))
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const vald = led[led.length - n];
+    if (vald) return vald;
   }
   return req.socket.remoteAddress ?? "";
 }
@@ -287,8 +308,8 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
       const basHttps = (auth.läge === "entra" || auth.läge === "lokal") && auth.basUrl.startsWith("https:");
       const säkerKaka = (req: IncomingMessage) =>
         basHttps || ((auth.läge === "entra" || auth.läge === "lokal") && viaHttps(req));
-      /** ARK_BETRODD_PROXY: klientens adress tas ur X-Forwarded-For (se `klientadress`). */
-      const betroddProxy = /^(1|true|ja|on)$/i.test(process.env.ARK_BETRODD_PROXY?.trim() ?? "");
+      /** ARK_BETRODD_PROXY: antal betrodda proxyer – klientens adress tas ur X-Forwarded-For (se `klientadress`). */
+      const betroddProxy = betroddaProxyer(process.env.ARK_BETRODD_PROXY);
       const konton = new Kontolager(o.kontonFil);
       const spärr = new Inloggningsspärr();
       if (auth.läge === "entra") {

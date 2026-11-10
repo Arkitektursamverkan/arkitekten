@@ -218,8 +218,37 @@ export function spärrnycklar(användarnamn: string, adress: string): string[] {
  * misslyckande; namnet ensamt spärras först vid `NAMNTAK`. I minnet – en
  * omstart nollställer, vilket är godtagbart för en spärr.
  */
+/** Högst så många nycklar minns spärren; den äldsta går ut först. */
+export const SPÄRR_TAK = 10_000;
+/** En post utan spärr som inte rörts på så här länge glöms. */
+const GLÖMS_EFTER = 60 * 60_000;
+
 export class Inloggningsspärr {
-  private försök = new Map<string, { antal: number; till: number }>();
+  /** Insättningsordningen är åldern: en nyckel som rörs flyttas sist. */
+  private försök = new Map<string, { antal: number; till: number; senast: number }>();
+
+  constructor(private readonly tak = SPÄRR_TAK) {}
+
+  /** Antal nycklar spärren minns (för tester och loggning). */
+  get storlek(): number {
+    return this.försök.size;
+  }
+
+  /**
+   * Rensar utgångna poster och håller tabellen under taket.
+   * REGRESSION: tabellen växte utan gräns – en gissare med nya namn och
+   * adresser kunde fylla serverns minne.
+   */
+  private städa(nu: number): void {
+    for (const [n, f] of this.försök) {
+      if (f.till <= nu && nu - f.senast > GLÖMS_EFTER) this.försök.delete(n);
+    }
+    while (this.försök.size > this.tak) {
+      const äldst = this.försök.keys().next().value;
+      if (äldst === undefined) break;
+      this.försök.delete(äldst);
+    }
+  }
 
   private static gräns(nyckel: string): number {
     return nyckel.startsWith("namn:") ? NAMNTAK : SPÄRRGRÄNS;
@@ -232,12 +261,20 @@ export class Inloggningsspärr {
 
   misslyckat(nycklar: string[], nu = Date.now()): void {
     for (const n of nycklar) {
-      const f = this.försök.get(n) ?? { antal: 0, till: 0 };
+      const f = this.försök.get(n) ?? { antal: 0, till: 0, senast: nu };
+      // En gammal post utan spärr börjar om – den gamla räkningen har gått ut.
+      if (f.till <= nu && nu - f.senast > GLÖMS_EFTER) {
+        f.antal = 0;
+        f.till = 0;
+      }
       f.antal += 1;
+      f.senast = nu;
       const gräns = Inloggningsspärr.gräns(n);
       if (f.antal >= gräns) f.till = nu + 60_000 * 2 ** Math.min(f.antal - gräns, 6);
+      this.försök.delete(n);
       this.försök.set(n, f);
     }
+    this.städa(nu);
   }
 
   lyckat(nycklar: string[]): void {
