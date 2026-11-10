@@ -10,6 +10,7 @@ import type { Ramserie } from "@/core/ram";
 import { läggPåRam } from "./effekter";
 import { ScenBild } from "./ScenBild";
 import { VISNINGS_KANAL, skärmParametrar, type SkärmVy, type VisningsMeddelande } from "./visning";
+import { säkerSvg } from "@/render/saker-svg";
 
 export function RamFönster() {
   const start = useMemo(() => skärmParametrar(), []);
@@ -63,7 +64,7 @@ export function RamFönster() {
 
   const ram = läge ? läge.serie.ramar[läge.index] : undefined;
   const flöde = useMemo(
-    () => (läge?.flödeSvg && ram ? läggPåRam(läge.flödeSvg, ram, { prefix: `ark-ram-s${start.skärm}` }).svg : ""),
+    () => (läge?.flödeSvg && ram ? säkerSvg(läggPåRam(läge.flödeSvg, ram, { prefix: `ark-ram-s${start.skärm}` }).svg) : ""),
     [läge?.flödeSvg, ram, start.skärm],
   );
 

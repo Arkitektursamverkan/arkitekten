@@ -25,6 +25,7 @@
 
 import type { Figur, FigurGrupp } from "@/core/figurer";
 import { Rullgardin, RullgardinDel } from "./Verktygsrad";
+import { säkerSvg } from "@/render/saker-svg";
 
 /**
  * Symbolen, ritad rakt av ur sitt fragment.
@@ -41,7 +42,7 @@ function FigurIkon({ figur }: { figur: Figur }) {
       viewBox={`0 0 ${figur.w} ${figur.h}`}
       preserveAspectRatio="xMidYMid meet"
       aria-hidden
-      dangerouslySetInnerHTML={{ __html: figur.svg }}
+      dangerouslySetInnerHTML={{ __html: säkerSvg(figur.svg, { fragment: true }) }}
     />
   );
 }

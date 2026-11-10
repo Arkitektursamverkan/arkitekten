@@ -57,6 +57,7 @@ import {
 } from "./former";
 import type { ApRelation } from "@/core/affarsprocess";
 import { apPortPunkt, type ApLayout } from "./layout-affarsprocess";
+import { säkerSvg } from "@/render/saker-svg";
 
 /* ---- Nodvyer ---- */
 
@@ -358,7 +359,7 @@ export function ApCanvas({
       type: "ap",
       position: { x: n.x, y: n.y },
       data: {
-        inner: apNodeSvg(n.node, 0, 0, n.w, n.h, textScale),
+        inner: säkerSvg(apNodeSvg(n.node, 0, 0, n.w, n.h, textScale), { fragment: true }),
         w: n.w,
         h: n.h,
         // "i"-ikonen lovar en beskrivning – hovertexten ska visa den, annars

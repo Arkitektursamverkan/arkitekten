@@ -17,7 +17,7 @@ import fs from "node:fs";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { aiLäge, skapaBrygga, type AiModuler, type Hanterare } from "./brygga";
+import { aiLäge, skapaBrygga, viaHttps, type AiModuler, type Hanterare } from "./brygga";
 import { installningarUrMiljö, kontrollera, type Installningar } from "./installningar";
 import { flödestjänstPort, startaFlödestjänst } from "./flodestjanst-barn";
 
@@ -40,11 +40,42 @@ function json(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-/** Säkerhetshuvuden på allt servern svarar med. */
-function huvuden(res: ServerResponse) {
+/**
+ * Innehållspolicyn för gränssnittet. Skript BARA ur appens egna filer – inga
+ * inline-skript, ingen eval – så att en bit markup som ändå tagit sig in i
+ * sidan (SVG ur ett sparat flöde) inte kan köra något. Stilar får vara inline:
+ * React och de exporterade SVG-bilderna sätter `style`-attribut. Bilder får
+ * vara data:/blob: (scenens bakgrund, PNG-exporten), och sidan får bara
+ * ramas in av sig själv (ramarnas visningsfönster).
+ */
+export const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+].join("; ");
+
+/**
+ * Säkerhetshuvuden på allt servern svarar med. HSTS bara när begäran kom över
+ * https (proxyn säger det med x-forwarded-proto, eller ARK_BAS_URL är https) –
+ * över vanlig http betyder huvudet ingenting, och en lokal provkörning ska
+ * inte låsa webbläsaren vid https.
+ */
+export function huvuden(req: IncomingMessage, res: ServerResponse) {
   res.setHeader("x-content-type-options", "nosniff");
   res.setHeader("referrer-policy", "same-origin");
   res.setHeader("x-frame-options", "SAMEORIGIN");
+  res.setHeader("content-security-policy", CSP);
+  if (viaHttps(req) || /^https:/i.test(process.env.ARK_BAS_URL?.trim() ?? "")) {
+    res.setHeader("strict-transport-security", "max-age=31536000");
+  }
 }
 
 /**
@@ -92,7 +123,7 @@ export function skapaServer(inst: Installningar, brygga: Hanterare): http.Server
 }
 
 function hantera(inst: Installningar, brygga: Hanterare, req: IncomingMessage, res: ServerResponse) {
-    huvuden(res);
+    huvuden(req, res);
     const väg = (req.url ?? "/").split("?")[0];
     if (väg === "/health") {
       json(res, 200, { status: "ok", version: inst.version, ai: aiLäge(inst.utvecklarläge) });

@@ -57,6 +57,7 @@ import {
   type SkärmVy,
   type VisningsMeddelande,
 } from "./visning";
+import { säkerSvg } from "@/render/saker-svg";
 
 type Verktyg = RamVerktyg | "sudd";
 /** Presentationens vy: bara flödet, bara bilden, eller båda sida vid sida. */
@@ -156,7 +157,11 @@ export function RamVy({
   const osparad = serie !== null && JSON.stringify(serie) !== sparadSom;
 
   const bild = useMemo(
-    () => (basSvg ? läggPåRam(basSvg, ram, { redigerar: true, prefix: "ark-ram-e" }) : null),
+    () => {
+      if (!basSvg) return null;
+      const r = läggPåRam(basSvg, ram, { redigerar: true, prefix: "ark-ram-e" });
+      return { ...r, svg: säkerSvg(r.svg) };
+    },
     [basSvg, ram],
   );
 
@@ -543,8 +548,8 @@ export function RamVy({
           <div
             className={`ark-ramar-bild redigerar ${anpassa ? "anpassa" : ""}`}
             onClick={klickIBild}
-            // Bilden är exportörens egen SVG plus ramens lager – båda byggda här
-            // i appen ur det egna mellanlagret, aldrig ur fri text utifrån.
+            // Bilden är exportörens egen SVG plus ramens lager, sanerad
+            // (render/saker-svg.ts) – mellanlagret kommer ur sparade filer.
             dangerouslySetInnerHTML={{ __html: bild?.svg ?? "" }}
           />
           </>
@@ -831,7 +836,7 @@ function Presentation(props: {
   const [vy, setVy] = useState<PresVy>(props.startVy);
   const yta = useRef<HTMLDivElement>(null);
   const ram = serie.ramar[i] ?? null;
-  const bild = useMemo(() => läggPåRam(basSvg, ram, { prefix: "ark-ram-p" }).svg, [basSvg, ram]);
+  const bild = useMemo(() => säkerSvg(läggPåRam(basSvg, ram, { prefix: "ark-ram-p" }).svg), [basSvg, ram]);
   const sista = serie.ramar.length - 1;
   const iRef = useRef(i);
   iRef.current = i;

@@ -39,6 +39,20 @@ import {
  */
 export type Huki = "H" | "U" | "K" | "I";
 
+const HUKI_BOKSTÄVER: readonly string[] = ["H", "U", "K", "I"];
+
+/**
+ * HUKI-bokstaven ur okänd data (ett sparat flöde, AI-svar, en PUT). Bara
+ * H, U, K och I släpps igenom – allt annat blir `standard`.
+ *
+ * REGRESSION: bokstaven skrevs rakt in i markörens id och `marker-end` i SVG:n,
+ * och ett flöde med `"huki": "U\"><script>…"` blev lagrad XSS hos alla som
+ * öppnade processen.
+ */
+export function giltigHuki(v: unknown, standard: Huki): Huki {
+  return typeof v === "string" && HUKI_BOKSTÄVER.includes(v) ? (v as Huki) : standard;
+}
+
 /**
  * Affärsprocessens satelliter på ett steg – det som i "Affärsprocess"-typen ritas
  * runt aktiviteten (roller/IT-stöd under, krav/tid över) samt förädlings-

@@ -90,9 +90,9 @@ export function renderApSvg(lo: ApLayout, opts?: ApSvgOptions): string {
     // Färg och pilspets kommer ur formmodulen – samma regler som canvasen och
     // scenen läser. HUKI har en färg per ansvarstyp, och alla spetsar är fyllda.
     const färg = apRelationFärg(rel);
-    const marker = `url(#${apMarkerId(rel)})`;
+    const marker = esc(`url(#${apMarkerId(rel)})`);
     delar.push(
-      `<path d="${pointsToPath(pts, apHörnradie() * lo.scale)}" fill="none" stroke="${färg}" stroke-width="${annotering ? 1.1 : 1.6}" marker-end="${marker}" ${ramKantAttribut(esc, rel.source, rel.target, rel.label)}/>`,
+      `<path d="${pointsToPath(pts, apHörnradie() * lo.scale)}" fill="none" stroke="${esc(färg)}" stroke-width="${annotering ? 1.1 : 1.6}" marker-end="${marker}" ${ramKantAttribut(esc, rel.source, rel.target, rel.label)}/>`,
     );
 
     // Etikett (regelsvar) eller HUKI-bokstav – BREDVID strecket, inte på det.
