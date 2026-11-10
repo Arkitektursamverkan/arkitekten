@@ -13,6 +13,7 @@ import path from "node:path";
 import { betroddaProxyer, klientadress, skapaBrygga, type AiModuler } from "./brygga";
 import { Inloggningsspärr, spärrnycklar } from "./konton";
 import { säkerTillbaka } from "./auth";
+import { arkBridge } from "../scripts/ark-bridge";
 import { skapaServer } from "./arkitekten.mjs";
 import { installningarUrMiljö } from "./installningar";
 import { skapaHanterare } from "./flodestjanst.mjs";
@@ -322,5 +323,26 @@ describe("CSRF-skyddet", () => {
     expect(ut.status).toBe(200);
     expect(ut.kropp.tillbaka).toBe("/");
     expect(ut.kaka).toMatch(/Max-Age=0/i);
+  });
+});
+
+describe("dev-servern", () => {
+  it("REGRESSION: en felaktig inställning loggades bara – nu startar dev-servern inte", () => {
+    const före = process.env.ARK_AUTH;
+    process.env.ARK_AUTH = "ogiltig";
+    try {
+      const tillägg = arkBridge();
+      const loggare = { info: () => {}, warn: () => {}, error: () => {} };
+      const låtsas = { config: { root: tmp, logger: loggare }, middlewares: { use: () => {} } };
+      expect(() => (tillägg.configureServer as (s: unknown) => void)(låtsas)).toThrow(/startar inte/);
+    } finally {
+      if (före === undefined) delete process.env.ARK_AUTH;
+      else process.env.ARK_AUTH = före;
+    }
+  });
+
+  it("lyssnar bara på den egna maskinen om inget annat sägs", async () => {
+    const konfig = (await import("../vite.config")).default as { server?: { host?: unknown } };
+    expect(konfig.server?.host).toBe(process.env.ARK_DEV_HOST?.trim() || "127.0.0.1");
   });
 });

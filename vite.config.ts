@@ -17,11 +17,12 @@ export default defineConfig({
   // arkBridge = bryggan (/__ark) i dev-servern (se scripts/ark-bridge.ts).
   plugins: [react(), arkBridge()],
   // Dev-servern är för utveckling – i drift kör den fristående servern
-  // (`npm start`). Den lyssnar på nätverket så att den kan provas från en
-  // annan maskin; Vite svarar 403 på värdnamn den inte känner igen, så
+  // (`npm start`). Den lyssnar bara på den egna maskinen (127.0.0.1); sätt
+  // ARK_DEV_HOST=0.0.0.0 (eller en adress) för att prova den från en annan
+  // maskin. Vite svarar 403 på värdnamn den inte känner igen, så
   // installationens eget namn (ARK_BAS_URL) släpps igenom.
   server: {
-    host: true,
+    host: process.env.ARK_DEV_HOST?.trim() || "127.0.0.1",
     port: 5173,
     strictPort: true,
     allowedHosts: värdnamn(process.env.ARK_BAS_URL),
