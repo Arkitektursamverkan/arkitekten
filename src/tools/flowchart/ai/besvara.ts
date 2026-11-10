@@ -33,6 +33,7 @@ import {
 } from "@/tools/ramar/ai-presentation";
 
 import { systemPrompt, userPrompt, type PromptDiagramType } from "./prompt";
+import { REVIEW_PROMPT } from "./review";
 import { DRAFT_JSON_SCHEMA, type AiDraftResponse } from "./schema";
 
 export type Meddelande = Anthropic.Beta.BetaMessageParam;
@@ -70,14 +71,21 @@ export interface Miljö {
 
 /** Besvarar en begäran. Kastar Error med ett svenskt meddelande när det inte går. */
 export async function besvara(b: ArkBegäran, m: Miljö): Promise<Record<string, unknown>> {
+  // REGRESSION: beskrivningen hade inget tak – en enda begäran kunde bli ett
+  // mycket dyrt anrop på installationens nyckel.
+  if ((b.rawText ?? "").length > TEXT_TAK)
+    throw new Error(`Underlaget är för långt (över ${TEXT_TAK.toLocaleString("sv-SE")} tecken).`);
   switch (b.uppdrag) {
     case "presentation":
       return besvaraPresentation(b, m);
     case "rutin":
       return besvaraRutin(b, m);
     case "utvärdering": {
+      // Systemprompten byggs HÄR, per uppdrag – aldrig ur begäran.
+      // REGRESSION: klientens `instruction` blev systemprompt, så vem som helst
+      // med inloggning kunde använda installationens nyckel till vad som helst.
       const { text } = await m.fråga({
-        system: b.instruction ?? "",
+        system: REVIEW_PROMPT,
         meddelanden: [{ role: "user", content: b.rawText }],
         signal: m.signal,
       });

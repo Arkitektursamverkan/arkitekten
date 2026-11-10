@@ -244,6 +244,40 @@ export function klientadress(req: IncomingMessage, proxyer: number | boolean): s
 /** Vägar som tar emot binärt (inte JSON) – de prövas bara på ursprunget. */
 const BINÄRA_VÄGAR = new Set(["/underlag"]);
 
+/**
+ * En enkel hastighetsgräns i minnet: högst `tak` händelser per nyckel inom
+ * `fönsterMs`. REGRESSION: en inloggad kunde skicka hur många betalda anrop
+ * som helst på installationens AI-nyckel.
+ */
+export class Hastighetsgräns {
+  private händelser = new Map<string, number[]>();
+  constructor(
+    readonly tak: number,
+    private readonly fönsterMs: number,
+  ) {}
+
+  private färska(nyckel: string, nu: number): number[] {
+    const kvar = (this.händelser.get(nyckel) ?? []).filter((t) => nu - t < this.fönsterMs);
+    if (kvar.length) this.händelser.set(nyckel, kvar);
+    else this.händelser.delete(nyckel);
+    return kvar;
+  }
+
+  /** Räknar händelsen och svarar om den får ske. */
+  tillåt(nyckel: string, nu = Date.now()): boolean {
+    const kvar = this.färska(nyckel, nu);
+    if (kvar.length >= this.tak) return false;
+    this.händelser.set(nyckel, [...kvar, nu]);
+    return true;
+  }
+
+  /** Hur länge tills nästa händelse får ske. */
+  väntaMs(nyckel: string, nu = Date.now()): number {
+    const kvar = this.färska(nyckel, nu);
+    return kvar.length < this.tak ? 0 : Math.max(0, this.fönsterMs - (nu - kvar[0]));
+  }
+}
+
 /** Värden (host:port) ur en adress, eller tomt. */
 function värdUr(adress: string | undefined): string {
   try {
@@ -439,6 +473,8 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
         underlag: string;
       }
       const delad = auth.läge === "öppen";
+      /** Högst så många API-anrop per användare och timme (ARK_AI_TAK_PER_TIMME, förval 30). */
+      const aiGräns = new Hastighetsgräns(Number(process.env.ARK_AI_TAK_PER_TIMME) || 30, 60 * 60_000);
       const brevlåda = (u: Användare): Brevlåda => {
         const { nyckel, katalog } = brevlådekatalog(dir, delad ? null : u.id);
         return {
@@ -799,6 +835,16 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               return;
             }
             const body = JSON.parse((await readBody(req)) || "{}");
+            // Hastighetsgränsen gäller anropen på installationens nyckel.
+            const viaApi = läge === "api" && !(utvecklarläge && body.via === "claude-code");
+            if (viaApi && !aiGräns.tillåt(användare.id)) {
+              res.setHeader("retry-after", String(Math.ceil(aiGräns.väntaMs(användare.id) / 1000)));
+              json(res, 429, {
+                ok: false,
+                error: `Du har gjort ${aiGräns.tak} AI-anrop den senaste timmen – vänta en stund och försök igen.`,
+              });
+              return;
+            }
             const låda = brevlåda(användare);
             fs.mkdirSync(låda.katalog, { recursive: true });
             // Gammalt svar rensas, annars plockar appen upp fel tolkning.
@@ -838,7 +884,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             fs.writeFileSync(låda.request, JSON.stringify(begäran, null, 2), "utf8");
             // `via: "claude-code"` = användaren valde Claude Code i kostnadsrutan –
             // bara i utvecklarläget; annars finns ingen som läser brevlådan.
-            const medApi = läge === "api" && !(utvecklarläge && body.via === "claude-code");
+            const medApi = viaApi;
             if (medApi) {
               log.info(`\n  [ark] Begäran ${id} (${begäran.uppdrag}) – besvaras med API:t.`);
               void svaraMedApi(begäran, låda);

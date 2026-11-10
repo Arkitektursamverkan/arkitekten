@@ -10,7 +10,7 @@ import fs from "node:fs";
 import http, { type IncomingMessage } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { betroddaProxyer, klientadress, skapaBrygga, type AiModuler } from "./brygga";
+import { betroddaProxyer, Hastighetsgräns, klientadress, skapaBrygga, type AiModuler } from "./brygga";
 import { Inloggningsspärr, spärrnycklar } from "./konton";
 import { säkerTillbaka } from "./auth";
 import { arkBridge } from "../scripts/ark-bridge";
@@ -344,5 +344,25 @@ describe("dev-servern", () => {
   it("lyssnar bara på den egna maskinen om inget annat sägs", async () => {
     const konfig = (await import("../vite.config")).default as { server?: { host?: unknown } };
     expect(konfig.server?.host).toBe(process.env.ARK_DEV_HOST?.trim() || "127.0.0.1");
+  });
+});
+
+describe("AI-nyckeln", () => {
+  it("REGRESSION: en inloggad kunde skicka hur många betalda anrop som helst – nu en gräns per användare och timme", async () => {
+    const gräns = new Hastighetsgräns(3, 60 * 60_000);
+    const t0 = 1_000_000;
+    expect([1, 2, 3, 4].map((i) => gräns.tillåt("anna", t0 + i))).toEqual([true, true, true, false]);
+    expect(gräns.tillåt("bo", t0)).toBe(true);
+    expect(gräns.väntaMs("anna", t0 + 10)).toBeGreaterThan(0);
+    expect(gräns.tillåt("anna", t0 + 60 * 60_000 + 2)).toBe(true);
+  });
+
+  it("bryggan svarar 429 när användarens tak är nått", async () => {
+    const k = klient();
+    await k("/__ark/auth/lokal", post({ användarnamn: "bo@example.org", lösenord: "ett långt lösenord" }));
+    const svar: number[] = [];
+    for (let i = 0; i < 31; i++) svar.push((await k("/__ark/request", post({ rawText: `x${i}`, uppdrag: "utvärdering" }))).status);
+    expect(svar.slice(0, 30).every((s) => s === 200)).toBe(true);
+    expect(svar[30]).toBe(429);
   });
 });
