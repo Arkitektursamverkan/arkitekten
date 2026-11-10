@@ -64,6 +64,9 @@ function json(res: ServerResponse, status: number, body: unknown) {
   // Plattformen avgör på content-type att den pratar med en riktig tjänst –
   // en HTML-sida som 200:ar tolkas som "ingen tjänst".
   res.setHeader("content-type", "application/json; charset=utf-8");
+  // Flödena är verksamhetens – ingen mellanlagring och ingen typgissning.
+  res.setHeader("x-content-type-options", "nosniff");
+  res.setHeader("cache-control", "no-store");
   res.end(JSON.stringify(body));
 }
 

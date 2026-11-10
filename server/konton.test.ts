@@ -132,10 +132,17 @@ describe("inloggningen", () => {
   });
 
   it("den inloggade byter sitt lösenord, men bara med det nuvarande", async () => {
-    expect((await admin("/__ark/auth/losenord", post({ nuvarande: "fel fel fel", nytt: "ett nytt långt lösenord" }))).status).toBe(401);
-    expect((await admin("/__ark/auth/losenord", post({ nuvarande: "ett långt lösenord", nytt: "ett nytt långt lösenord" }))).status).toBe(200);
+    // Ett eget konto: administratörens namn är spärrat av gissaren ovan, och
+    // lösenordsbytet delar spärren med inloggningen.
+    await admin("/__ark/konton", post({ användarnamn: "cecilia@example.org", namn: "Cecilia", roll: "user", lösenord: "ett långt lösenord" }));
+    const cecilia = klient();
+    await cecilia("/__ark/auth/lokal", post({ användarnamn: "cecilia@example.org", lösenord: "ett långt lösenord" }));
+    expect((await cecilia("/__ark/auth/losenord", post({ nuvarande: "fel fel fel", nytt: "ett nytt långt lösenord" }))).status).toBe(401);
+    expect((await cecilia("/__ark/auth/losenord", post({ nuvarande: "ett långt lösenord", nytt: "ett nytt långt lösenord" }))).status).toBe(200);
     const lager = new Kontolager(path.join(tmp, "konton.json"));
-    const k = lager.alla().find((x) => x.användarnamn === "admin@example.org")!;
+    const k = lager.alla().find((x) => x.användarnamn === "cecilia@example.org")!;
     expect(stämmerLösenord("ett nytt långt lösenord", k.lösenord)).toBe(true);
+    // Den som bytte stannar inloggad (ny kaka).
+    expect((await cecilia("/__ark/auth/me")).kropp.användare?.namn).toBe("Cecilia");
   });
 });

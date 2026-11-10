@@ -36,7 +36,7 @@ Rollerna är två: **administratör** och **användare**.
 | **Gemensam katalog** | Allt utan ägare. Alla befintliga flöden hamnar här. | alla | admin | admin |
 | **Demo** | Kategorin `Demo`. Offentlig. | alla | alla | admin |
 | **Mina processer** | Flöden med `ägare`. Varje användare har sin egen, med egna kategorier. | ägaren + admin | ägaren + admin | ägaren + admin |
-| **Visualisering** | Ramserierna. Alla läser och skapar nya. | alla | skaparen + admin | skaparen + admin |
+| **Visualisering** | Ramserierna. Alla skapar nya. | som processen serien visar | skaparen + admin | skaparen + admin |
 
 - Med inloggning börjar en **ny process** i *Mina processer*, eller i *Demo* om
   man väljer det i "Ny process".
@@ -51,6 +51,14 @@ Rollerna är två: **administratör** och **användare**.
 - Sparar två personer samma process samtidigt får den som sparar sist svaret
   409 ("ladda om") och skriver alltså inte över den andras version
   (invariant 11).
+- **Historiken byggs bara på.** En sparning får bara lägga till versioner
+  sist; ändras, tas bort eller kastas en tidigare version om svarar servern
+  403 – på alla ytor, också Demo. Signaturen på en ny version (`savedBy`) är
+  alltid den inloggades, vad begäran än säger (i öppen drift: det användaren
+  skrev).
+- En process i någon annans egen katalog **syns inte**: en GET svarar 404,
+  som för en process som inte finns. En visualisering över en sådan process
+  syns inte heller – seriens läsbarhet följer processen.
 
 ## Lokala konton
 
@@ -88,7 +96,14 @@ ARK_KONTON=/data/konton.json                 # i avbilden redan satt
   säger att begäran kom över https (`X-Forwarded-Proto: https`). I drift
   (`NODE_ENV=production`) startar lokala konton inte utan `ARK_BAS_URL`.
 - Ett borttaget konto är utloggat direkt, och en ändrad roll gäller från nästa
-  begäran. Ett konto kan inte ta bort sig självt eller sin egen
+  begäran. Kontot har en **sessionsversion** (`tokenVersion`) som bäddas in i
+  sessionskakan och jämförs vid varje begäran: ett nytt lösenord (eget eller
+  satt av administratören) och **logga ut överallt** (`POST
+  /__ark/auth/logout` med `{ "överallt": true }`) höjer den, så att alla
+  tidigare kakor slutar gälla. Den som byter sitt eget lösenord får en ny kaka
+  och stannar inloggad. Kakor från före fältet läses som version 0.
+- **Byt lösenord** delar spärren med inloggningen: fel nuvarande lösenord
+  räknas som ett misslyckat försök på namnet + adressen. Ett konto kan inte ta bort sig självt eller sin egen
   administratörsroll, och den sista administratören går inte att ta bort.
 - Processerna ett borttaget konto äger finns kvar under *Andra användares
   processer* för administratörerna.
@@ -128,9 +143,13 @@ Två vägar:
    ARK_BAS_URL=https://arkitekten.example.org
    # Signerar sessionskakan – utan den loggas alla ut vid omstart.
    ARK_SESSION_SECRET=<openssl rand -hex 32>
-   # Reserv tills rollerna är tilldelade: e-post eller objekt-id som alltid är admin.
+   # Reserv tills rollerna är tilldelade: konton som alltid är admin.
+   # Objekt-id (oid) REKOMMENDERAS – det byts aldrig och kan inte tas av någon
+   # annan. E-post (preferred_username/email) matchar också.
    # Utan ARK_ADMINS används BOOTSTRAP_ADMIN_EMAILS (samma lista som portalen).
-   ARK_ADMINS=admin@example.org
+   ARK_ADMINS=<objekt-id>
+   # Valfritt: släpp in B2B-gäster (konton ur andra tenanter). Förval: nej.
+   # ENTRA_TILLAT_GASTER=1
    # Valfritt: andra rollvärden som ger admin (förval Arkitekten.Admin,Admin).
    # ENTRA_ADMIN_ROLLER=Arkitekten.Admin
    # Valfritt: grupper (objekt-id) vars medlemmar är admin. Kräver att
@@ -140,6 +159,20 @@ Två vägar:
 
 7. Starta om Arkitekten. Loggen säger
    `Inloggning: Entra ID (https://arkitekten.example.org).`
+
+**Sessionen och gästerna i Entra-läget.**
+
+- Sessionskakan gäller i **8 timmar**. Den är signerad men lagras inte på
+  servern, så en Entra-session går inte att återkalla innan den gått ut:
+  utloggningen tar bort kakan i webbläsaren (och avslutar sessionen hos
+  Microsoft), och ett konto som spärras i Entra släpps senast när kakan gått
+  ut. Därför hålls livslängden kort. (Lokala konton har sessionsversionen
+  ovan.)
+- **B2B-gäster avvisas.** Ett konto räknas som gäst när id-token har ett
+  `idp` som inte är tenantens egen utfärdare, `acct` = 1 (valfritt anspråk),
+  ett `tid` som inte är `ENTRA_TENANT_ID` eller ett användarnamn med `#EXT#`.
+  Flera anspråk prövas, eftersom inget av dem alltid finns. Ska gäster släppas
+  in: `ENTRA_TILLAT_GASTER=1`.
 
 **Viktigt:** när inloggningen är påslagen kräver varje `/__ark/*`-anrop
 inloggning, och appen måste då nås på `ARK_BAS_URL`, eftersom kakan och
@@ -154,5 +187,5 @@ inloggningsrutan men kan inte slutföra inloggningen.
   (`docs/gransnitt.md`). Tjänsten bör ändå inte nås utanför maskinen.
 - **Skripten** i `scripts/` skriver direkt på disk och går förbi bryggan. De
   skapar processer i den gemensamma katalogen, som förut.
-- En visualisering över en process i någons egen katalog visar ett fel för
-  andra: alla läser visualiseringarna, men processen är det inte.
+- En visualisering över en process i någons egen katalog syns bara för den
+  som får läsa processen (ägaren och administratörerna).

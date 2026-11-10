@@ -212,6 +212,8 @@ export class BryggFel extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Bryggans maskinläsbara orsak, t.ex. "upptaget" (id:t används av en process man inte ser). */
+    readonly kod?: string,
   ) {
     super(message);
   }
@@ -226,7 +228,11 @@ export async function bridgeJson(url: string, init?: RequestInit): Promise<any> 
   if (!isJson(res)) throw new Error("Bryggan svarar inte (kör appen via npm run dev).");
   const body = await res.json();
   if (!res.ok || body.ok === false)
-    throw new BryggFel(body.error ?? `Fel från bryggan (${res.status}).`, res.status);
+    throw new BryggFel(
+      body.error ?? `Fel från bryggan (${res.status}).`,
+      res.status,
+      typeof body.kod === "string" ? body.kod : undefined,
+    );
   return body;
 }
 
@@ -627,6 +633,13 @@ export interface SaveInput {
 }
 
 /**
+ * "Id:t finns, men det är inte ditt." Bryggan svarar 404 på en GET av en
+ * process i någon annans egen katalog (den ska inte gå att se), och säger det
+ * först när man försöker SPARA på id:t: 403 med `kod: "upptaget"`.
+ */
+const ärUpptaget = (e: unknown) => e instanceof BryggFel && e.status === 403 && e.kod === "upptaget";
+
+/**
  * Sparar och lägger till en version.
  *
  * Läser först befintlig historik och lägger den nya versionen sist. Är
@@ -641,27 +654,33 @@ export interface SaveInput {
  * skapats. Statusen sätts därför bara på den NYA posten; äldre versioner
  * behåller sin för alltid.
  */
-/** Markerar "id:t finns, men det är inte ditt" under sökningen efter ett ledigt. */
-const UPPTAGET = Symbol("upptaget");
-const ärUpptaget = (e: unknown) => e instanceof BryggFel && e.status === 403;
-
 export async function saveFlowVersion(store: FlowStore, input: SaveInput): Promise<SavedFlow> {
-  let id = input.id ?? (input.idPrefix ?? "") + flowId(input.name);
-  let existing = await store.load(id).then(normalizeFlow).catch((e) => (ärUpptaget(e) ? UPPTAGET : null));
+  const bas = input.id ?? (input.idPrefix ?? "") + flowId(input.name);
   /**
    * Ett NYTT flöde vars id redan används av en process i någon annans egen
    * katalog: den syns inte, men filen finns. Nästa lediga id tas i stället
    * (`…-2`, `…-3`) – annars hade två personer aldrig kunnat ha var sin
-   * "Ny dator" i sina egna kataloger.
+   * "Ny dator" i sina egna kataloger. Ett ÖPPNAT flöde byter aldrig id.
    */
-  if (existing === UPPTAGET && !input.id) {
-    const bas = id;
-    for (let n = 2; existing === UPPTAGET && n < 100; n++) {
-      id = `${bas.slice(0, 60)}-${n}`;
-      existing = await store.load(id).then(normalizeFlow).catch((e) => (ärUpptaget(e) ? UPPTAGET : null));
+  for (let n = 1; ; n++) {
+    const id = n === 1 ? bas : `${bas.slice(0, 60)}-${n}`;
+    try {
+      return await sparaVersion(store, input, id);
+    } catch (e) {
+      if (!ärUpptaget(e)) throw e;
+      if (input.id || n >= 99) throw new Error("Processen ligger i en annan användares katalog.");
     }
   }
-  if (existing === UPPTAGET) throw new Error("Processen ligger i en annan användares katalog.");
+}
+
+async function sparaVersion(store: FlowStore, input: SaveInput, id: string): Promise<SavedFlow> {
+  const existing = await store
+    .load(id)
+    .then(normalizeFlow)
+    // Saknas (404) eller går inte att läsa: en ny process. Bryggan prövar
+    // ändå sparningen mot filen – en sparning som skulle skriva över något
+    // den inte sett avvisas där (server/atkomst.ts).
+    .catch(() => null);
   const versions = existing?.versions ?? [];
 
   const next: FlowVersion = {

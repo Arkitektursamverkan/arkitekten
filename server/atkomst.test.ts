@@ -21,7 +21,7 @@ describe("sparning", () => {
     const befintlig = { ägare: { id: "test", namn: "Test Testsson" }, versions: [v("v1")] };
     const r = prövaSparning(testa, "entra", befintlig, { versions: [v("v1")] });
     expect(r.ok && r.värde.ägare).toEqual({ id: "test", namn: "Test Testsson" });
-    const kapning = prövaSparning(prova, "entra", null, { ägare: { id: "test", namn: "Test Testsson" } });
+    const kapning = prövaSparning(prova, "entra", null, { ägare: { id: "test", namn: "Test Testsson" }, versions: [] });
     expect(kapning.ok && kapning.värde.ägare).toEqual({ id: "prov", namn: "Prov Provsson" });
   });
   it("en ny process minns vem som skapade den – i öppen drift finns ingen att minnas", () => {
@@ -70,8 +70,60 @@ describe("sparning", () => {
     expect(r).toMatchObject({ ok: false, status: 409 });
   });
   it("i öppen drift fungerar allt som före inloggningen", () => {
-    const r = prövaSparning(admin, "öppen", null, { category: "X" });
+    const r = prövaSparning(admin, "öppen", null, { category: "X", versions: [] });
     expect(r.ok && r.värde.ägare).toBeUndefined();
+  });
+});
+
+describe("historikens integritet (invariant 11)", () => {
+  const egen = (versions: Array<Record<string, unknown>>) => ({ ägare: { id: "test", namn: "Test Testsson" }, versions });
+  const demo = (versions: Array<Record<string, unknown>>) => ({ category: "Demo", versions });
+
+  it("REGRESSION: versions som inte är en lista avvisas – en PUT utan historik kunde ersätta hela filen", () => {
+    for (const versions of [undefined, null, "v1", { 0: v("v1") }])
+      expect(prövaSparning(testa, "entra", egen([v("v1")]), { versions } as never)).toMatchObject({ ok: false, status: 400 });
+    expect(prövaSparning(testa, "entra", null, {} as never)).toMatchObject({ ok: false, status: 400 });
+  });
+
+  it("REGRESSION: en äldre version kunde skrivas om så länge den sista stod kvar – nu 403, också i Demo", () => {
+    const gamla = [{ ...v("v1"), rawText: "A" }, { ...v("v2"), rawText: "B" }];
+    for (const befintlig of [egen(gamla), demo(gamla)]) {
+      const omskriven = [{ ...v("v1"), rawText: "ÄNDRAD" }, gamla[1], v("v3")];
+      expect(prövaSparning(testa, "entra", befintlig, { ...befintlig, versions: omskriven })).toMatchObject({ ok: false, status: 403 });
+      // Omkastad ordning.
+      expect(prövaSparning(testa, "entra", befintlig, { ...befintlig, versions: [gamla[1], gamla[0], gamla[1]] })).toMatchObject({ ok: false, status: 403 });
+      // En version insprängd före den sista.
+      expect(prövaSparning(testa, "entra", befintlig, { ...befintlig, versions: [gamla[0], v("x"), gamla[1]] })).toMatchObject({ ok: false, status: 403 });
+    }
+  });
+
+  it("REGRESSION: historiken kunde strykas – en begäran med bara den sista versionen tömde filen på de äldre", () => {
+    const gamla = [v("v1"), v("v2"), v("v3")];
+    const r = prövaSparning(testa, "entra", egen(gamla), { versions: [v("v3"), v("v4")] });
+    // Ett fönster av de senaste är tillåtet (appen skickar högst MAX_VERSIONS) – men servern behåller ALLA.
+    expect(r.ok && r.värde.versions?.map((x) => x.id)).toEqual(["v1", "v2", "v3", "v4"]);
+  });
+
+  it("fältordningen spelar ingen roll – samma version är samma version", () => {
+    const gamla = [{ id: "v1", savedAt: "t", rawText: "A", draft: { steps: [], lanes: [] } }];
+    const omordnad = [{ draft: { lanes: [], steps: [] }, rawText: "A", savedAt: "t", id: "v1" }];
+    expect(prövaSparning(testa, "entra", egen(gamla), { versions: [...omordnad, v("v2")] }).ok).toBe(true);
+  });
+
+  it("REGRESSION: begärans savedBy stod kvar på en ny version – nu sätter servern den inloggade, alltid", () => {
+    const r = prövaSparning(testa, "entra", demo([v("v1")]), { category: "Demo", versions: [v("v1"), { ...v("v2"), savedBy: "Prov Provsson" }] });
+    expect(r.ok && r.värde.versions?.[1].savedBy).toBe("Test Testsson");
+    const ny = prövaSparning(testa, "lokal", null, { versions: [{ ...v("v1"), savedBy: "Någon annan" }] });
+    expect(ny.ok && ny.värde.versions?.[0].savedBy).toBe("Test Testsson");
+    // Den äldre versionens signatur rörs inte.
+    const gammal = { ...v("v1"), savedBy: "Prov Provsson" };
+    const r2 = prövaSparning(testa, "entra", demo([gammal]), { category: "Demo", versions: [gammal, v("v2")] });
+    expect(r2.ok && r2.värde.versions?.[0].savedBy).toBe("Prov Provsson");
+  });
+
+  it("i öppen drift finns ingen inloggad – signaturen står som användaren skrev den", () => {
+    const r = prövaSparning(admin, "öppen", null, { versions: [{ ...v("v1"), savedBy: "Anna" }] });
+    expect(r.ok && r.värde.versions?.[0].savedBy).toBe("Anna");
   });
 });
 

@@ -134,7 +134,13 @@ bara genom plattformen (`docs/gransnitt.md`). För ALL kod gäller:
    `lokal` (installationens konton, `server/konton.ts` – lösenord bara som
    scrypt-hash, aldrig ut ur modulen) och `öppen` (utveckling: alla är admin – i drift bara med `ARK_TILLAT_OPPEN=1`).
    Ett lokalt konto läses om vid varje begäran, så ett borttaget konto är
-   utloggat direkt. Uppsättning: `docs/inloggning.md`.
+   utloggat direkt, och dess `tokenVersion` jämförs med kakans – ett nytt
+   lösenord eller "logga ut överallt" loggar ut alla äldre sessioner.
+   Historiken i en PUT prövas av `slåIhopHistorik`: filens versioner
+   oförändrade, nya bara sist; `savedBy` på en ny version är serverns.
+   En process i någon annans egen katalog svarar 404, och en ramserie syns
+   bara för den som får läsa dess process (`kanLäsaRamserie`).
+   Uppsättning: `docs/inloggning.md`.
 
 ## Verktyget Affärsprocess (src/tools/affarsprocess/)
 
@@ -521,8 +527,10 @@ knappen får tryckas igen.
 
 `uppdrag: "rutin"` kommer ur knappen **✦ Skapa ur fil** i rutinvyn
 (`tools/affarsprocess/RutinVy.tsx`, `tools/affarsprocess/ai-rutin.ts`).
-`rawText` är JSON med `fil` (sökvägen till det uppladdade underlaget,
-`<låda>/underlag/…` – LÄS filen; den kan vara Word, PDF, text eller en bild),
+`rawText` är JSON med `fil` (det uppladdade underlagets referens, RELATIV
+TILL BREVLÅDAN: `underlag/<fil>`, alltså `<låda>/underlag/<fil>` – LÄS filen;
+den kan vara Word, PDF, text eller en bild. Servern lämnar aldrig ut sin egen
+sökväg; äldre begäranden kan bära en sökväg relativt projektroten),
 `krav` och `aktivitet`. Svara med `{ "requestId": "<id>", "rutin": "<text>" }`:
 en rad per moment, indragen rad (två blanksteg) = underpunkt, ` → ` mellan
 klicken i en klickväg, momentet börjar med verbet. Hela formen står i

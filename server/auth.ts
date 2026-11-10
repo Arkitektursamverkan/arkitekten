@@ -34,8 +34,15 @@ export interface EntraKonfig {
   adminRoller: string[];
   /** Entra-grupper (objekt-id) vars medlemmar är admin – kräver gruppanspråk i app-registreringen. */
   adminGrupper: string[];
-  /** Reserv: e-post eller oid som alltid är admin (första uppsättningen, innan rollerna tilldelats). */
+  /**
+   * Reserv: konton som alltid är admin (första uppsättningen, innan rollerna
+   * tilldelats). Objekt-id (oid) REKOMMENDERAS – det byts aldrig och kan inte
+   * tas av någon annan. E-post (preferred_username/email) matchar också, men
+   * kan i vissa tenanter ändras av användaren eller återanvändas.
+   */
   adminKonton: string[];
+  /** Släpp in B2B-gäster (ENTRA_TILLAT_GASTER=1). Förval: nej. */
+  tillåtGäster?: boolean;
 }
 
 export type AuthKonfig =
@@ -46,8 +53,17 @@ export type AuthKonfig =
 
 export const SESSION_KAKA = "ark_session";
 const OIDC_KAKA = "ark_oidc";
-/** En arbetsdag. Entra loggar in tyst igen så länge kontots egen session lever. */
-export const SESSION_SEKUNDER = 10 * 60 * 60;
+/**
+ * En arbetsdag, inte mer. Entra loggar in tyst igen så länge kontots egen
+ * session lever. Kakan är signerad men inte lagrad på servern, så en
+ * Entra-session går inte att återkalla före utgången – utloggningen tar bort
+ * kakan i webbläsaren, och ett spärrat Entra-konto släpps senast när kakan
+ * gått ut. Därför hålls livslängden kort. (Ett LOKALT konto bär en
+ * sessionsversion, `tv`, som servern jämför vid varje begäran – där gäller ett
+ * byte av lösenord, en borttagning och "logga ut överallt" direkt.)
+ * REGRESSION: livslängden var tio timmar.
+ */
+export const SESSION_SEKUNDER = 8 * 60 * 60;
 
 const lista = (s: string | undefined) =>
   (s ?? "")
@@ -83,6 +99,8 @@ export function authKonfigUrMiljö(env: NodeJS.ProcessEnv = process.env): AuthKo
       adminGrupper: lista(env.ENTRA_ADMIN_GRUPPER),
       // Samma lista som portalen och plattformen duger, när ARK_ADMINS inte är satt.
       adminKonton: lista(env.ARK_ADMINS || env.BOOTSTRAP_ADMIN_EMAILS),
+      // B2B-gäster (konton från en annan tenant) släpps bara in när det sagts uttryckligen.
+      tillåtGäster: /^(1|true|ja|on)$/i.test(env.ENTRA_TILLAT_GASTER?.trim() ?? ""),
     };
   }
   return { läge: "öppen" };
@@ -186,20 +204,33 @@ export function kaka(
   ].join("; ");
 }
 
-interface Session {
+export interface Session {
   användare: Användare;
   /** Utgång, sekunder sedan epoken. */
   exp: number;
+  /**
+   * Sessionsversionen (lokala konton): kontots `tokenVersion` när kakan
+   * utfärdades. Saknas = 0, så kakor från före fältet gäller tills de går ut.
+   */
+  tv?: number;
 }
 
-export function skapaSession(u: Användare, hemlighet: string, nu = Date.now()): string {
-  return signera({ användare: u, exp: Math.floor(nu / 1000) + SESSION_SEKUNDER } satisfies Session, hemlighet);
+export function skapaSession(u: Användare, hemlighet: string, nu = Date.now(), tv?: number): string {
+  return signera(
+    { användare: u, exp: Math.floor(nu / 1000) + SESSION_SEKUNDER, ...(tv ? { tv } : {}) } satisfies Session,
+    hemlighet,
+  );
+}
+
+/** Hela sessionen ur kakan (användaren och sessionsversionen), eller null. */
+export function läsSessionen(kakhuvud: string | undefined, hemlighet: string, nu = Date.now()): Session | null {
+  const s = verifiera<Session>(läsKakor(kakhuvud)[SESSION_KAKA], hemlighet);
+  if (!s || typeof s.exp !== "number" || s.exp * 1000 < nu || !s.användare) return null;
+  return s;
 }
 
 export function läsSession(kakhuvud: string | undefined, hemlighet: string, nu = Date.now()): Användare | null {
-  const s = verifiera<Session>(läsKakor(kakhuvud)[SESSION_KAKA], hemlighet);
-  if (!s || typeof s.exp !== "number" || s.exp * 1000 < nu) return null;
-  return s.användare ?? null;
+  return läsSessionen(kakhuvud, hemlighet, nu)?.användare ?? null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -291,6 +322,32 @@ export interface IdClaims {
   roles?: string[];
   /** Gruppernas objekt-id – bara om app-registreringen skickar gruppanspråk. */
   groups?: string[];
+  /** Identitetsleverantören – finns bara när kontot hör till en ANNAN tenant (gäster). */
+  idp?: string;
+  /** Valfritt anspråk: 0 = medlem, 1 = gäst. */
+  acct?: number;
+}
+
+/**
+ * Är kontot en B2B-gäst (ett konto ur en annan tenant, eller ett personligt
+ * Microsoft-konto, inbjudet till installationens)? Prövas på FLERA anspråk,
+ * eftersom inget av dem alltid finns:
+ *
+ * - `idp` sätts bara när kontot inte hör till utfärdarens tenant – för en
+ *   medlem saknas det (eller är tenantens egen utfärdare);
+ * - `acct` (valfritt anspråk) är 1 för en gäst;
+ * - `tid` ska vara installationens tenant;
+ * - en gästs användarnamn i tenanten bär `#EXT#`.
+ */
+export function ärGäst(k: Pick<EntraKonfig, "tenantId">, c: IdClaims): boolean {
+  const tenant = k.tenantId.toLowerCase();
+  const idp = c.idp?.trim().toLowerCase().replace(/\/+$/, "");
+  const egnaUtfärdare = [`https://sts.windows.net/${tenant}`, `https://login.microsoftonline.com/${tenant}/v2.0`];
+  if (idp && !egnaUtfärdare.includes(idp)) return true;
+  if (Number(c.acct) === 1) return true;
+  if (c.tid && c.tid.toLowerCase() !== tenant) return true;
+  if (/#ext#/i.test(c.preferred_username ?? "")) return true;
+  return false;
 }
 
 /** Läser nyttolasten ur en JWT utan att pröva signaturen (se modulkommentaren). */
@@ -319,6 +376,10 @@ export function användareUrIdToken(
   if (typeof c.nbf === "number" && c.nbf - marginal > sek) throw new Error("Id-token gäller inte än.");
   if (!c.nonce || c.nonce !== nonce) throw new Error("Id-token hör inte till den här inloggningen.");
   if (!c.oid) throw new Error("Id-token saknar konto-id (oid).");
+  // REGRESSION: en inbjuden gäst ur en annan organisation loggades in som
+  // vilken användare som helst. Gäster släpps bara in med ENTRA_TILLAT_GASTER=1.
+  if (!k.tillåtGäster && ärGäst(k, c))
+    throw new Error("Gästkonton (B2B) kan inte logga in i den här installationen.");
   const epost = (c.preferred_username || c.email || "").trim();
   return {
     id: c.oid,

@@ -74,6 +74,8 @@ async function anrop(k: EaKonfig, väg: string, init: RequestInit = {}): Promise
 
 interface NodeRead {
   id: string;
+  /** Nodtypen i portalen ("Process", "Application", …). */
+  type?: string;
   name: string;
   description?: string | null;
   external_source?: string;
@@ -147,7 +149,28 @@ export async function skapaProcess(k: EaKonfig, ny: NyProcess): Promise<EaProces
 }
 
 /**
+ * Är noden en process som publiceringen själv skapat? Bara en sådan får
+ * ändras eller arkiveras härifrån: nodtypen Process, ingen extern källa
+ * (portalens synk skriver över en sådan) och `källa: "Arkitekten"`. EN regel
+ * för både uppdateringen och arkiveringen.
+ */
+function kontrolleraEgenProcess(nod: NodeRead, vad: string): void {
+  if (
+    nod.type !== "Process" ||
+    (nod.external_source ?? "NONE") !== "NONE" ||
+    nod.attributes?.källa !== "Arkitekten"
+  ) {
+    throw new Användarfel(`”${nod.name}” är inte en process skapad ur Arkitekten och ${vad} inte härifrån.`);
+  }
+}
+
+/**
  * Ny ägare och beskrivning på en process VI skapat.
+ *
+ * Noden kontrolleras FÖRST, som vid arkiveringen (`kontrolleraEgenProcess`).
+ * REGRESSION: uppdateringen litade på webbläsarens id, så en administratör
+ * kunde skriva över beskrivning och ägare på vilken nod som helst i portalen
+ * – också processkartans egna och andra nodtyper.
  *
  * Portalens PATCH ersätter HELA `attributes` – därför läses noden först och
  * attributen slås ihop, annars försvann förälder och nummer och processen
@@ -159,6 +182,7 @@ export async function uppdateraEgenProcess(
   ändring: { ägare: string; beskrivning: string },
 ): Promise<void> {
   const nod = (await anrop(k, `/nodes/${encodeURIComponent(id)}`)) as NodeRead;
+  kontrolleraEgenProcess(nod, "ändras");
   await anrop(k, `/nodes/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify({
@@ -179,9 +203,7 @@ export async function uppdateraEgenProcess(
  */
 export async function arkiveraEgenProcess(k: EaKonfig, id: string): Promise<void> {
   const nod = (await anrop(k, `/nodes/${encodeURIComponent(id)}`)) as NodeRead;
-  if ((nod.external_source ?? "NONE") !== "NONE" || nod.attributes?.källa !== "Arkitekten") {
-    throw new Användarfel(`”${nod.name}” är inte skapad ur Arkitekten och arkiveras inte härifrån.`);
-  }
+  kontrolleraEgenProcess(nod, "arkiveras");
   await anrop(k, `/nodes/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify({ archived: true }),

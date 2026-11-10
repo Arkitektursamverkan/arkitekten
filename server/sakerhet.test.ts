@@ -120,6 +120,16 @@ function råPost(väg: string, huvuden: Record<string, string | number>, bitar: 
   });
 }
 
+/** Filen bakom en underlagsreferens (relativ till en brevlåda) – sökt i alla brevlådor. */
+function underlagetsFil(ref: string): string {
+  const per = path.join(arkDir, "anvandare");
+  for (const n of fs.existsSync(per) ? fs.readdirSync(per) : []) {
+    const fil = path.join(per, n, ref);
+    if (fs.existsSync(fil)) return fil;
+  }
+  throw new Error(`Underlaget ${ref} finns inte i någon brevlåda.`);
+}
+
 describe("kroppsgränsen", () => {
   it("REGRESSION: en för stor content-length till /auth/* (före inloggningen) avvisas med 413 innan något läses", async () => {
     const r = await råPost("/__ark/auth/lokal", { "content-type": "application/json", "content-length": 50_000_000 }, 1, 1000);
@@ -162,12 +172,17 @@ describe("AI-brevlådan per användare", () => {
     const upp = await anna("/__ark/underlag?namn=rutin.txt", { method: "POST", body: "Annas rutin", headers: { "content-type": "application/octet-stream", origin: bas } });
     expect(upp.status).toBe(200);
     const sökväg = upp.kropp.sökväg as string;
-    const fil = path.isAbsolute(sökväg) ? sökväg : path.join(tmp, sökväg);
+    const fil = underlagetsFil(sökväg);
     expect(fs.existsSync(fil)).toBe(true);
     expect(fil).toContain(`${path.sep}anvandare${path.sep}`);
 
-    // Bo pekar ut Annas underlag – det ligger utanför hans brevlåda.
+    // Bo pekar ut Annas underlag – referensen löses i HANS brevlåda, där det inte finns.
     await bo("/__ark/request", post({ rawText: JSON.stringify({ fil: sökväg }), uppdrag: "rutin" }));
+    expect((await vänta(bo)).fel).toMatch(/finns inte längre/);
+    // Och med Annas riktiga sökväg ligger det utanför hans brevlåda.
+    await bo("/__ark/request", post({ rawText: JSON.stringify({ fil }), uppdrag: "rutin" }));
+    expect((await vänta(bo)).fel).toMatch(/utanför brevlådan/);
+    await bo("/__ark/request", post({ rawText: JSON.stringify({ fil: path.relative(tmp, fil) }), uppdrag: "rutin" }));
     expect((await vänta(bo)).fel).toMatch(/utanför brevlådan/);
 
     // Annas egen begäran läser det, och när svaret är hämtat är det borta.
@@ -178,8 +193,7 @@ describe("AI-brevlådan per användare", () => {
 
   it("underlag äldre än ett dygn gallras vid nästa uppladdning, i alla brevlådor", async () => {
     const upp = await anna("/__ark/underlag?namn=gammal.txt", { method: "POST", body: "gammalt", headers: { "content-type": "application/octet-stream", origin: bas } });
-    const sökväg = upp.kropp.sökväg as string;
-    const fil = path.isAbsolute(sökväg) ? sökväg : path.join(tmp, sökväg);
+    const fil = underlagetsFil(upp.kropp.sökväg as string);
     const förr = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     fs.utimesSync(fil, förr, förr);
     await bo("/__ark/underlag?namn=ny.txt", { method: "POST", body: "nytt", headers: { "content-type": "application/octet-stream", origin: bas } });

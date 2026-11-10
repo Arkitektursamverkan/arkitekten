@@ -125,8 +125,11 @@ export function skapaServer(inst: Installningar, brygga: Hanterare): http.Server
 function hantera(inst: Installningar, brygga: Hanterare, req: IncomingMessage, res: ServerResponse) {
     huvuden(req, res);
     const väg = (req.url ?? "/").split("?")[0];
+    // Hälsan är öppen och säger bara att servern lever. REGRESSION: den
+    // visade version och AI-läge för vem som helst – versionen finns för
+    // inloggade i /__ark/status.
     if (väg === "/health") {
-      json(res, 200, { status: "ok", version: inst.version, ai: aiLäge(inst.utvecklarläge) });
+      json(res, 200, { status: "ok" });
       return;
     }
     if (väg === "/__ark" || väg.startsWith("/__ark/")) {

@@ -3,7 +3,7 @@
  *
  * Samma brevlåda som "Tolka med AI" (ark-bryggan), men underlaget är en FIL
  * och inte en text. Filen laddas upp som den är (`/__ark/underlag`) och
- * begäran pekar ut den med sin sökväg – den som svarar läser den med sina egna
+ * begäran pekar ut den med en referens relativ till brevlådan – den som svarar läser den med sina egna
  * verktyg, så appen behöver ingen tolk per filformat (Word, PDF, skärmbild).
  *
  * Svaret är rutinens TEXT, i exakt den form man själv skriver den: en rad per
@@ -20,7 +20,7 @@ const TIMEOUT_MS = 60 * 60 * 1000;
 
 export const RUTIN_INSTRUKTION = `Uppdraget är "rutin": gör om det uppladdade underlaget till en RUTIN – arbetsbeskrivningen bakom ett krav i affärsprocessverktyget.
 
-\`rawText\` är JSON: \`fil\` är sökvägen till underlaget (relativt projektroten), \`krav\` är kravet rutinen hör till och \`aktivitet\` aktiviteten kravet hänger på. LÄS FILEN – den kan vara Word, PDF, text eller en skärmbild.
+\`rawText\` är JSON: \`fil\` är underlagets referens RELATIV TILL BREVLÅDAN (\`underlag/<fil>\` – filen ligger i samma katalog som request.json), \`krav\` är kravet rutinen hör till och \`aktivitet\` aktiviteten kravet hänger på. LÄS FILEN – den kan vara Word, PDF, text eller en skärmbild.
 
 Svara med { "requestId": "<id ur begäran>", "rutin": "<texten>" }.
 
