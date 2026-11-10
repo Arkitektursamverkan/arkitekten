@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import { aiLäge, skapaBrygga, viaHttps, type AiModuler, type Hanterare } from "./brygga";
 import { installningarUrMiljö, kontrollera, type Installningar } from "./installningar";
 import { flödestjänstPort, startaFlödestjänst } from "./flodestjanst-barn";
+import { förberedInstallation } from "./installation";
 
 const TYPER: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -148,7 +149,14 @@ function hantera(inst: Installningar, brygga: Hanterare, req: IncomingMessage, r
 if (process.argv[1] && /arkitekten\.mts$/.test(process.argv[1])) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const inst = installningarUrMiljö(root);
-  const { fel, varningar } = kontrollera();
+  // FÖRE kontrollen och bryggan: anmäl adressen till portalen och – med
+  // ARK_AUTH=auto utan egna Entra-uppgifter – hämta dem därifrån (väntar
+  // högst två minuter). Se server/installation.ts.
+  const portalen = await förberedInstallation({
+    arkDir: inst.arkDir,
+    logg: { info: (r) => console.log(r), warn: (r) => console.warn(r) },
+  });
+  const { fel, varningar } = kontrollera(process.env, portalen);
   for (const rad of varningar) console.warn(`[arkitekten] ${rad}`);
   if (fel.length) {
     for (const rad of fel) console.error(`[arkitekten] FEL: ${rad}`);

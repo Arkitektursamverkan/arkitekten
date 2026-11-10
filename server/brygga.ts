@@ -77,6 +77,7 @@ import { ALLMÄNT_FEL, Användarfel, Kroppsfel } from "./fel";
 import { exempelpaket, importera } from "./innehallspaket.mjs";
 import { organisation, organisationUrMiljö, sättOrganisation } from "../src/core/organisation";
 import { skapaUtseende, type UtseendeKälla } from "./utseende";
+import { skapaPortalWebb, type PortalWebb } from "./installation";
 import { läsBmtMall } from "./bmt-mall";
 import {
   ärAdmin,
@@ -136,6 +137,8 @@ export interface BryggOptioner {
   utvecklarläge: boolean;
   /** Organisationens namn, logotyp och färg (server/utseende.ts). Utbytbar i tester. */
   utseende?: UtseendeKälla;
+  /** Portalens webbadress (server/installation.ts). Utbytbar i tester. */
+  portalWebb?: PortalWebb;
   /** Appens version – visas för inloggade i `/__ark/status`. */
   version?: string;
 }
@@ -380,6 +383,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
       const { root, flowsDir, ramarDir, logg: log, utvecklarläge } = o;
       const utseende = o.utseende ?? skapaUtseende(process.env, eaKonfigUrMiljö());
       const dir = o.arkDir;
+      const portalWebb = o.portalWebb ?? skapaPortalWebb(process.env, eaKonfigUrMiljö(), dir);
       /** Kort namn i loggen: katalogens sista led. */
       const FLOWS = path.basename(flowsDir);
       const RAMAR = path.basename(ramarDir);
@@ -1048,7 +1052,8 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 ok: true,
                 konfigurerad: Boolean(ea),
                 // Portalens webbadress – rutan länkar till processen där.
-                webb: (process.env.EA_WEBB_URL?.trim() ?? "").replace(/\/+$/, ""),
+                // EA_WEBB_URL, annars den portalen själv uppger (portal_url).
+                webb: await portalWebb.webb(),
               });
               return;
             }

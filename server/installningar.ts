@@ -70,7 +70,11 @@ export interface Kontroll {
 }
 
 /** Det som saknas eller är farligt i miljön. Inga värden skrivs ut, bara namnen. */
-export function kontrollera(env: NodeJS.ProcessEnv = process.env): Kontroll {
+export function kontrollera(
+  env: NodeJS.ProcessEnv = process.env,
+  /** Det portalen sagt om installationen (server/installation.ts) – `portal_url` ersätter EA_WEBB_URL. */
+  portalen: { portalUrl?: string | null } = {},
+): Kontroll {
   const fel: string[] = [];
   const varningar: string[] = [];
   const auth = authKonfigUrMiljö(env);
@@ -114,7 +118,10 @@ export function kontrollera(env: NodeJS.ProcessEnv = process.env): Kontroll {
     varningar.push("ARK_BMT_MALL pekar inte på en läsbar modellexport (.bmt) – BMT-exporten är av.");
   if (env.ARK_FLODESTJANST_PORT?.trim() && !env.ARK_FLODESTJANST_NYCKEL?.trim())
     varningar.push("ARK_FLODESTJANST_NYCKEL saknas – flödestjänsten svarar vem som helst som når den.");
-  if (env.EA_API_KEY?.trim() && !env.EA_WEBB_URL?.trim())
-    varningar.push("EA_WEBB_URL saknas – publiceringsrutan kan inte länka till portalen.");
+  // Portalen säger själv sin adress (portal_url) – då behövs inte EA_WEBB_URL.
+  if (env.EA_API_KEY?.trim() && !env.EA_WEBB_URL?.trim() && !portalen.portalUrl)
+    varningar.push(
+      "EA_WEBB_URL saknas och portalen har inte uppgett sin adress än – publiceringsrutan länkar till portalen först när den gjort det.",
+    );
   return { fel, varningar };
 }

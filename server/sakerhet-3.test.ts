@@ -327,14 +327,15 @@ describe("CSRF-skyddet", () => {
 });
 
 describe("dev-servern", () => {
-  it("REGRESSION: en felaktig inställning loggades bara – nu startar dev-servern inte", () => {
+  it("REGRESSION: en felaktig inställning loggades bara – nu startar dev-servern inte", async () => {
     const före = process.env.ARK_AUTH;
     process.env.ARK_AUTH = "ogiltig";
     try {
       const tillägg = arkBridge();
       const loggare = { info: () => {}, warn: () => {}, error: () => {} };
       const låtsas = { config: { root: tmp, logger: loggare }, middlewares: { use: () => {} } };
-      expect(() => (tillägg.configureServer as (s: unknown) => void)(låtsas)).toThrow(/startar inte/);
+      // configureServer är asynkron (portalens uppgifter hämtas först) – Vite väntar på den.
+      await expect((tillägg.configureServer as (s: unknown) => Promise<void>)(låtsas)).rejects.toThrow(/startar inte/);
     } finally {
       if (före === undefined) delete process.env.ARK_AUTH;
       else process.env.ARK_AUTH = före;
