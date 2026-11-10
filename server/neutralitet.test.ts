@@ -9,6 +9,15 @@
  *
  * Testet läser filerna på disk, så det fångar också det som ännu inte
  * committats.
+ *
+ * VAD som spärras är självt organisationsspecifikt – en lista med namn
+ * avslöjar just det den ska skydda. Listan ligger därför UTANFÖR git, i
+ * `.lokalt/neutralitet.json` (gitignorerad, som allt i `.lokalt/`):
+ *
+ *   { "spärrar": [ { "vad": "organisationsnamn", "mönster": "acme", "flaggor": "i" } ] }
+ *
+ * Saknas filen (en ren klon) hoppar de kontrollerna över; de generiska
+ * nedan körs alltid.
  */
 
 import { describe, expect, it } from "vitest";
@@ -21,10 +30,24 @@ const FILER = ["README.md", "CLAUDE.md", "CONTRIBUTING.md", "SECURITY.md", "CHAN
 /** Den här filen måste kunna nämna det den spärrar. */
 const UNDANTAG = new Set(["server/neutralitet.test.ts"]);
 
-const SPÄRRAR: Array<[string, RegExp]> = [
-  ["organisationsnamn", /hfab|halmstad/i],
-  ["extern processprodukt", /2c8|(?<![#0-9a-f])c8(?![0-9a-f])/i],
-  ["personnamn", /\b(David|Victor|Bylund|Bjärlestam|Anna Lena)\b/],
+const LOKAL_LISTA = path.join(ROT, ".lokalt", "neutralitet.json");
+
+/** Installationens egna spärrar ur `.lokalt/neutralitet.json`, eller null. */
+function lokalaSpärrar(): Array<[string, RegExp]> | null {
+  if (!fs.existsSync(LOKAL_LISTA)) return null;
+  const data = JSON.parse(fs.readFileSync(LOKAL_LISTA, "utf8")) as {
+    spärrar?: Array<{ vad?: string; mönster: string; flaggor?: string }>;
+  };
+  return (data.spärrar ?? []).map((s) => [s.vad ?? "spärrat namn", new RegExp(s.mönster, s.flaggor ?? "")]);
+}
+
+/**
+ * Generiska spärrar som inte avslöjar något: hemligheter och personliga
+ * adresser hör aldrig hemma i produkten, vilken organisation det än gäller.
+ */
+const GENERISKA: Array<[string, RegExp]> = [
+  ["privat nyckel", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
+  ["AI-nyckel", /sk-ant-[A-Za-z0-9_-]{20,}/],
 ];
 
 function filer(): string[] {
@@ -43,17 +66,27 @@ function filer(): string[] {
   return ut.filter((f) => !UNDANTAG.has(f.split(path.sep).join("/")));
 }
 
+function brottMot(spärrar: Array<[string, RegExp]>): string[] {
+  const brott: string[] = [];
+  for (const fil of filer()) {
+    const rader = fs.readFileSync(path.join(ROT, fil), "utf8").split("\n");
+    rader.forEach((rad, i) => {
+      for (const [vad, mönster] of spärrar) {
+        if (mönster.test(rad)) brott.push(`${fil}:${i + 1} (${vad}): ${rad.trim().slice(0, 100)}`);
+      }
+    });
+  }
+  return brott;
+}
+
+const LOKALA = lokalaSpärrar();
+
 describe("spärren mot organisationsspecifikt innehåll", () => {
-  it("ingen fil nämner en organisation, en person eller en extern processprodukt", () => {
-    const brott: string[] = [];
-    for (const fil of filer()) {
-      const rader = fs.readFileSync(path.join(ROT, fil), "utf8").split("\n");
-      rader.forEach((rad, i) => {
-        for (const [vad, mönster] of SPÄRRAR) {
-          if (mönster.test(rad)) brott.push(`${fil}:${i + 1} (${vad}): ${rad.trim().slice(0, 100)}`);
-        }
-      });
-    }
-    expect(brott).toEqual([]);
+  it.skipIf(!LOKALA)("ingen fil nämner installationens organisation, personer eller namn (.lokalt/neutralitet.json)", () => {
+    expect(brottMot(LOKALA ?? [])).toEqual([]);
+  });
+
+  it("ingen fil bär en hemlighet", () => {
+    expect(brottMot(GENERISKA)).toEqual([]);
   });
 });
