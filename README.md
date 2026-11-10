@@ -104,9 +104,11 @@ AI ritar aldrig – den fyller bara mellanlagret, precis som regelmotorn. AI-st�
 
 1. **API-nyckel** (`ANTHROPIC_API_KEY`): servern besvarar begäran. Nyckeln
    lämnar aldrig servern, och varje anrop godkänns först i kostnadsrutan.
-2. **Utvecklarläget** (`ARK_UTVECKLARLAGE=1`): begäran läggs i brevlådan
-   (`.ark/request.json`) och en Claude Code-session på samma maskin svarar med
-   `.ark/response.json`. Av som standard.
+2. **Utvecklarläget** (`ARK_UTVECKLARLAGE=1`): begäran läggs i den inloggades
+   brevlåda (`.ark/anvandare/<hash>/request.json`; i öppen drift
+   `.ark/request.json`) och en Claude Code-session på samma maskin svarar med
+   `response.json` i samma katalog. `npx tsx scripts/brevlada.mts` listar de
+   väntande. Av som standard.
 3. **Av**: inget av ovan. AI-knapparna visas inte; allt annat fungerar.
 
 ## Flödesbibliotek och versioner

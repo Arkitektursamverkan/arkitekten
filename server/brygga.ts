@@ -15,9 +15,13 @@
  *   - "claude-code": UTVECKLARLÄGET (`ARK_UTVECKLARLAGE=1`). Begäran läggs i
  *     brevlådan och besvaras av Claude Code i en terminal på samma maskin:
  *
- *       1. Appen POST:ar sin beskrivning        → <arkDir>/request.json
- *       2. Claude Code läser den, tolkar, skriver → <arkDir>/response.json
+ *       1. Appen POST:ar sin beskrivning        → <låda>/request.json
+ *       2. Claude Code läser den, tolkar, skriver → <låda>/response.json
  *       3. Appen pollar och plockar upp svaret   → mellanlagret fylls
+ *
+ *     <låda> är användarens egen brevlåda (`<arkDir>/anvandare/<hash>/`, se
+ *     server/brevlada.ts) – bara i öppen drift är den `<arkDir>` självt.
+ *     `npx tsx scripts/brevlada.mts` listar de väntande begärandena.
  *
  *     Den som svarar kopierar `id` ur request.json till `requestId` i
  *     response.json – korrelationen hindrar att ett sent svar på en avbruten
@@ -84,12 +88,8 @@ import {
   type Yta,
 } from "../src/core/behorighet";
 
-const REQUEST = "request.json";
-const RESPONSE = "response.json";
-/** Uppladdade underlag till ett uppdrag (t.ex. dokumentet en rutin ska byggas ur). */
-const UNDERLAG = "underlag";
-/** Brevlådorna per användare (utanför utvecklarläget), under `arkDir`. */
-const ANVÄNDARLÅDOR = "anvandare";
+// Brevlådornas namn och platser bor i server/brevlada.ts (läses också av skripten).
+import { ANVÄNDARLÅDOR, REQUEST, RESPONSE, UNDERLAG, brevlådekatalog } from "./brevlada";
 /** Ett underlag som ingen begäran tagit hand om tas bort efter ett dygn. */
 const UNDERLAG_LIVSLÄNGD_MS = 24 * 60 * 60 * 1000;
 /** Högst så mycket underlag per brevlåda åt gången. */
@@ -423,9 +423,13 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
        * id:t – inget namn i filsystemet), och begäran, svaret och underlagen
        * hör till den som är inloggad.
        *
-       * UTVECKLARLÄGET (och öppen drift, där alla är samma användare) har EN
-       * brevlåda, direkt i `arkDir` (`.ark/request.json`): det är den Claude
-       * Code läser och skriver (CLAUDE.md, "AI-bryggan").
+       * Det gäller ÄVEN UTVECKLARLÄGET när inloggning är på (entra/lokal/dev):
+       * Claude Code hittar begäran i användarens låda (server/brevlada.ts,
+       * `scripts/brevlada.mts`) och svarar i samma katalog. REGRESSION: i
+       * utvecklarläget delade alla inloggade EN låda – den som installerat
+       * med ARK_UTVECKLARLAGE=1 i drift fick tillbaka felet ovan. Bara ÖPPEN
+       * drift, där alla är samma användare, har kvar EN brevlåda direkt i
+       * `arkDir` (`.ark/request.json`).
        */
       interface Brevlåda {
         nyckel: string;
@@ -434,10 +438,9 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
         response: string;
         underlag: string;
       }
-      const delad = utvecklarläge || auth.läge === "öppen";
+      const delad = auth.läge === "öppen";
       const brevlåda = (u: Användare): Brevlåda => {
-        const nyckel = delad ? "" : crypto.createHash("sha256").update(u.id).digest("hex").slice(0, 32);
-        const katalog = delad ? dir : path.join(dir, ANVÄNDARLÅDOR, nyckel);
+        const { nyckel, katalog } = brevlådekatalog(dir, delad ? null : u.id);
         return {
           nyckel,
           katalog,

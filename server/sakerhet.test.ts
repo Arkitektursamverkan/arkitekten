@@ -13,6 +13,7 @@ import { klientadress, skapaBrygga, viaHttps, type AiModuler } from "./brygga";
 import { skapaServer } from "./arkitekten.mjs";
 import { installningarUrMiljö, kontrollera } from "./installningar";
 import { Inloggningsspärr, spärrnycklar } from "./konton";
+import { väntandeBegäranden } from "./brevlada";
 import { inloggningsfelKod, inloggningsfelText } from "../src/core/inloggningsfel";
 
 const MILJÖ = { ...process.env };
@@ -185,7 +186,7 @@ describe("AI-brevlådan per användare", () => {
     expect(fs.existsSync(fil)).toBe(false);
   });
 
-  it("utvecklarläget har EN brevlåda direkt i arkDir – den Claude Code läser", async () => {
+  it("REGRESSION: utvecklarläget med inloggning delade EN brevlåda – nu har var och en sin, och Claude Code hittar den", async () => {
     const dev = fs.mkdtempSync(path.join(os.tmpdir(), "sakerhet-dev-"));
     const inst = installningarUrMiljö(dev, {});
     const s = skapaServer(
@@ -209,7 +210,17 @@ describe("AI-brevlådan per användare", () => {
         body: JSON.stringify({ rawText: "x", via: "claude-code" }),
       });
       expect(r.status).toBe(200);
-      expect(fs.existsSync(path.join(inst.arkDir, "request.json"))).toBe(true);
+      const id = (await r.json()).id;
+      expect(fs.existsSync(path.join(inst.arkDir, "request.json"))).toBe(false);
+      // Begäran ligger i användarens låda och syns för den som svarar för hand.
+      const väntande = väntandeBegäranden(inst.arkDir);
+      expect(väntande.map((b) => b.id)).toEqual([id]);
+      expect(väntande[0].katalog).toContain(`${path.sep}anvandare${path.sep}`);
+      // Ett svar i SAMMA katalog plockas upp av rätt användare.
+      fs.writeFileSync(väntande[0].response, JSON.stringify({ requestId: id, aiText: "svar" }));
+      const svar = await fetch(`http://127.0.0.1:${port}/__ark/response`, { headers: { cookie: kaka } });
+      expect(svar.status).toBe(200);
+      expect((await svar.json()).response.aiText).toBe("svar");
     } finally {
       await new Promise<void>((klar) => s.close(() => klar()));
       fs.rmSync(dev, { recursive: true, force: true });
