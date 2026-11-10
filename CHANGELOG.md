@@ -9,6 +9,16 @@ funktioner, en ny korrigering för rättelser.
 
 - (inget än)
 
+## 0.8.0 – 2026-11-10
+
+- **Säkerhet: processbilderna kan inte bära skript.** HUKI-bokstaven valideras, alla attribut i SVG-exporten escapas, en bild som inte går att tolka blir tom, och all SVG renas med DOMPurify innan den visas. Servern skickar Content-Security-Policy, `nosniff`, `Referrer-Policy` och HSTS över https; flödestjänstens SVG får en egen strikt policy.
+- **Säkerhet: publiceringen i EA-portalen ägs av servern** – den skrivs bara via `PUT`/`DELETE /__ark/ea/publicering/:id` (admin, gemensam yta) och aldrig ur en vanlig sparning, och byte av yta tar bort den. Flödestjänsten lämnar bara ut publiceringen för gemensamma processer; en publicerad Demo-process försvinner ur portalen vid nästa synk.
+- **Säkerhet: skydd mot förfalskade anrop** – ändrande anrop under `/__ark` kräver appens eget ursprung och JSON; `/auth/logout` tar bara `POST`. Efter Entra-inloggningen skickas man bara vidare inom appen.
+- **Säkerhet: `ARK_BETRODD_PROXY` är antalet betrodda proxyer** (`1`/`true` som förut) och klientens adress tas från höger i `X-Forwarded-For`, så inloggningsspärren inte kan kringgås; spärren rensar gamla poster och har ett tak.
+- **Säkerhet: brevlådan för AI-begäranden är per användare även i utvecklarläget** när inloggning är på (`npx tsx scripts/brevlada.mts` visar var begäranden väntar). Bara öppen drift har den delade `.ark/`.
+- **Säkerhet: AI-stödet** – utvärderingens systemprompt byggs på servern, underlaget har ett tak (200 000 tecken, uppackade filer 10 MB) och varje användare får högst `ARK_AI_TAK_PER_TIMME` (30) begäranden i timmen.
+- Flödestjänsten kraschar inte längre på en felaktig begäran. Dev-servern lyssnar bara på `127.0.0.1` (`ARK_DEV_HOST` för att dela). Organisationsspecifika processnamn är borta ur tester och kommentarer; neutralitetstestets namnlistor läses ur `.lokalt/`. CI har bara läsbehörighet och actions är låsta till commit-SHA. Nytt beroende: `dompurify`.
+
 ## 0.7.0 – 2026-11-09
 
 - Utan `ARK_BAS_URL` används `RENDER_EXTERNAL_URL` (adressen Render ger tjänsten), så en ny Render-installation startar innan den egna adressen är ifylld.
