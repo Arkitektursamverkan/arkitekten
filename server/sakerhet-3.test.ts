@@ -282,3 +282,45 @@ describe("tillbaka efter inloggningen", () => {
     expect(säkerTillbaka("/ramar?serie=a#b")).toBe("/ramar?serie=a#b");
   });
 });
+
+describe("CSRF-skyddet", () => {
+  it("REGRESSION: ett formulär från en annan webbplats kunde ändra – nu krävs JSON och rätt ursprung", async () => {
+    // Ett formulär: text/plain eller urlencoded, med den andra sidans Origin.
+    const form = await admin("/__ark/konton", {
+      method: "POST",
+      body: "användarnamn=ond@example.org",
+      headers: { "content-type": "application/x-www-form-urlencoded", origin: "https://evil.example" },
+    });
+    expect(form.status).toBe(403);
+    // Rätt typ men fel ursprung.
+    expect((await admin("/__ark/konton", { ...post({}), headers: { origin: "https://evil.example" } })).status).toBe(403);
+    expect((await admin("/__ark/konton", { ...post({}), headers: { "sec-fetch-site": "cross-site" } })).status).toBe(403);
+    expect((await admin("/__ark/konton", { ...post({}), headers: { origin: "null" } })).status).toBe(403);
+    // Rätt ursprung men inte JSON.
+    expect((await admin("/__ark/cancel", { method: "POST", body: "", headers: { "content-type": "text/plain", origin: bas } })).status).toBe(403);
+    // Appens eget anrop går igenom.
+    expect((await admin("/__ark/cancel", { ...post({}), headers: { origin: bas, "sec-fetch-site": "same-origin" } })).status).toBe(200);
+    // En DELETE från en annan webbplats stoppas också.
+    expect((await admin("/__ark/flows/finns-inte", { method: "DELETE", headers: { origin: "https://evil.example" } })).status).toBe(403);
+  });
+
+  it("uppladdningen tar binärt men kräver appens ursprung", async () => {
+    const upp = (h: Record<string, string>) =>
+      anna("/__ark/underlag?namn=a.txt", { method: "POST", body: "x", headers: { "content-type": "application/octet-stream", ...h } });
+    expect((await upp({})).status).toBe(403);
+    expect((await upp({ origin: "https://evil.example" })).status).toBe(403);
+    expect((await upp({ "sec-fetch-site": "same-origin" })).status).toBe(200);
+    expect((await upp({ origin: bas })).status).toBe(200);
+  });
+
+  it("REGRESSION: utloggningen var en GET – nu bara POST", async () => {
+    const k = klient();
+    await k("/__ark/auth/lokal", post({ användarnamn: "bo@example.org", lösenord: "ett långt lösenord" }));
+    const get = await fetch(`${bas}/__ark/auth/logout`, { redirect: "manual" });
+    expect(get.status).toBe(405);
+    const ut = await k("/__ark/auth/logout", post({}));
+    expect(ut.status).toBe(200);
+    expect(ut.kropp.tillbaka).toBe("/");
+    expect(ut.kaka).toMatch(/Max-Age=0/i);
+  });
+});

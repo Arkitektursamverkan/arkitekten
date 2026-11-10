@@ -158,7 +158,7 @@ describe("AI-brevlådan per användare", () => {
   });
 
   it("REGRESSION: underlagen låg kvar för alltid och kunde läsas genom en annans begäran", async () => {
-    const upp = await anna("/__ark/underlag?namn=rutin.txt", { method: "POST", body: "Annas rutin", headers: { "content-type": "application/octet-stream" } });
+    const upp = await anna("/__ark/underlag?namn=rutin.txt", { method: "POST", body: "Annas rutin", headers: { "content-type": "application/octet-stream", origin: bas } });
     expect(upp.status).toBe(200);
     const sökväg = upp.kropp.sökväg as string;
     const fil = path.isAbsolute(sökväg) ? sökväg : path.join(tmp, sökväg);
@@ -176,12 +176,12 @@ describe("AI-brevlådan per användare", () => {
   });
 
   it("underlag äldre än ett dygn gallras vid nästa uppladdning, i alla brevlådor", async () => {
-    const upp = await anna("/__ark/underlag?namn=gammal.txt", { method: "POST", body: "gammalt", headers: { "content-type": "application/octet-stream" } });
+    const upp = await anna("/__ark/underlag?namn=gammal.txt", { method: "POST", body: "gammalt", headers: { "content-type": "application/octet-stream", origin: bas } });
     const sökväg = upp.kropp.sökväg as string;
     const fil = path.isAbsolute(sökväg) ? sökväg : path.join(tmp, sökväg);
     const förr = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     fs.utimesSync(fil, förr, förr);
-    await bo("/__ark/underlag?namn=ny.txt", { method: "POST", body: "nytt", headers: { "content-type": "application/octet-stream" } });
+    await bo("/__ark/underlag?namn=ny.txt", { method: "POST", body: "nytt", headers: { "content-type": "application/octet-stream", origin: bas } });
     expect(fs.existsSync(fil)).toBe(false);
   });
 

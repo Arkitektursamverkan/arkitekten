@@ -241,6 +241,65 @@ export function klientadress(req: IncomingMessage, proxyer: number | boolean): s
   return req.socket.remoteAddress ?? "";
 }
 
+/** Vägar som tar emot binärt (inte JSON) – de prövas bara på ursprunget. */
+const BINÄRA_VÄGAR = new Set(["/underlag"]);
+
+/** Värden (host:port) ur en adress, eller tomt. */
+function värdUr(adress: string | undefined): string {
+  try {
+    return adress?.trim() ? new URL(adress.trim()).host : "";
+  } catch {
+    return "";
+  }
+}
+
+/** Ett huvud som text (första värdet). */
+function huvud(req: IncomingMessage, namn: string): string {
+  const v = req.headers[namn];
+  return ((Array.isArray(v) ? v[0] : v) ?? "").trim();
+}
+
+/**
+ * CSRF-skyddet – EN plats, så att båda värdarna (servern och Vite) får det.
+ * Gäller allt som ändrar något (POST/PUT/PATCH/DELETE under /__ark):
+ *
+ * - Bär begäran `Origin` ska den vara appens egen (värden i `Host`,
+ *   proxyns `X-Forwarded-Host` bakom en betrodd proxy, eller ARK_BAS_URL).
+ *   Saknas den gäller `Sec-Fetch-Site`: same-origin eller none.
+ * - Kroppen ska vara `application/json` – ett formulär från en annan sida kan
+ *   inte skicka det utan att webbläsaren först frågar (CORS). DELETE har
+ *   ingen kropp och kan inte skickas av ett formulär. Uppladdningarna
+ *   (BINÄRA_VÄGAR) tar binärt och kräver i stället ett ursprung som stämmer.
+ *
+ * Ger felet i klartext, eller null när begäran får passera.
+ */
+export function prövaUrsprung(req: IncomingMessage, url: string, egnaVärdar: string[]): string | null {
+  const metod = (req.method ?? "GET").toUpperCase();
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(metod)) return null;
+  const origin = huvud(req, "origin");
+  const plats = huvud(req, "sec-fetch-site").toLowerCase();
+  const värdar = egnaVärdar.map((v) => v.trim().toLowerCase()).filter(Boolean);
+  let ursprungStämmer = false;
+  if (origin) {
+    let värd = "";
+    try {
+      värd = new URL(origin).host.toLowerCase();
+    } catch {
+      /* "null" och skräp är inget ursprung */
+    }
+    if (!värd || !värdar.includes(värd)) return "Begäran kom från en annan webbplats.";
+    ursprungStämmer = true;
+  } else if (plats) {
+    if (plats !== "same-origin" && plats !== "none") return "Begäran kom från en annan webbplats.";
+    ursprungStämmer = plats === "same-origin";
+  }
+  if (BINÄRA_VÄGAR.has(url)) return ursprungStämmer ? null : "Uppladdningen saknar ett ursprung från appen.";
+  if (metod === "DELETE") return null;
+  if (!/^application\/json\b/i.test(huvud(req, "content-type")))
+    return "Begäran måste skickas som JSON (content-type: application/json).";
+  return null;
+}
+
 /** Nåddes appen över https? Proxyn framför säger det med `x-forwarded-proto`. */
 export function viaHttps(req: IncomingMessage): boolean {
   const proto = req.headers["x-forwarded-proto"];
@@ -546,6 +605,18 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
         const url = (req.url ?? "").split("?")[0];
 
         try {
+          // --- CSRF: allt som ändrar något måste komma från appen själv.
+          const egnaVärdar = [
+            huvud(req, "host"),
+            ...(betroddProxy ? [huvud(req, "x-forwarded-host").split(",")[0]] : []),
+            värdUr(process.env.ARK_BAS_URL),
+          ];
+          const csrf = prövaUrsprung(req, url, egnaVärdar);
+          if (csrf) {
+            json(res, 403, { ok: false, error: csrf });
+            return;
+          }
+
           // --- Inloggningen. De här vägarna är de enda som nås utan session.
           if (url === "/auth/me" && req.method === "GET") {
             json(res, 200, {
@@ -669,9 +740,18 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             }
           }
 
+          // Utloggningen är en POST (och därmed CSRF-skyddad): en GET kunde
+          // läggas i en bild på vilken sida som helst och logga ut den som
+          // tittade. Svaret säger vart webbläsaren ska gå sedan.
           if (url === "/auth/logout") {
+            if (req.method !== "POST") {
+              res.setHeader("allow", "POST");
+              json(res, 405, { ok: false, error: "Utloggningen är en POST." });
+              return;
+            }
             const rensa = kaka(SESSION_KAKA, "", { maxÅlder: 0, säker: säkerKaka(req) });
-            omdirigera(res, auth.läge === "entra" && !saknas.length ? utloggningsUrl(auth) : "/", [rensa]);
+            res.setHeader("set-cookie", [rensa]);
+            json(res, 200, { ok: true, tillbaka: auth.läge === "entra" && !saknas.length ? utloggningsUrl(auth) : "/" });
             return;
           }
 
