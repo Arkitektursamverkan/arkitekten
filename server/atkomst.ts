@@ -57,9 +57,19 @@ function personI(ä: unknown): Ägare | undefined {
  * - Byter sparningen yta ändå (kategorin sattes till eller från Demo) prövas
  *   det som ett byte av yta – och publiceringen följer inte med ut ur den
  *   gemensamma katalogen.
- * - Historiken får inte ha tappat filens senaste version. Två personer som
- *   sparar samma process samtidigt hade annars skrivit över varandras
- *   versioner (invariant 11) – den som kommer sist får ladda om i stället.
+ * - HISTORIKEN BYGGS BARA PÅ (invariant 11). `versions` ska vara en lista,
+ *   och filens versioner ska stå i den OFÖRÄNDRADE – det enda begäran får
+ *   göra är att lägga till nya sist (`slåIhopHistorik`). Saknas filens
+ *   senaste version har någon annan sparat sedan processen öppnades (409 –
+ *   ladda om); är en äldre version ändrad, borttagen eller omkastad är det
+ *   ingen sparning appen gör (403). REGRESSION: servern såg bara efter att
+ *   filens SISTA version fanns kvar, så den som fick spara (t.ex. i Demo)
+ *   kunde skriva om eller stryka hela den tidigare historiken.
+ * - Signaturen på en NY version (`savedBy`) sätts av servern till den
+ *   inloggade – aldrig ur begäran. REGRESSION: begärans `savedBy` fick stå
+ *   kvar, så vem som helst kunde stämpla en version med en annans namn. (I
+ *   öppen drift finns ingen inloggad att stämpla med; där står fältet som
+ *   användaren skrev det, som före inloggningen.)
  */
 export function prövaSparning(
   u: Användare,
@@ -67,6 +77,7 @@ export function prövaSparning(
   befintlig: Flöde | null,
   ny: Flöde,
 ): Prövning<Flöde> {
+  if (!Array.isArray(ny?.versions)) return nej(400, "Processen saknar versionshistorik (versions).");
   const { ägare: _ignorerad, skapadAv: _ocksåIgnorerad, publicering: _serverns, ...kropp } = ny;
   if (!befintlig) {
     const ägare = ägareVidSkapande(u, läge, kropp);
@@ -95,28 +106,61 @@ export function prövaSparning(
   // Filens publicering står kvar – så länge processen ligger kvar i den gemensamma katalogen.
   if (befintlig.publicering !== undefined && till === "gemensam") ut.publicering = befintlig.publicering;
 
-  const sista = befintlig.versions?.[befintlig.versions.length - 1];
-  if (sista?.id && Array.isArray(ut.versions)) {
-    const finns = ut.versions.some((v) => v.id === sista.id && v.savedAt === sista.savedAt);
-    if (!finns)
-      return nej(
-        409,
-        "Processen har sparats av någon annan sedan du öppnade den. Ladda om den – din ändring är inte sparad.",
-      );
-  }
-  return { ok: true, värde: stämplaSignatur(ut, u, läge, befintlig.versions?.length ?? 0) };
+  const gamla = Array.isArray(befintlig.versions) ? befintlig.versions : [];
+  const historik = slåIhopHistorik(gamla, ny.versions);
+  if (!historik.ok) return historik;
+  ut.versions = historik.värde;
+  return { ok: true, värde: stämplaSignatur(ut, u, läge, gamla.length) };
+}
+
+/** JSON med nycklarna i bokstavsordning – två lika versioner ger samma text, oavsett fältordning. */
+function kanonisk(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map((x) => (x === undefined ? "null" : kanonisk(x))).join(",")}]`;
+  if (v && typeof v === "object")
+    return `{${Object.keys(v as object)
+      .filter((k) => (v as Record<string, unknown>)[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${kanonisk((v as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  return JSON.stringify(v) ?? "null";
+}
+
+type Version = NonNullable<Flöde["versions"]>[number];
+
+/**
+ * Historiken som ska skrivas: filens versioner, OFÖRÄNDRADE, och därefter de
+ * nya ur begäran.
+ *
+ * Begäran får bära filens versioner från början eller bara de SENASTE av dem
+ * (appen håller högst `MAX_VERSIONS` i minnet och skickar då ett fönster), men
+ * det den bär ska vara exakt filens – och filens senaste version ska vara med.
+ * Det som står efter den är nytt. Servern tappar alltså aldrig en version, ens
+ * när appen skickar färre: hela historiken står kvar i filen (invariant 11).
+ */
+export function slåIhopHistorik(gamla: Version[], nya: Version[]): Prövning<Version[]> {
+  if (!gamla.length) return { ok: true, värde: nya };
+  const sista = kanonisk(gamla[gamla.length - 1]);
+  const nyckel = nya.map(kanonisk);
+  const j = nyckel.lastIndexOf(sista);
+  if (j < 0)
+    return nej(
+      409,
+      "Processen har sparats av någon annan sedan du öppnade den. Ladda om den – din ändring är inte sparad.",
+    );
+  // nya[0..j] ska vara filens j+1 senaste versioner, i samma ordning.
+  const start = gamla.length - 1 - j;
+  if (start < 0 || nyckel.slice(0, j + 1).some((k, i) => k !== kanonisk(gamla[start + i])))
+    return nej(403, "Historiken får bara byggas på – en tidigare version kan inte ändras eller tas bort.");
+  return { ok: true, värde: [...gamla, ...nya.slice(j + 1)] };
 }
 
 /**
- * En NY version utan signatur får den inloggades namn. Med inloggning vet vi
- * vem som sparade – fältet i panelen behöver inte fyllas i för hand. Äldre
- * versioner rörs aldrig.
+ * En NY version får den inloggades namn – alltid, vad begäran än skrev i
+ * fältet. Äldre versioner rörs aldrig. I öppen drift finns ingen inloggad.
  */
 function stämplaSignatur(f: Flöde, u: Användare, läge: Inloggningsläge, antalFöre: number): Flöde {
   if (läge === "öppen" || !Array.isArray(f.versions) || f.versions.length <= antalFöre) return f;
-  const versions = f.versions.map((v, i) =>
-    i >= antalFöre && !v.savedBy?.trim() ? { ...v, savedBy: u.namn } : v,
-  );
+  const versions = f.versions.map((v, i) => (i >= antalFöre ? { ...v, savedBy: u.namn } : v));
   return { ...f, versions };
 }
 

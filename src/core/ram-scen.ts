@@ -3,7 +3,7 @@
  *
  * Samma tanke som flödesfliken: det fasta hör till SERIEN, det som händer hör
  * till RAMEN. Serien bär en scen – en bakgrund (en ritad stad, en tom yta
- * eller en egen bild) med utplacerade figurer: hyresgästen, huvudkontoret,
+ * eller en egen bild) med utplacerade figurer: kunden, kontoret,
  * en hantverkare, ikoner. Varje ram säger vad som händer i den: vilka figurer
  * som lyfts fram, vilka pulser som går mellan dem, vad som sägs i
  * pratbubblorna och vilka figurer som inte syns ännu.
@@ -210,7 +210,7 @@ export interface RamScen {
   pulspunkter: ScenPulspunkt[];
   /**
    * Figurer som står på en EGEN plats i den här ramen (mitt, som i scenen).
-   * Saknas = scenens plats. Så kan hyresgästen stå vid bostaden i en ram och
+   * Saknas = scenens plats. Så kan kunden stå vid hemmet i en ram och
    * vid huvudkontoret i nästa.
    */
   figurLägen: Record<string, { x: number; y: number }>;
@@ -317,9 +317,9 @@ export function standardScen(): Scen {
   return {
     bakgrund: { typ: "stad" },
     figurer: [
-      { id: "bostad", typ: "bostadshus", namn: "Bostad", x: 330, y: 560 },
-      { id: "hyresgast", typ: "hyresgast", namn: "Hyresgäst", x: 480, y: 650 },
-      { id: "huvudkontor", typ: "huvudkontor", namn: "Huvudkontor", x: 1200, y: 545 },
+      { id: "bostad", typ: "bostadshus", namn: "Hem", x: 330, y: 560 },
+      { id: "hyresgast", typ: "hyresgast", namn: "Kund", x: 480, y: 650 },
+      { id: "huvudkontor", typ: "huvudkontor", namn: "Kontor", x: 1200, y: 545 },
     ],
   };
 }

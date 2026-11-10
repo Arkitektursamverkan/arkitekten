@@ -121,9 +121,9 @@ describe("relationHint", () => {
       relationHint(
         rel({ kind: "samverkar" }),
         nod("s1", "aktivitet", "Annonsera"),
-        nod("it1", "applikation", "ReachMee"),
+        nod("it1", "applikation", "Rekryteringssystem"),
       ),
-    ).toBe("Samverkar med: ”Annonsera” → ”ReachMee”");
+    ).toBe("Samverkar med: ”Annonsera” → ”Rekryteringssystem”");
   });
 });
 

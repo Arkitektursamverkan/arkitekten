@@ -100,7 +100,13 @@ describe("EA-portalens klient", () => {
     const { k, anrop } = falskPortal((_väg, init) =>
       init.method === "PATCH"
         ? {}
-        : { id: "ny", name: "4.4.5 Ny", attributes: { parent_id: "b", prefix: "4.4.5", owner: "Gammal" } },
+        : {
+            id: "ny",
+            type: "Process",
+            name: "4.4.5 Ny",
+            external_source: "NONE",
+            attributes: { parent_id: "b", prefix: "4.4.5", owner: "Gammal", källa: "Arkitekten" },
+          },
     );
     await uppdateraEgenProcess(k, "ny", { ägare: "Ny ägare", beskrivning: "Ny text" });
     expect(anrop[1]).toMatchObject({
@@ -108,16 +114,29 @@ describe("EA-portalens klient", () => {
       metod: "PATCH",
       kropp: {
         description: "Ny text",
-        attributes: { parent_id: "b", prefix: "4.4.5", owner: "Ny ägare" },
+        attributes: { parent_id: "b", prefix: "4.4.5", owner: "Ny ägare", källa: "Arkitekten" },
       },
     });
+  });
+
+  it("REGRESSION: uppdateringen rörde vilken nod som helst – nu bara en process skapad ur Arkitekten", async () => {
+    for (const nod of [
+      { id: "443", type: "Process", name: "4.4.3", external_source: "EXTERN", attributes: { källa: "Arkitekten" } },
+      { id: "egen", type: "Process", name: "Handskapad", external_source: "NONE", attributes: {} },
+      { id: "app", type: "Application", name: "Kundportalen", external_source: "NONE", attributes: { källa: "Arkitekten" } },
+      { id: "utan", name: "Okänd typ", external_source: "NONE", attributes: { källa: "Arkitekten" } },
+    ]) {
+      const { k, anrop } = falskPortal(() => nod);
+      await expect(uppdateraEgenProcess(k, nod.id, { ägare: "X", beskrivning: "Y" })).rejects.toThrow("ändras inte härifrån");
+      expect(anrop.some((a) => a.metod === "PATCH")).toBe(false);
+    }
   });
 
   it("arkiverar en process som skapats ur Arkitekten", async () => {
     const { k, anrop } = falskPortal((_, init) =>
       init.method === "PATCH"
         ? {}
-        : { id: "ny", name: "4.4.5 Ny", external_source: "NONE", attributes: { källa: "Arkitekten" } },
+        : { id: "ny", type: "Process", name: "4.4.5 Ny", external_source: "NONE", attributes: { källa: "Arkitekten" } },
     );
     await arkiveraEgenProcess(k, "ny");
     expect(anrop[1]).toMatchObject({ väg: "/nodes/ny", metod: "PATCH", kropp: { archived: true } });
@@ -125,8 +144,9 @@ describe("EA-portalens klient", () => {
 
   it("vägrar arkivera en nod med extern källa eller en nod som skapats i portalen", async () => {
     for (const nod of [
-      { id: "443", name: "4.4.3", external_source: "EXTERN", attributes: { källa: "Arkitekten" } },
-      { id: "egen", name: "Handskapad", external_source: "NONE", attributes: {} },
+      { id: "443", type: "Process", name: "4.4.3", external_source: "EXTERN", attributes: { källa: "Arkitekten" } },
+      { id: "egen", type: "Process", name: "Handskapad", external_source: "NONE", attributes: {} },
+      { id: "app", type: "Application", name: "Kundportalen", external_source: "NONE", attributes: { källa: "Arkitekten" } },
     ]) {
       const { k, anrop } = falskPortal(() => nod);
       await expect(arkiveraEgenProcess(k, nod.id)).rejects.toThrow("arkiveras inte härifrån");

@@ -106,14 +106,14 @@ describe("AI-schemats mappning till mellanlagret", () => {
       steps: [
         {
           ...SVAR.steps[0],
-          text: "Genomför urval [Roll: HR U] [IT: ReachMee] [Krav: Öka mångfald]",
+          text: "Genomför urval [Roll: HR U] [IT: Rekryteringssystem] [Krav: Öka mångfald]",
         },
       ],
     };
     const draft = toDraft(svar, "råtext");
     expect(draft.steps[0].text).toBe("Genomför urval");
     expect(draft.steps[0].ap?.roller).toEqual([{ namn: "HR", huki: "U" }]);
-    expect(draft.steps[0].ap?.applikationer).toEqual(["ReachMee"]);
+    expect(draft.steps[0].ap?.applikationer).toEqual(["Rekryteringssystem"]);
     expect(draft.steps[0].ap?.krav).toEqual(["Öka mångfald"]);
   });
 });

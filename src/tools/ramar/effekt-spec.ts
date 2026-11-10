@@ -3,7 +3,7 @@
  *
  * Flödesfliken lägger sina effekter i exportens SVG-sträng (DOM, effekter.ts),
  * bildfliken ritar sin scen med React (ScenBild.tsx). Båda byggs ur samma
- * beskrivning här, så en puls mellan hyresgästen och huvudkontoret ser exakt
+ * beskrivning här, så en puls mellan kunden och kontoret ser exakt
  * ut som en puls längs en koppling i flödet – samma fart, samma glöd, samma
  * ringar (invariant 1: en regel, en plats).
  *

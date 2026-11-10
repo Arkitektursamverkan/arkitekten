@@ -17,7 +17,7 @@ RUN npm run build && npm prune --omit=dev
 # ── Drift ──────────────────────────────────────────────────────────────────────
 FROM node:24-slim AS runtime
 
-# Release-arbetsflödet skickar taggen (t.ex. 0.1.0); den syns i /health.
+# Release-arbetsflödet skickar taggen (t.ex. 0.1.0); den syns för inloggade i /__ark/status.
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.title="Arkitekten (processritaren)" \
       org.opencontainers.image.licenses="EUPL-1.2" \

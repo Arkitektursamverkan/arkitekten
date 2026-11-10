@@ -39,7 +39,7 @@ function rita(aktivtFlöde: string | null) {
   return öppnade;
 }
 
-// Påhittade ärendetyper – standardlistan är en viss installations portal.
+// Påhittade ärendetyper – installationens egna kommer ur ARK_ARENDETYPER.
 beforeEach(användTestärendetyper);
 afterEach(() => {
   cleanup();

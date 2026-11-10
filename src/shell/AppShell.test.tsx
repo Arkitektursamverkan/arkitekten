@@ -44,7 +44,7 @@ const FLÖDEN = [
 ];
 
 beforeEach(() => {
-  // Påhittade ärendetyper – standardlistan är en viss installations portal.
+  // Påhittade ärendetyper – installationens egna kommer ur ARK_ARENDETYPER.
   användTestärendetyper();
   history.replaceState(null, "", location.pathname);
   localStorage.clear();

@@ -170,38 +170,53 @@ export interface Ärendetyp {
   test: (id: string) => boolean;
 }
 
-/**
- * STANDARDLISTAN – en installations portal, inbyggd sedan menyn byggdes.
- * Den är organisationsspecifik och ska lyftas ut i installationens
- * inställningar (eller dess innehållspaket); tills dess är den standard så att
- * menyn inte ändrar beteende. Läs den ALDRIG direkt – gå via `ärendetyper()`,
- * så att en installation (och testerna) kan sätta en egen lista med
- * `sättÄrendetyper`.
- */
-const ÄRENDETYPER: Ärendetyp[] = [
-  {
-    id: "felanmalan",
-    titel: "Felanmälan",
-    test: (id) => id.startsWith("felanmalan") && !id.startsWith("felanmalan-och-"),
-  },
-  { id: "bestallning", titel: "Beställning", test: (id) => id.startsWith("bestallning") },
-  {
-    id: "utvecklingsforslag",
-    titel: "Utvecklingsförslag",
-    test: (id) => id.startsWith("utvecklingsforslag"),
-  },
-  // Avvikelse och incident är EN ärendetyp i portalen med en typväxel inuti
-  // ("Byt ärendetyp") – därför en gren, inte två.
-  { id: "avvikelse", titel: "Avvikelse och incident", test: (id) => id.startsWith("avvikelse") },
-  // Reduktion/rabatt har ingen godkännare – handläggaren beslutsattesterar –
-  // och tre flöden som Power Automate startar själv (målgruppen "Automatiskt").
-  { id: "reduktion", titel: "Reduktion/rabatt", test: (id) => id.startsWith("reduktion") },
-  // Allt som inte hör till EN ärendetyp: delade kommentarsflöden och de
-  // schemalagda flödena som går över alla ärenden.
-  { id: "gemensamt", titel: "Gemensamt", test: () => true },
-];
+/** Reservgrenen: allt som inte hör till EN ärendetyp (delade flöden, schemalagda). */
+const RESERV_ID = "gemensamt";
 
-/** Den lista som gäller just nu: satt med `sättÄrendetyper`, annars standardlistan. */
+/**
+ * En ärendetyp ur installationens inställning (`organisation().ärendetyper`,
+ * `ARK_ARENDETYPER`): "Titel" eller "prefix=Titel". Flödet hör till typen när
+ * dess id börjar med prefixet – men inte när det är ett SAMMANSATT id
+ * (`<prefix>-och-…`, "Driftfråga och inköpsorder – …"): ett sådant gäller
+ * flera typer och hamnar i reservgrenen.
+ */
+export function tolkaÄrendetyp(post: string): Ärendetyp | null {
+  const i = post.indexOf("=");
+  const titel = (i >= 0 ? post.slice(i + 1) : post).trim();
+  if (!titel) return null;
+  const prefix = flowId(i >= 0 ? post.slice(0, i).trim() || titel : titel);
+  return {
+    id: prefix,
+    titel,
+    test: (id) => id.startsWith(prefix) && !id.startsWith(`${prefix}-och-`),
+  };
+}
+
+/**
+ * Installationens lista, tolkad – och reservgrenen sist. Utan ärendetyper är
+ * reservgrenen den enda: ingen gruppering, alla processer i en gren.
+ * REGRESSION: standardlistan var en viss organisations portal, inbyggd i
+ * koden; nu kommer den ur installationens inställning.
+ */
+let tolkad: { nyckel: string; lista: Ärendetyp[] } | null = null;
+function frånOrganisation(): Ärendetyp[] {
+  const poster = organisation().ärendetyper ?? [];
+  const nyckel = JSON.stringify(poster);
+  if (tolkad?.nyckel === nyckel) return tolkad.lista;
+  const typer: Ärendetyp[] = [];
+  for (const p of poster) {
+    const t = tolkaÄrendetyp(p);
+    if (t && t.id !== RESERV_ID && !typer.some((x) => x.id === t.id)) typer.push(t);
+  }
+  const lista = [
+    ...typer,
+    { id: RESERV_ID, titel: typer.length ? "Gemensamt" : "Alla processer", test: () => true },
+  ];
+  tolkad = { nyckel, lista };
+  return lista;
+}
+
+/** Den lista som gäller just nu: satt med `sättÄrendetyper`, annars installationens. */
 let satta: Ärendetyp[] | null = null;
 
 /**
@@ -209,10 +224,10 @@ let satta: Ärendetyp[] | null = null;
  * hör till en ärendetyp) och ska därför matcha allt.
  */
 export function ärendetyper(): Ärendetyp[] {
-  return satta ?? ÄRENDETYPER;
+  return satta ?? frånOrganisation();
 }
 
-/** Sätter installationens ärendetyper; `null` återställer standardlistan. */
+/** Sätter ärendetyperna direkt (testerna); `null` återgår till installationens inställning. */
 export function sättÄrendetyper(lista: Ärendetyp[] | null): void {
   satta = lista;
 }

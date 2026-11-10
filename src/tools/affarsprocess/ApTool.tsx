@@ -95,7 +95,7 @@ const PAGE_ORDER: PageFormatId[] = ["word", "free", "wide", "a4l"];
 // det, och kedjan gick sönder mitt i. [In: …] är till
 // för objekt som kommer UTIFRÅN processen.
 const EXAMPLE = `Rekrytera medarbetare
-Behov av rekrytering uppstår → Skapa kravprofil [Roll: Rekryterande chef U] [Krav: Kompetensbaserad rekrytering] → Annonsera tjänst [Roll: HR U] [IT: ReachMee] [Ut: Ansökningar] → Genomför urval [Roll: Rekryterande chef H, HR K] [Krav: Öka mångfald] (↓ Om kandidat godkänd → Lämna anställningserbjudande [Roll: Rekryterande chef U] [Tid: Inom 5 dagar]) → Avsluta rekrytering [IT: ReachMee]`;
+Behov av rekrytering uppstår → Skapa kravprofil [Roll: Rekryterande chef U] [Krav: Kompetensbaserad rekrytering] → Annonsera tjänst [Roll: HR U] [IT: Rekryteringssystem] [Ut: Ansökningar] → Genomför urval [Roll: Rekryterande chef H, HR K] [Krav: Öka mångfald] (↓ Om kandidat godkänd → Lämna anställningserbjudande [Roll: Rekryterande chef U] [Tid: Inom 5 dagar]) → Avsluta rekrytering [IT: Rekryteringssystem]`;
 
 /** Märker en draft som affärsprocess – valet följer med när flödet sparas och öppnas. */
 function somAp(d: ProcessDraft): ProcessDraft {
@@ -1215,7 +1215,7 @@ export function ApTool({
                     <summary>Satellitsyntaxen</summary>
                     <p className="ark-hint">
                       Satelliter anges med hakparenteser i steget: <code>[Roll: HR U]</code>{" "}
-                      <code>[Intressent: Hyresgäst I]</code> <code>[IT: ReachMee]</code>{" "}
+                      <code>[Intressent: Kund I]</code> <code>[IT: Rekryteringssystem]</code>{" "}
                       <code>[Krav: Öka mångfald]</code> <code>[Tid: Inom 5 dagar]</code>{" "}
                       <code>[In: Handling från Lantmäteriet]</code>{" "}
                       <code>[Ut: Urval genomfört]</code>. <code>[Forum]</code> utan kolon gör

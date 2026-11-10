@@ -279,7 +279,7 @@ describe("compileAp – satelliter", () => {
   it("intressent utan angiven bokstav blir Informeras", () => {
     const m = compileAp(
       draftMed([
-        steg("a1", "activity", "Fatta beslut", { ap: { intressenter: [{ namn: "Hyresgäst" }] } }),
+        steg("a1", "activity", "Fatta beslut", { ap: { intressenter: [{ namn: "Kund" }] } }),
       ]),
     );
     const rel = m.relations.find((r) => r.kind === "huki");

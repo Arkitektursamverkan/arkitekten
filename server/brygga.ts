@@ -62,7 +62,7 @@ import {
   avslutaInloggning,
   devAnvändare,
   kaka,
-  läsSession,
+  läsSessionen,
   påbörjaInloggning,
   rensaOidcKaka,
   saknasFörEntra,
@@ -72,7 +72,7 @@ import {
 } from "./auth";
 import { bytYta, prövaPublicering, prövaRamserie, prövaSparning } from "./atkomst";
 import { läsStilar, valdStil, väljStil } from "./symbolstilar";
-import { Inloggningsspärr, Kontofel, Kontolager, somAnvändare, spärrnycklar, utåt } from "./konton";
+import { Inloggningsspärr, Kontofel, Kontolager, sessionsversion, somAnvändare, spärrnycklar, utåt } from "./konton";
 import { ALLMÄNT_FEL, Användarfel, Kroppsfel } from "./fel";
 import { exempelpaket, importera } from "./innehallspaket.mjs";
 import { organisation, organisationUrMiljö, sättOrganisation } from "../src/core/organisation";
@@ -82,6 +82,7 @@ import {
   ärAdmin,
   kanLäsa,
   kanTaBort,
+  kanLäsaRamserie,
   kanTaBortRamserie,
   kanÄndraRamserie,
   type Användare,
@@ -135,6 +136,8 @@ export interface BryggOptioner {
   utvecklarläge: boolean;
   /** Organisationens namn, logotyp och färg (server/utseende.ts). Utbytbar i tester. */
   utseende?: UtseendeKälla;
+  /** Appens version – visas för inloggade i `/__ark/status`. */
+  version?: string;
 }
 
 export type Hanterare = (req: IncomingMessage, res: ServerResponse, next: () => void) => Promise<void>;
@@ -420,17 +423,22 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
       /** Den inloggade, eller null. I öppen drift är alla den lokala administratören. */
       const vem = (req: IncomingMessage): Användare | null => {
         if (auth.läge === "öppen") return öppenAnvändare();
-        const u = läsSession(req.headers.cookie, hemlighet);
+        const s = läsSessionen(req.headers.cookie, hemlighet);
+        if (!s) return null;
         // Ett lokalt konto läses om: ett borttaget konto är utloggat direkt,
         // och en ändrad roll gäller från nästa begäran – inte först vid nästa inloggning.
-        if (u && auth.läge === "lokal") {
-          const k = konton.hämta(u.id);
-          return k ? somAnvändare(k) : null;
+        // Sessionsversionen ska vara kontots: ett bytt lösenord eller "logga ut
+        // överallt" gör äldre kakor ogiltiga. REGRESSION: en stulen kaka gällde
+        // i tio timmar, vad kontoinnehavaren än gjorde.
+        if (auth.läge === "lokal") {
+          const k = konton.hämta(s.användare.id);
+          return k && (s.tv ?? 0) === sessionsversion(k) ? somAnvändare(k) : null;
         }
-        return u;
+        return s.användare;
       };
-      const loggaIn = (req: IncomingMessage, res: ServerResponse, u: Användare) =>
-        res.setHeader("set-cookie", kaka(SESSION_KAKA, skapaSession(u, hemlighet), { maxÅlder: SESSION_SEKUNDER, säker: säkerKaka(req) }));
+      /** Sätter sessionskakan. Ett lokalt konto får sin sessionsversion inbäddad. */
+      const loggaIn = (req: IncomingMessage, res: ServerResponse, u: Användare, tv?: number) =>
+        res.setHeader("set-cookie", kaka(SESSION_KAKA, skapaSession(u, hemlighet, Date.now(), tv), { maxÅlder: SESSION_SEKUNDER, säker: säkerKaka(req) }));
 
       const omdirigera = (res: ServerResponse, till: string, kakor: string[] = []) => {
         res.statusCode = 302;
@@ -531,6 +539,22 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             }, 0)
           : 0;
 
+      /**
+       * Underlagets fil ur referensen i en begäran, eller null om den pekar
+       * utanför brevlådans underlag. Referensen är RELATIV TILL BREVLÅDAN
+       * (`underlag/<fil>`, det `/underlag` svarar) – den som svarar hittar
+       * filen bredvid `request.json`. Äldre begäranden bar en sökväg relativt
+       * projektroten (eller en absolut); de går att läsa så länge de pekar in
+       * i den egna lådan.
+       */
+      const underlagFil = (låda: Brevlåda, ref: string): string | null => {
+        for (const bas of [låda.katalog, root]) {
+          const fil = path.resolve(bas, ref);
+          if (fil.startsWith(låda.underlag + path.sep)) return fil;
+        }
+        return null;
+      };
+
       /** Begäran som servern just nu besvarar med API:t – en i taget per brevlåda. */
       const pågående = new Map<string, { id: string; ctrl: AbortController }>();
 
@@ -557,10 +581,10 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             }),
             signal: ctrl.signal,
             läsUnderlag: async (sökväg: string) => {
-              // Bara uppladdade underlag – sökvägen kommer ur begäran.
+              // Bara uppladdade underlag – referensen kommer ur begäran.
               // Bara den egna brevlådans: en begäran kan inte peka ut någon annans underlag.
-              const fil = path.resolve(root, sökväg);
-              if (!fil.startsWith(låda.underlag + path.sep)) throw new Användarfel("Underlaget ligger utanför brevlådan.");
+              const fil = underlagFil(låda, sökväg);
+              if (!fil) throw new Användarfel("Underlaget ligger utanför brevlådan.");
               try {
                 return new Uint8Array(fs.readFileSync(fil));
               } catch {
@@ -642,6 +666,12 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
 
       return async (req, res, next) => {
         const url = (req.url ?? "").split("?")[0];
+        // Bryggans svar bär användarens data (processer, konton, AI-svar) och
+        // ska aldrig sparas av webbläsaren eller en proxy. Det enda som får
+        // sparas (logotypen) sätter ett eget värde. Och ingen gissning av
+        // innehållstypen – också i dev-servern, som inte har serverns huvuden.
+        res.setHeader("cache-control", "no-store");
+        res.setHeader("x-content-type-options", "nosniff");
 
         try {
           // --- CSRF: allt som ändrar något måste komma från appen själv.
@@ -715,6 +745,16 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
           // --- Lokala konton (server/konton.ts).
           if (url.startsWith("/auth/") && auth.läge === "lokal" && req.method === "POST") {
             const b = JSON.parse((await readBody(req, 10_000)) || "{}");
+            // "Logga ut överallt": kontots sessionsversion höjs, så varje kaka
+            // det har utfärdat – på alla enheter – slutar gälla. Själva
+            // utloggningen (kakan tas bort) sker nedan, som för alla lägen.
+            if (url === "/auth/logout" && b?.överallt === true) {
+              const u = vem(req);
+              if (u) {
+                konton.loggaUtÖverallt(u.id);
+                log.info(`  [ark] Utloggad överallt: ${u.namn}`);
+              }
+            }
             if (url === "/auth/forsta") {
               if (konton.finnsNågot()) {
                 json(res, 409, { ok: false, error: "Det finns redan konton – logga in." });
@@ -737,7 +777,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 lösenord: String(b.lösenord ?? ""),
               });
               log.info(`  [ark] Första kontot skapat: ${k.användarnamn} (administratör)`);
-              loggaIn(req, res, somAnvändare(k));
+              loggaIn(req, res, somAnvändare(k), sessionsversion(k));
               json(res, 200, { ok: true, användare: somAnvändare(k) });
               return;
             }
@@ -757,7 +797,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 const k = await konton.logga(namn, String(b.lösenord ?? ""));
                 spärr.lyckat(nycklar);
                 log.info(`  [ark] Inloggad: ${k.namn} (${k.roller.join(", ")})`);
-                loggaIn(req, res, somAnvändare(k));
+                loggaIn(req, res, somAnvändare(k), sessionsversion(k));
                 json(res, 200, { ok: true, användare: somAnvändare(k) });
               } catch (e) {
                 spärr.misslyckat(nycklar);
@@ -772,8 +812,26 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 return;
               }
               const k = konton.hämta(u.id)!;
-              await konton.logga(k.användarnamn, String(b.nuvarande ?? ""));
-              konton.ändra(k.id, { lösenord: String(b.nytt ?? "") });
+              // Samma spärr som inloggningen (namn + adress): ett fel nuvarande
+              // lösenord är ett gissat lösenord. REGRESSION: den som kom åt en
+              // inloggad session kunde gissa kontots lösenord här utan gräns.
+              const nycklar = spärrnycklar(k.användarnamn, klientadress(req, betroddProxy));
+              const till = spärr.spärradTill(nycklar);
+              if (till) {
+                json(res, 429, { ok: false, error: `För många försök – vänta ${Math.ceil((till - Date.now()) / 60_000)} min.` });
+                return;
+              }
+              try {
+                await konton.logga(k.användarnamn, String(b.nuvarande ?? ""));
+              } catch (e) {
+                spärr.misslyckat(nycklar);
+                throw e;
+              }
+              spärr.lyckat(nycklar);
+              // Lösenordsbytet höjer sessionsversionen: alla ANDRA sessioner
+              // loggas ut, den här får en ny kaka och fortsätter.
+              const nytt = konton.ändra(k.id, { lösenord: String(b.nytt ?? "") });
+              loggaIn(req, res, somAnvändare(nytt), sessionsversion(nytt));
               json(res, 200, { ok: true });
               return;
             }
@@ -821,6 +879,23 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             json(res, 401, { ok: false, inloggning: true, error: "Du är inte inloggad – ladda om sidan och logga in." });
             return;
           }
+          /**
+           * Får användaren se ramserien? Läsbarheten FÖLJER PROCESSEN den hör
+           * till (`kanLäsaRamserie`): en serie över någon annans egen process
+           * syns inte. REGRESSION: alla inloggade listade och läste alla
+           * serier – också de som visade en process de inte fick öppna.
+           */
+          const ramserieSyns = (serie: { flödeId?: unknown }) => {
+            const fid = typeof serie?.flödeId === "string" ? serie.flödeId : "";
+            let flöde: Record<string, any> | null = null;
+            try {
+              flöde = fid && SAFE_ID.test(fid) ? läsJson(path.join(flowsDir, `${fid}.json`)) : null;
+            } catch {
+              // En trasig processfil: ingen kan läsa processen, så inte serien heller – utom admin.
+              return ärAdmin(användare);
+            }
+            return kanLäsaRamserie(användare, flöde);
+          };
           const baraAdmin = () => {
             if (ärAdmin(användare)) return false;
             json(res, 403, { ok: false, error: "Det kräver administratörsbehörighet." });
@@ -925,11 +1000,11 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             fs.mkdirSync(mapp, { recursive: true });
             const fil = `${Date.now().toString(36)}-${säkert}`;
             fs.writeFileSync(path.join(mapp, fil), data);
-            // Relativ till roten när brevlådan ligger i projektet (`.ark/underlag/…`
-            // – den form Claude Code läser), annars absolut (en volym i drift).
-            const full = path.join(mapp, fil);
-            const relativ = path.relative(root, full);
-            json(res, 200, { ok: true, sökväg: relativ.startsWith("..") ? full : relativ });
+            // En REFERENS relativ till brevlådan, som servern själv löser upp
+            // (`underlagFil`) – aldrig serverns sökväg. REGRESSION: svaret bar
+            // den absoluta sökvägen till datavolymen när brevlådan låg utanför
+            // projektet. Claude Code hittar filen bredvid request.json.
+            json(res, 200, { ok: true, sökväg: path.posix.join(UNDERLAG, fil) });
             return;
           }
 
@@ -938,6 +1013,8 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             // `claudeCode`: om kostnadsrutan får erbjuda Claude Code i stället.
             json(res, 200, {
               ok: true,
+              // Versionen syns för inloggade här – inte längre i den öppna /health.
+              ...(o.version ? { version: o.version } : {}),
               besvaras: aiLäge(utvecklarläge),
               claudeCode: utvecklarläge,
               // Finns en mall för BMT-exporten? Utan den visas inte knappen.
@@ -1128,6 +1205,9 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 ...(b.roll === "admin" || b.roll === "user" ? { roll: b.roll } : {}),
                 ...(typeof b.lösenord === "string" && b.lösenord ? { lösenord: b.lösenord } : {}),
               });
+              // Ett nytt lösenord loggar ut kontots sessioner (konton.ts) – den
+              // som byter sitt EGET lösenord här får en ny kaka och stannar kvar.
+              if (k.id === användare.id) loggaIn(req, res, somAnvändare(k), sessionsversion(k));
               log.info(`  [ark] Konto ändrat: ${k.användarnamn} (${användare.namn})`);
               json(res, 200, { ok: true, konto: utåt(k) });
               return;
@@ -1248,10 +1328,13 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 json(res, 404, { ok: false, error: "Flödet finns inte." });
                 return;
               }
-              // 403 och inte 404: sparningen behöver kunna skilja "ledigt id"
-              // från "upptaget av någon annans process" (saveFlowVersion).
+              // 404 och inte 403: en process i någon annans egen katalog ska
+              // inte gå att se, inte ens att den finns. REGRESSION: svaret var
+              // 403, så vem som helst kunde pröva sig fram till andras id:n.
+              // (Sparningen får veta att id:t är upptaget först när den
+              // försöker skriva – se PUT nedan och saveFlowVersion.)
               if (!kanLäsa(användare, befintlig)) {
-                json(res, 403, { ok: false, error: "Processen ligger i en annan användares katalog." });
+                json(res, 404, { ok: false, error: "Flödet finns inte." });
                 return;
               }
               json(res, 200, { ok: true, flow: befintlig });
@@ -1259,14 +1342,23 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             }
 
             if (req.method === "PUT") {
-              // Prövas av server/atkomst.ts: behörighet, ägare och att ingen
-              // annans version skrivs över.
-              const prövad = prövaSparning(
-                användare,
-                auth.läge,
-                befintlig,
-                JSON.parse((await readBody(req)) || "{}"),
-              );
+              const kropp = JSON.parse((await readBody(req)) || "{}");
+              // Id:t i kroppen ska vara adressens. REGRESSION: kroppens id
+              // skrevs in i filen under adressens namn, så filen och dess
+              // innehåll kunde säga olika saker om vilken process det var.
+              if (!kropp || typeof kropp !== "object" || kropp.id !== id) {
+                json(res, 400, { ok: false, error: "Flödets id stämmer inte med adressen." });
+                return;
+              }
+              // Id:t är upptaget av en process användaren inte får se: säg bara
+              // det (appen tar då nästa lediga id, saveFlowVersion).
+              if (befintlig && !kanLäsa(användare, befintlig)) {
+                json(res, 403, { ok: false, kod: "upptaget", error: "Id:t används av en annan process." });
+                return;
+              }
+              // Prövas av server/atkomst.ts: behörighet, ägare och att
+              // historiken bara byggs på.
+              const prövad = prövaSparning(användare, auth.läge, befintlig, kropp);
               if (!prövad.ok) {
                 json(res, prövad.status, { ok: false, error: prövad.fel });
                 return;
@@ -1303,6 +1395,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                   .map((f) => {
                     try {
                       const s = JSON.parse(fs.readFileSync(path.join(ramarDir, f), "utf8"));
+                      if (!ramserieSyns(s)) return null;
                       return {
                         id: s.id,
                         namn: s.namn,
@@ -1331,11 +1424,13 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             }
             const file = path.join(ramarDir, `${id}.json`);
             if (req.method === "GET") {
-              if (!fs.existsSync(file)) {
+              const serie = läsJson(file);
+              // En serie över en process man inte får läsa finns inte (som processen).
+              if (!serie || !ramserieSyns(serie)) {
                 json(res, 404, { ok: false, error: "Visualiseringen finns inte." });
                 return;
               }
-              json(res, 200, { ok: true, serie: JSON.parse(fs.readFileSync(file, "utf8")) });
+              json(res, 200, { ok: true, serie });
               return;
             }
             if (req.method === "PUT") {
@@ -1345,15 +1440,26 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               // skaparen eller en administratör (core/behorighet.ts). Skaparen
               // stämplas vid skapandet (server/atkomst.ts).
               const befintligSerie = läsJson(file);
+              if (befintligSerie && !ramserieSyns(befintligSerie)) {
+                json(res, 404, { ok: false, error: "Visualiseringen finns inte." });
+                return;
+              }
               if (befintligSerie && !kanÄndraRamserie(användare, befintligSerie)) {
                 json(res, 403, { ok: false, error: "Bara den som skapade visualiseringen, eller en administratör, kan ändra den." });
                 return;
               }
-              const serie = prövaRamserie(
-                användare,
-                befintligSerie,
-                JSON.parse((await readBody(req, 15_000_000)) || "{}"),
-              );
+              const kropp = JSON.parse((await readBody(req, 15_000_000)) || "{}");
+              // Som flödena: kroppens id ska vara adressens.
+              if (!kropp || typeof kropp !== "object" || kropp.id !== id) {
+                json(res, 400, { ok: false, error: "Visualiseringens id stämmer inte med adressen." });
+                return;
+              }
+              // En ny serie kan inte hängas på en process man inte får läsa.
+              if (!ramserieSyns(kropp)) {
+                json(res, 404, { ok: false, error: "Processen finns inte." });
+                return;
+              }
+              const serie = prövaRamserie(användare, befintligSerie, kropp);
               fs.mkdirSync(ramarDir, { recursive: true });
               fs.writeFileSync(file, JSON.stringify(serie, null, 2), "utf8");
               log.info(`  [ark] Sparade ramserie: ${RAMAR}/${id}.json`);
@@ -1362,6 +1468,10 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             }
             if (req.method === "DELETE") {
               const serie = läsJson(file);
+              if (serie && !ramserieSyns(serie)) {
+                json(res, 404, { ok: false, error: "Visualiseringen finns inte." });
+                return;
+              }
               if (serie && !kanTaBortRamserie(användare, serie)) {
                 json(res, 403, { ok: false, error: "Bara den som skapade visualiseringen, eller en administratör, kan ta bort den." });
                 return;

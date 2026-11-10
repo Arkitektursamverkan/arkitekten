@@ -112,7 +112,7 @@ const AP_ANNOTERINGAR_FRIVILLIGA = `AFFÄRSPROCESSANNOTERINGAR (frivilliga)
   där roller, IT-stöd och krav hänger som satelliter på aktiviteterna.
 - NÄMNER underlaget vem som utför ett steg, vilket IT-stöd som används, ett krav
   eller en tidsram: lägg annoteringen SIST i stegets \`text\` med hakparenteser:
-  \`[Roll: Rekryterande chef U]\` \`[Intressent: Hyresgäst I]\` \`[IT: ReachMee]\`
+  \`[Roll: Rekryterande chef U]\` \`[Intressent: Kund I]\` \`[IT: Rekryteringssystem]\`
   \`[Arkiv: Personakt]\` \`[Krav: Öka mångfald]\` \`[Tid: Inom 5 dagar]\`
   \`[In: Ansökningar]\` \`[Ut: Urval genomfört]\`.
 - Bokstaven efter roll/intressent är HUKI: H = Huvudansvar, U = Utför,
@@ -152,7 +152,7 @@ const AP_AITEXT = `AI-BESKRIVNINGEN (\`aiText\`)
   hakparenteser efter varje steg. Beskrivningen tolkas om av regelmotorn när
   användaren redigerar den – utelämnar du hakparenteserna där försvinner alla
   roller, IT-stöd och objekt vid första omtolkningen.
-- Exempel på en rad: \`Genomför urval [Roll: Rekryterande chef H, HR K] [IT: ReachMee] [Ut: Urval genomfört]\`.`;
+- Exempel på en rad: \`Genomför urval [Roll: Rekryterande chef H, HR K] [IT: Rekryteringssystem] [Ut: Urval genomfört]\`.`;
 
 const AP_METODEN = `METODENS REGLER – följ dem alltid
 - AKTIVITETER benämns VERB + SUBSTANTIV: "Samla material", "Skapa presentation",
@@ -179,7 +179,7 @@ const AP_METODEN = `METODENS REGLER – följ dem alltid
   I = Informeras. Säger underlaget inte vem, utelämna bokstaven – men skriv ut
   rollen så snart den går att läsa ur texten (även när den bara är underförstådd
   som "den som håller föredraget").
-- \`[Intressent: Hyresgäst I]\` för dem som berörs men inte utför.
+- \`[Intressent: Kund I]\` för dem som berörs men inte utför.
 - FORUM används I STÄLLET FÖR EN AKTIVITET när steget alltid genomförs i
   MÖTESFORM (metoden: "Visar ett forum, vars arbetssätt är möten, bereda,
   genomföra eller kommunicera"). Markera steget med \`[Forum]\` – UTAN kolon –
@@ -196,7 +196,7 @@ const AP_METODEN = `METODENS REGLER – följ dem alltid
   användning.`;
 
 const AP_SATELLITER = `SATELLITER – skrivs SIST i stegets \`text\`, i hakparenteser
-  \`[Roll: HR U]\` \`[Intressent: Hyresgäst I]\` \`[IT: ReachMee]\`
+  \`[Roll: HR U]\` \`[Intressent: Kund I]\` \`[IT: Rekryteringssystem]\`
   \`[Arkiv: Personakt]\` \`[Krav: Öka mångfald]\` \`[Tid: Inom 5 dagar]\`
   \`[Plats: Kontoret]\` \`[In: Ansökningar]\`
   \`[Ut: Urval genomfört]\`.

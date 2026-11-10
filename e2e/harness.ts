@@ -146,7 +146,7 @@ Fel uppkommer → Medarbetare → Startar Portalen → Väljer ny driftfråga fr
 Driftfråga inkommer i SP-listan "Inkorgen" → Power Automate flödet "DRF nytt ärende" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
 
 export const AFFARSPROCESS_EXEMPEL = `Rekrytera medarbetare
-Behov av rekrytering uppstår → Skapa kravprofil [Roll: Rekryterande chef U] [Krav: Kompetensbaserad rekrytering] → Annonsera tjänst [Roll: HR U] [IT: ReachMee] [Ut: Ansökningar] → Genomför urval [Roll: Rekryterande chef H, HR K] [Krav: Öka mångfald] (↓ Om kandidat godkänd → Lämna anställningserbjudande [Roll: Rekryterande chef U] [Tid: Inom 5 dagar]) → Avsluta rekrytering [IT: ReachMee]`;
+Behov av rekrytering uppstår → Skapa kravprofil [Roll: Rekryterande chef U] [Krav: Kompetensbaserad rekrytering] → Annonsera tjänst [Roll: HR U] [IT: Rekryteringssystem] [Ut: Ansökningar] → Genomför urval [Roll: Rekryterande chef H, HR K] [Krav: Öka mångfald] (↓ Om kandidat godkänd → Lämna anställningserbjudande [Roll: Rekryterande chef U] [Tid: Inom 5 dagar]) → Avsluta rekrytering [IT: Rekryteringssystem]`;
 
 export interface NyProcessVal {
   verktyg: "Systemprocess" | "Affärsprocess";

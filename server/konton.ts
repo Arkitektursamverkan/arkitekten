@@ -30,10 +30,20 @@ export interface Konto {
   /** scrypt$<salt>$<hash>, base64url. */
   lösenord: string;
   skapad: string;
+  /**
+   * Sessionsversionen. Bäddas in i sessionskakan och jämförs vid varje
+   * begäran; höjs när lösenordet byts och vid "logga ut överallt", så att
+   * alla tidigare utfärdade sessioner slutar gälla. Saknas = 0.
+   */
+  tokenVersion?: number;
 }
 
+/** Kontots sessionsversion – 0 för konton från före fältet. */
+export const sessionsversion = (k: Pick<Konto, "tokenVersion">): number =>
+  Number.isInteger(k.tokenVersion) && (k.tokenVersion as number) > 0 ? (k.tokenVersion as number) : 0;
+
 /** Ett konto som det visas utåt – utan lösenordshashen. */
-export type KontoUtåt = Omit<Konto, "lösenord">;
+export type KontoUtåt = Omit<Konto, "lösenord" | "tokenVersion">;
 
 export const MIN_LÄNGD = 10;
 const SCRYPT = { N: 16384, r: 8, p: 1, keylen: 32 };
@@ -91,7 +101,7 @@ export function prövaLösenord(lösenord: unknown): string | null {
 
 const ANVÄNDARNAMN = /^[\p{L}\p{N}._@+-]{2,120}$/u;
 
-export const utåt = ({ lösenord: _, ...k }: Konto): KontoUtåt => k;
+export const utåt = ({ lösenord: _, tokenVersion: _tv, ...k }: Konto): KontoUtåt => k;
 export const somAnvändare = (k: Konto): Användare => ({
   id: k.id,
   namn: k.namn,
@@ -173,12 +183,25 @@ export class Kontolager {
       const fel = prövaLösenord(ändring.lösenord);
       if (fel) throw new Kontofel(fel);
       k.lösenord = hashaLösenord(ändring.lösenord);
+      // Ett nytt lösenord loggar ut alla sessioner med det gamla.
+      k.tokenVersion = sessionsversion(k) + 1;
     }
     konton[i] = k;
     this.spara(konton);
     return k;
   }
 
+  /** "Logga ut överallt": alla kontots sessioner slutar gälla. */
+  loggaUtÖverallt(id: string): Konto {
+    const konton = this.alla();
+    const i = konton.findIndex((k) => k.id === id);
+    if (i < 0) throw new Kontofel("Kontot finns inte.", 404);
+    konton[i] = { ...konton[i], tokenVersion: sessionsversion(konton[i]) + 1 };
+    this.spara(konton);
+    return konton[i];
+  }
+
+  /** Tar bort kontot – dess sessioner slutar gälla direkt, eftersom kontot inte längre hittas. */
   taBort(id: string): void {
     const konton = this.alla();
     const k = konton.find((x) => x.id === id);

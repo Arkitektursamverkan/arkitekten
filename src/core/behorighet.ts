@@ -179,6 +179,16 @@ export function kanÄndraRamserie(u: Användare | null | undefined, serie: HarSk
   return ärAdmin(u) || serie.skapadAv?.id === u.id;
 }
 
+/**
+ * Läsa en ramserie: läsbarheten FÖLJER PROCESSEN serien visar. En serie över
+ * någon annans egen process syns inte (`kanLäsa`); en serie vars process inte
+ * finns (borttagen, eller från före fältet) läser alla inloggade.
+ */
+export function kanLäsaRamserie(u: Användare | null | undefined, process: HarYta | null): boolean {
+  if (!u) return false;
+  return process ? kanLäsa(u, process) : true;
+}
+
 /** Samma regel som att ändra – den som får skriva över serien får också ta bort den. */
 export function kanTaBortRamserie(u: Användare | null | undefined, serie: HarSkapare): boolean {
   return kanÄndraRamserie(u, serie);

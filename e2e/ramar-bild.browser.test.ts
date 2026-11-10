@@ -1,8 +1,8 @@
 /**
  * Bildfliken i Ramar: figurer går att ta bort ur scenen.
  *
- * REGRESSION (synpunkt 2026-09-30): "Jag kan inte ta bort objekt i Bild. Ex
- * Hyresgäst." Borttagningen fanns, men bara bakom verktyget Flytta + ett klick
+ * REGRESSION (synpunkt 2026-09-30): "Jag kan inte ta bort objekt i Bild, t.ex.
+ * en person." Borttagningen fanns, men bara bakom verktyget Flytta + ett klick
  * + en knapp i raden ovanför. Med det förvalda verktyget fanns ingen väg, och
  * Delete gjorde ingenting.
  *
@@ -69,7 +69,7 @@ describe.skipIf(!chromium || !innehåll)(`Ramar – bildfliken${innehåll ? "" :
     await page.mouse.click(p.x, p.y);
     await page.waitForTimeout(300);
     expect(await dold("hyresgast")).toBe(true);
-    // REGRESSION ("Ta bort funkar inte på Hyresgäst"): figuren låg kvar
+    // REGRESSION ("Ta bort funkar inte på figuren"): figuren låg kvar
     // halvgenomskinlig i redigeringen och såg orörd ut. Nu försvinner den …
     expect(await synlighet("hyresgast")).toBe("0");
     // … och syns svagt bara när man arbetar med Visa/dölj, för att kunna ta tillbaka den.

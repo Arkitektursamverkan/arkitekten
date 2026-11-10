@@ -77,10 +77,10 @@ describe("gränssnittet", () => {
 });
 
 describe("hälsan och bryggan", () => {
-  it("/health säger version och AI-läge, inga sökvägar eller nycklar", async () => {
+  it("REGRESSION: /health visade version och AI-läge för vem som helst – nu bara att servern lever", async () => {
     const res = await fetch(`${bas}/health`);
     const kropp = await res.json();
-    expect(kropp).toEqual({ status: "ok", version: "9.8.7", ai: "av" });
+    expect(kropp).toEqual({ status: "ok" });
   });
 
   it("bryggan nås under /__ark – okänd väg ger 404 i JSON", async () => {
@@ -90,8 +90,12 @@ describe("hälsan och bryggan", () => {
   });
 
   it("utan nyckel och utvecklarläge är AI-stödet av, och Claude Code erbjuds inte", async () => {
-    const status = await (await fetch(`${bas}/__ark/status`)).json();
-    expect(status).toMatchObject({ besvaras: "av", claudeCode: false });
+    const svar = await fetch(`${bas}/__ark/status`);
+    const status = await svar.json();
+    // Versionen och AI-läget visas här, för den som är inloggad (i öppen drift: alla).
+    expect(status).toMatchObject({ version: "9.8.7", besvaras: "av", claudeCode: false });
+    // Bryggans svar sparas aldrig av webbläsaren.
+    expect(svar.headers.get("cache-control")).toBe("no-store");
     const res = await fetch(`${bas}/__ark/request`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
     expect(res.status).toBe(503);
     expect(fs.existsSync(path.join(tmp, ".ark", "request.json"))).toBe(false);

@@ -14,14 +14,14 @@ import { textToDraft } from "./toDraft";
 describe("extraheraAp", () => {
   it("lyfter ut alla annoteringssorter och rensar texten", () => {
     const { ren, ap } = extraheraAp(
-      "Genomför urval [Roll: Rekryterande chef H, HR K] [IT: ReachMee] [Krav: Öka mångfald] [Tid: Inom 5 dagar] [In: Ansökningar] [Ut: Slutkandidat utsedd]",
+      "Genomför urval [Roll: Rekryterande chef H, HR K] [IT: Rekryteringssystem] [Krav: Öka mångfald] [Tid: Inom 5 dagar] [In: Ansökningar] [Ut: Slutkandidat utsedd]",
     );
     expect(ren).toBe("Genomför urval");
     expect(ap?.roller).toEqual([
       { namn: "Rekryterande chef", huki: "H" },
       { namn: "HR", huki: "K" },
     ]);
-    expect(ap?.applikationer).toEqual(["ReachMee"]);
+    expect(ap?.applikationer).toEqual(["Rekryteringssystem"]);
     expect(ap?.krav).toEqual(["Öka mångfald"]);
     expect(ap?.tid).toBe("Inom 5 dagar");
     expect(ap?.input).toBe("Ansökningar");
@@ -43,12 +43,12 @@ describe("extraheraAp", () => {
 describe("textToDraft med satellitannoteringar", () => {
   it("annoteringarna hamnar i stegets ap-block och stegtexten är ren", () => {
     const draft = textToDraft(
-      "Rekrytering\nBehov uppstår → Genomför urval [Roll: HR U] [IT: ReachMee] → Fatta beslut",
+      "Rekrytering\nBehov uppstår → Genomför urval [Roll: HR U] [IT: Rekryteringssystem] → Fatta beslut",
     );
     const steg = draft.steps.find((s) => s.text.includes("urval"))!;
     expect(steg.text).not.toContain("[");
     expect(steg.ap?.roller).toEqual([{ namn: "HR", huki: "U" }]);
-    expect(steg.ap?.applikationer).toEqual(["ReachMee"]);
+    expect(steg.ap?.applikationer).toEqual(["Rekryteringssystem"]);
     // Spårbarheten visar ORIGINALET med annoteringarna.
     expect(steg.sourceText).toContain("[Roll: HR U]");
   });

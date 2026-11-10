@@ -528,7 +528,10 @@ describe("publicering i EA-portalen", () => {
 });
 
 describe("egna kataloger", () => {
-  /** En lagring där "ny-dator" redan ägs av någon annan – bryggan svarar 403 på den. */
+  /**
+   * En lagring där "ny-dator" redan ägs av någon annan. Som bryggan: en GET
+   * svarar 404 (processen ska inte gå att se), en sparning 403 "upptaget".
+   */
   function lagringMedAnnansProcess() {
     const filer = new Map<string, SavedFlow>();
     const store: FlowStore = {
@@ -537,12 +540,12 @@ describe("egna kataloger", () => {
         return [];
       },
       async load(id) {
-        if (id === "ny-dator") throw new BryggFel("Processen ligger i en annan användares katalog.", 403);
         const f = filer.get(id);
         if (!f) throw new BryggFel("Flödet finns inte.", 404);
         return f;
       },
       async save(f) {
+        if (f.id === "ny-dator") throw new BryggFel("Id:t används av en annan process.", 403, "upptaget");
         filer.set(f.id, f);
       },
       async remove(id) {
@@ -561,6 +564,21 @@ describe("egna kataloger", () => {
     });
     expect(sparat.id).toBe("ny-dator-2");
     expect(filer.has("ny-dator-2")).toBe(true);
+  });
+
+  it("ett vanligt nej (403 utan kod) prövas inte på nästa id", async () => {
+    const store: FlowStore = {
+      kind: "local",
+      list: async () => [],
+      load: async () => {
+        throw new BryggFel("Flödet finns inte.", 404);
+      },
+      save: async () => {
+        throw new BryggFel("Bara administratörer kan lägga processer direkt i den gemensamma katalogen.", 403);
+      },
+      remove: async () => {},
+    };
+    await expect(saveFlowVersion(store, { name: "Ny dator", rawText: "", draft: textToDraft("X\nA") })).rejects.toThrow(/administratörer/);
   });
 
   it("ett ÖPPNAT flöde byter aldrig id – där är 403 ett riktigt nej", async () => {

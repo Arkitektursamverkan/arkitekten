@@ -36,10 +36,14 @@ import {
 } from "@/core/draft";
 import { flowActor } from "@/core/flow-store";
 import { kortnamn, ärendetyper, ärendetypFör } from "@/core/flow-tree";
+import { organisationUrMiljö, sättOrganisation } from "@/core/organisation";
 import { senasteFastslagna, normaliseraStatus } from "@/core/status";
 import { validateModel } from "@/tools/flowchart/parser/validate";
 import { filterByPerspective } from "@/tools/flowchart/perspective";
 import { layoutModel, PAGE_FORMATS } from "@/tools/flowchart/layout/layout";
+
+// Ärendetyperna (ARK_ARENDETYPER) är installationens – samma som menyns.
+sättOrganisation(organisationUrMiljö(process.env));
 
 const KATALOG = "flows";
 const NU = "2026-07-31T10:00:00.000Z";

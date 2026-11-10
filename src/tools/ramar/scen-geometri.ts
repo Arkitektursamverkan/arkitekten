@@ -28,7 +28,7 @@ const ÄNDLUFT = 10;
 
 /**
  * Var en stråle från mitten mot `mot` lämnar figurens ruta (plus luft). Pulsen
- * ska börja vid figuren, inte mitt i den – annars går den genom hyresgästens
+ * ska börja vid figuren, inte mitt i den – annars går den genom kundens
  * ansikte.
  */
 function kantpunkt(f: ScenFigur, mot: Punkt): Punkt {

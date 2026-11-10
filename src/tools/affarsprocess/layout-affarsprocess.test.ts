@@ -210,7 +210,7 @@ describe("layoutAp – raka streck", () => {
     const model = compileAp(
       draftMed([
         steg("a1", "activity", "Annonsera tjänst", {
-          ap: { roller: [{ namn: "HR", huki: "U" }], applikationer: ["ReachMee"], output: null },
+          ap: { roller: [{ namn: "HR", huki: "U" }], applikationer: ["Rekryteringssystem"], output: null },
         }),
       ]),
     );
@@ -707,7 +707,7 @@ describe("layoutAp – satelliter", () => {
               { namn: "HR", huki: "U" },
               { namn: "Facklig representant", huki: "K" },
             ],
-            applikationer: ["ReachMee"],
+            applikationer: ["Rekryteringssystem"],
             output: null,
           },
         }),

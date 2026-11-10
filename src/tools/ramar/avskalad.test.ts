@@ -36,7 +36,7 @@ const DRAFT: ProcessDraft = {
     steg("visa", "activity", "Visar utrustning", { ap: { roller: [{ namn: "Förvaltare", huki: "U" }], output: null } }),
     steg("vill", "decision", "Vill sökande?", { gateway: "exclusive" }),
     steg("nasta", "activity", "Bearbetar nästa", { branchOf: { stepId: "vill", label: "Nej" }, ap: { output: null } }),
-    steg("kredit", "activity", "Utför kreditupplysning", { ap: { roller: [KK], applikationer: ["Creditsafe"], output: null } }),
+    steg("kredit", "activity", "Utför kreditupplysning", { ap: { roller: [KK], applikationer: ["Kreditupplysning"], output: null } }),
     steg("avtal", "activity", "Skickar avtal", { ap: { roller: [KK], output: "Utrustning utlånad" } }),
   ],
   removedEdges: [edgeKey("nasta", "kredit")],
@@ -73,7 +73,7 @@ describe("avskalad presentationsstil", () => {
     const b = bild();
     const nr = Object.fromEntries(b.rutor.filter((r) => r.nr).map((r) => [r.id, r.nr]));
     expect(nr).toEqual({ publicera: 1, anmal: 2, visa: 3, kredit: 4, avtal: 5, nasta: 6 });
-    expect(b.rutor.find((r) => r.id === "kredit")!.undertext).toBe("Creditsafe");
+    expect(b.rutor.find((r) => r.id === "kredit")!.undertext).toBe("Kreditupplysning");
   });
 
   it("ett steg i en annan zon står i samma kolumn som steget före – bilden blir inte en lång remsa", () => {
