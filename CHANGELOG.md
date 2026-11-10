@@ -9,6 +9,16 @@ funktioner, en ny korrigering för rättelser.
 
 - (inget än)
 
+## 0.9.0 – 2026-11-10
+
+- **Ärendetyperna i processmenyn kommer ur inställningen `ARK_ARENDETYPER`** (kommaseparerad, `Titel` eller `prefix=Titel`) i stället för en lista i koden. **Uppgradering:** en installation som vill behålla menyns indelning sätter `ARK_ARENDETYPER`; utan den visas alla processer i en gren.
+- **Säkerhet: flödenas historik byggs bara på** – en sparning får lägga till versioner men inte ändra eller ta bort äldre (409/403), servern behåller hela historiken och sätter `savedBy`. Id:t i kroppen måste vara adressens.
+- **Säkerhet: andras egna processer syns inte** – GET ger 404, och en sparning på ett upptaget id får 403 (`kod: "upptaget"`) så att appen tar nästa lediga. Ramseriernas läsbarhet följer processens.
+- **Säkerhet: inloggningar kan återkallas.** Lokala konton får en tokenversion i sessionskakan; lösenordsbyte och "logga ut överallt" höjer den. Sessionen gäller 8 timmar (förut 10). Lösenordsbytet delar inloggningsspärren.
+- **Säkerhet: Entra-gästkonton (B2B) avvisas**; `ENTRA_TILLAT_GASTER=1` släpper in dem. `ARK_ADMINS` kan ange Entra-`oid` (rekommenderas) eller e-post.
+- `/health` svarar bara `{status:"ok"}` (versionen finns i `/__ark/status`). Bryggans och flödestjänstens svar har `Cache-Control: no-store` och `nosniff`. `/underlag` lämnar aldrig ut serverns sökvägar.
+- Standardscenens figurer heter Hem, Kund och Kontor, och exempeltexterna nämner inga leverantörer (lagrade id:n är oförändrade).
+
 ## 0.8.0 – 2026-11-10
 
 - **Säkerhet: processbilderna kan inte bära skript.** HUKI-bokstaven valideras, alla attribut i SVG-exporten escapas, en bild som inte går att tolka blir tom, och all SVG renas med DOMPurify innan den visas. Servern skickar Content-Security-Policy, `nosniff`, `Referrer-Policy` och HSTS över https; flödestjänstens SVG får en egen strikt policy.
