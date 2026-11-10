@@ -11,7 +11,8 @@ import { describe, expect, it } from "vitest";
 
 import { byggPresentation } from "@/tools/ramar/ai-presentation";
 
-import { besvara, läsZip, underlagSomBlock, type Fråga, type Meddelande } from "./besvara";
+import { besvara, läsZip, TEXT_TAK, underlagSomBlock, ZIP_TAK, type Fråga, type Meddelande } from "./besvara";
+import { packaZip } from "@/core/zip";
 import { AP_SYSTEM_PROMPT, flödesschemaPrompt } from "./prompt";
 import { DRAFT_JSON_SCHEMA } from "./schema";
 
@@ -204,5 +205,27 @@ describe("besvara – rutin", () => {
     expect(svar).toEqual({ rutin: "Gå till Lösningar\n  Obs: kräver behörighet" });
     expect(JSON.stringify(anrop[0].meddelanden)).toContain("Rutin för loggutdrag");
     expect(JSON.stringify(anrop[0].meddelanden)).toContain("Gå till Lösningar");
+  });
+});
+
+describe("besvara – taken för underlag", () => {
+  const STORT = new Uint8Array(ZIP_TAK + 1024 * 1024).fill(0x61);
+
+  it("REGRESSION: en zip-bomb packades upp hel i minnet – nu stoppas den på katalogens storlek", async () => {
+    const bomb = await packaZip({ "word/document.xml": STORT }, new Date(), { komprimera: true });
+    expect(bomb.length).toBeLessThan(200_000);
+    await expect(läsZip(bomb, "word/document.xml")).rejects.toThrow(/för stort/);
+  });
+
+  it("REGRESSION: en katalog som ljuger om storleken stoppas medan strömmen läses", async () => {
+    const bomb = await packaZip({ "word/document.xml": STORT }, new Date(), { komprimera: true });
+    const v = new DataView(bomb.buffer, bomb.byteOffset, bomb.byteLength);
+    for (let i = 0; i < bomb.length - 4; i++) if (v.getUint32(i, true) === 0x02014b50) v.setUint32(i + 24, 100, true);
+    await expect(läsZip(bomb, "word/document.xml")).rejects.toThrow(/för stort/);
+  });
+
+  it("text över taket skickas inte till modellen", async () => {
+    const lång = new TextEncoder().encode("a".repeat(TEXT_TAK + 1));
+    await expect(underlagSomBlock("lång.txt", lång)).rejects.toThrow(/för långt/);
   });
 });
