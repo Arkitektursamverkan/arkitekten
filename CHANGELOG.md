@@ -7,7 +7,7 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
-- (inget än)
+- **Inloggningen och portalens adress kan komma ur portalen.** Med `ARK_AUTH=auto` och portalen kopplad (`EA_API_KEY`) hämtas tomma `ENTRA_*` (och `BOOTSTRAP_ADMIN_EMAILS`) ur portalens `GET /installation` vid start – starten väntar högst två minuter, svaret sparas i `ARK_DIR/installation.json` (0600) som reserv, annars egna konton med varning. Egna värden i miljön vinner; byte av Entra i portalen kräver omstart. Arkitekten anmäler sin adress (`PUT /installation/arkitekten`) i bakgrunden, och utan `EA_WEBB_URL` används portalens `portal_url`. Kräver en portal med `/installation` – en äldre portal ger bara en rad i loggen.
 
 ## 0.9.0 – 2026-11-10
 

@@ -27,6 +27,23 @@ Står `ARK_AUTH=entra` men en uppgift saknas vägras inloggningen. Appen faller
 alltså inte tyst tillbaka till öppen drift. Både `entra` och `lokal` kräver
 `ARK_SESSION_SECRET` (minst 32 tecken) – annars startar servern inte.
 
+### Entra ur portalen
+
+Med `ARK_AUTH=auto` och portalen kopplad (`EA_API_KEY`, `EA_API_URL`) behöver
+Entra-uppgifterna bara stå på ETT ställe: portalens API (`ENTRA_TENANT_ID`,
+`ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`, `BOOTSTRAP_ADMIN_EMAILS`). Saknas
+någon av de tre i Arkitektens miljö hämtas de ur portalen
+(`GET /installation`, `server/installation.ts`) innan inloggningen läses –
+starten väntar högst två minuter. Egna värden i miljön vinner alltid, fält för
+fält. Senaste svaret sparas i `ARK_DIR/installation.json` (läge 0600) och
+används om portalen inte svarar; finns ingen fil blir det egna konton, med en
+varning i loggen. Har portalen inget Entra blir det egna konton.
+
+Uppgifterna läses bara vid start: **byts Entra i portalen måste Arkitekten
+startas om.** Arkitekten anmäler också sin adress (`ARK_BAS_URL`, annars
+`RENDER_EXTERNAL_URL`) i portalen, och utan `EA_WEBB_URL` länkar
+publiceringen till den adress portalen uppger.
+
 Rollerna är två: **administratör** och **användare**.
 
 ## Ytor

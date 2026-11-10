@@ -9,15 +9,21 @@
 import type { Plugin, ViteDevServer } from "vite";
 import { skapaBrygga, type AiModuler } from "../server/brygga";
 import { installningarUrMiljö, kontrollera } from "../server/installningar";
+import { förberedInstallation } from "../server/installation";
 
 export function arkBridge(): Plugin {
   return {
     name: "ark-bridge",
     apply: "serve",
-    configureServer(server: ViteDevServer) {
+    async configureServer(server: ViteDevServer) {
       const inst = installningarUrMiljö(server.config.root);
       const logger = server.config.logger;
-      const { fel, varningar } = kontrollera();
+      // Som den fristående servern: portalens uppgifter före kontrollen och bryggan.
+      const portalen = await förberedInstallation({
+        arkDir: inst.arkDir,
+        logg: { info: (r) => logger.info(`  ${r}`), warn: (r) => logger.warn(`  ${r}`) },
+      });
+      const { fel, varningar } = kontrollera(process.env, portalen);
       for (const rad of varningar) logger.warn(`  [ark] ${rad}`);
       // Som den fristående servern: en felaktig inställning stoppar starten.
       // REGRESSION: felen loggades bara, och dev-servern gick igång med t.ex.
