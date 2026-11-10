@@ -170,7 +170,7 @@ export function NyProcess({
             className="ark-input ark-ny-namn"
             value={namn}
             onChange={(e) => setNamn(e.target.value)}
-            placeholder="t.ex. Felanmälan – ny (användare)"
+            placeholder="t.ex. Driftfråga – ny (användare)"
             spellCheck={false}
             aria-label="Namn på processen"
           />

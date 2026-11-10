@@ -10,6 +10,9 @@
  * src/tools/ramar/ai-presentation.ts), så det som godkänns här är det som
  * sparas. Det skriver aldrig till `flows/` eller `ramar/` – det gör appen.
  *
+ * Brevlådan hittas själv: `.ark/` i öppen drift, annars användarens låda
+ * (`.ark/anvandare/<hash>/`, listas med `npx tsx scripts/brevlada.mts`).
+ *
  *   npx tsx scripts/presentation.mts                 # .ark/utkast.json
  *   npx tsx scripts/presentation.mts <utkast.json>
  *   npx tsx scripts/presentation.mts --png <fil>     # rita den avskalade bilden
@@ -20,6 +23,8 @@
  */
 
 import fs from "node:fs";
+import path from "node:path";
+import { väntandeBegäranden } from "../server/brevlada";
 import { Resvg } from "@resvg/resvg-js";
 import {
   PRESENTATION_UPPDRAG,
@@ -32,15 +37,27 @@ import { renderAvskaladSvg } from "@/tools/ramar/avskalad";
 import { ramScen } from "@/core/ram-scen";
 
 const args = process.argv.slice(2);
-/** Brevlådan. `--ark <katalog>` pekar ut en annan – för att prova utan att röra den riktiga. */
-const ARK = args.includes("--ark") ? args[args.indexOf("--ark") + 1] : ".ark";
+/**
+ * Brevlådan. `--ark <katalog>` pekar ut en annan – för att prova utan att röra
+ * den riktiga. Annars den delade (`.ark/`, öppen drift) om en begäran ligger
+ * där, och i annat fall den användarlåda (`.ark/anvandare/<hash>/`) där ett
+ * presentationsuppdrag senast lades och ännu väntar (server/brevlada.ts).
+ */
+const ARK_ROT = process.env.ARK_DIR?.trim() || ".ark";
+function väljBrevlåda(): string {
+  if (args.includes("--ark")) return args[args.indexOf("--ark") + 1];
+  if (fs.existsSync(`${ARK_ROT}/request.json`)) return ARK_ROT;
+  const väntande = väntandeBegäranden(ARK_ROT).filter((b) => b.uppdrag === PRESENTATION_UPPDRAG);
+  return väntande[0] ? path.relative(process.cwd(), väntande[0].katalog) : ARK_ROT;
+}
+const ARK = väljBrevlåda();
 const BEGÄRAN = `${ARK}/request.json`;
 const SVAR = `${ARK}/response.json`;
 
 const SKICKA = args.includes("--skicka");
 const PNG = args.includes("--png") ? args[args.indexOf("--png") + 1] : null;
 const utkastFil =
-  args.find((a, i) => !a.startsWith("--") && !["--png", "--ark"].includes(args[i - 1])) ?? `${ARK}/utkast.json`;
+  args.find((a, i) => !a.startsWith("--") && !["--png", "--ark"].includes(args[i - 1])) ?? (args.includes("--ark") ? `${ARK}/utkast.json` : `${ARK_ROT}/utkast.json`);
 
 const läs = (fil: string) => {
   if (!fs.existsSync(fil)) {

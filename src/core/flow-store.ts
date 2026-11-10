@@ -218,7 +218,11 @@ export class BryggFel extends Error {
 }
 
 export async function bridgeJson(url: string, init?: RequestInit): Promise<any> {
-  const res = await fetch(url, init);
+  // Bryggan tar bara emot JSON i det som ändrar något (CSRF-skyddet i
+  // server/brygga.ts) – också när kroppen är tom.
+  const metod = (init?.method ?? "GET").toUpperCase();
+  const behöverTyp = ["POST", "PUT", "PATCH"].includes(metod) && !new Headers(init?.headers).has("content-type");
+  const res = await fetch(url, behöverTyp ? { ...init, headers: { ...(init?.headers as Record<string, string>), "content-type": "application/json" } } : init);
   if (!isJson(res)) throw new Error("Bryggan svarar inte (kör appen via npm run dev).");
   const body = await res.json();
   if (!res.ok || body.ok === false)
@@ -486,6 +490,19 @@ export async function sättPublicering(
   id: string,
   publicering: Publicering,
 ): Promise<SavedFlow> {
+  // Mot disk skriver BRYGGAN fältet (admin + gemensam katalog, server/atkomst.ts) –
+  // en vanlig sparning bär det aldrig.
+  if (store.kind === "disk") {
+    return normalizeFlow(
+      (
+        await bridgeJson(`/__ark/ea/publicering/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ publicering }),
+        })
+      ).flow,
+    );
+  }
   const flow = await store.load(id);
   const nästa: SavedFlow = { ...flow, publicering };
   await store.save(nästa);
@@ -501,6 +518,11 @@ export async function sättPublicering(
  * publicerade flöden och gallrar resten.
  */
 export async function taBortPublicering(store: FlowStore, id: string): Promise<SavedFlow> {
+  if (store.kind === "disk") {
+    return normalizeFlow(
+      (await bridgeJson(`/__ark/ea/publicering/${encodeURIComponent(id)}`, { method: "DELETE" })).flow,
+    );
+  }
   const { publicering: _borttagen, ...resten } = await store.load(id);
   await store.save(resten);
   return resten;

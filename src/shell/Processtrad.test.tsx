@@ -7,11 +7,12 @@
  * ligga utanför bild – menyn svarade alltså inte längre på "var är jag?".
  */
 
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Processträd } from "./Processtrad";
 import { AnvändarKontext } from "./Inloggning";
 import type { FlowSummary } from "@/core/flow-store";
+import { användTestärendetyper, återställÄrendetyper } from "@/core/test-arendetyper";
 
 const post = (id: string, name: string, actor: string): FlowSummary => ({
   id,
@@ -25,9 +26,9 @@ const post = (id: string, name: string, actor: string): FlowSummary => ({
 });
 
 const FLÖDEN = [
-  post("felanmalan-ny-anvandare", "Felanmälan - ny (användare)", "Användare"),
-  post("felanmalan-paminn-mig-handlaggare", "Felanmälan - påminn mig (handläggare)", "Handläggare"),
-  post("bestallning-avbryt-anvandare", "Beställning - avbryt (användare)", "Användare"),
+  post("driftfraga-ny-anvandare", "Driftfråga - ny (användare)", "Användare"),
+  post("driftfraga-paminn-mig-handlaggare", "Driftfråga - påminn mig (handläggare)", "Handläggare"),
+  post("inkopsorder-avbryt-anvandare", "Inköpsorder - avbryt (användare)", "Användare"),
 ];
 
 function rita(aktivtFlöde: string | null) {
@@ -38,23 +39,28 @@ function rita(aktivtFlöde: string | null) {
   return öppnade;
 }
 
-afterEach(cleanup);
+// Påhittade ärendetyper – standardlistan är en viss installations portal.
+beforeEach(användTestärendetyper);
+afterEach(() => {
+  cleanup();
+  återställÄrendetyper();
+});
 
 it("bara grenen man står i är utfälld", () => {
-  rita("felanmalan-paminn-mig-handlaggare");
+  rita("driftfraga-paminn-mig-handlaggare");
 
   // Vägen ner till den öppna processen står öppen …
-  expect(screen.getByText("Felanmälan")).toBeTruthy();
+  expect(screen.getByText("Driftfråga")).toBeTruthy();
   expect(screen.getByText("Påminn mig")).toBeTruthy();
   // … och syskonen är rubriker utan innehåll.
-  expect(screen.getByText("Beställning")).toBeTruthy();
+  expect(screen.getByText("Inköpsorder")).toBeTruthy();
   expect(screen.queryByText("Avbryt")).toBeNull();
 });
 
 it("en annan gren går att fälla ut, och stannar ute", () => {
-  rita("felanmalan-paminn-mig-handlaggare");
+  rita("driftfraga-paminn-mig-handlaggare");
 
-  fireEvent.click(screen.getByText("Beställning"));
+  fireEvent.click(screen.getByText("Inköpsorder"));
   expect(screen.getByText("Avbryt")).toBeTruthy();
   // Den egna grenen är kvar – utfällningen ersätter inte, den lägger till.
   expect(screen.getByText("Påminn mig")).toBeTruthy();
@@ -65,12 +71,12 @@ it("en annan gren går att fälla ut, och stannar ute", () => {
  * ska den stanna ihopfälld, annars slår den upp sig igen vid varje omrendering.
  */
 it("ett eget klick väger tyngre än automatiken", () => {
-  rita("felanmalan-paminn-mig-handlaggare");
+  rita("driftfraga-paminn-mig-handlaggare");
 
   expect(screen.getByText("Påminn mig")).toBeTruthy();
-  fireEvent.click(screen.getByText("Felanmälan"));
+  fireEvent.click(screen.getByText("Driftfråga"));
   expect(screen.queryByText("Påminn mig")).toBeNull();
-  expect(screen.getByText("Felanmälan")).toBeTruthy(); // rubriken är kvar att fälla ut
+  expect(screen.getByText("Driftfråga")).toBeTruthy(); // rubriken är kvar att fälla ut
 });
 
 it("en sökning fäller ut träffarna – man ska slippa leta upp dem själv", () => {
@@ -81,14 +87,14 @@ it("en sökning fäller ut träffarna – man ska slippa leta upp dem själv", (
 
   fireEvent.change(screen.getByLabelText("Sök process i menyn"), { target: { value: "påminn" } });
   expect(screen.getByText("Påminn mig")).toBeTruthy();
-  expect(screen.queryByText("Beställning")).toBeNull(); // grenen är tom
+  expect(screen.queryByText("Inköpsorder")).toBeNull(); // grenen är tom
 });
 
 it("ett klick på en process öppnar den", () => {
-  const öppnade = rita("felanmalan-paminn-mig-handlaggare");
+  const öppnade = rita("driftfraga-paminn-mig-handlaggare");
 
   fireEvent.click(screen.getByText("Påminn mig"));
-  expect(öppnade).toEqual(["felanmalan-paminn-mig-handlaggare"]);
+  expect(öppnade).toEqual(["driftfraga-paminn-mig-handlaggare"]);
 });
 
 /**
@@ -99,25 +105,25 @@ const NU = Date.parse("2026-10-02T12:00:00.000Z");
 const MED_NY = [
   ...FLÖDEN.slice(0, 2),
   { ...FLÖDEN[2], skapad: "2026-10-01T15:00:00.000Z" },
-  { ...FLÖDEN[0], id: "felanmalan-avsluta-anvandare", name: "Felanmälan - avsluta (användare)", skapad: "2026-09-01T15:00:00.000Z" },
+  { ...FLÖDEN[0], id: "driftfraga-avsluta-anvandare", name: "Driftfråga - avsluta (användare)", skapad: "2026-09-01T15:00:00.000Z" },
 ];
 
 it("en nyupplagd process märks med ny, en äldre gör det inte", () => {
-  render(<Processträd flöden={MED_NY} aktivtFlöde="bestallning-avbryt-anvandare" onÖppna={() => {}} nu={NU} />);
+  render(<Processträd flöden={MED_NY} aktivtFlöde="inkopsorder-avbryt-anvandare" onÖppna={() => {}} nu={NU} />);
 
   const rad = screen.getByText("Avbryt").closest("button")!;
   expect(rad.querySelector(".ark-meny-nymarke")?.textContent).toBe("ny");
-  // Felanmälan är hopfälld och rymmer inget nytt.
+  // Driftfråga är hopfälld och rymmer inget nytt.
   expect(document.querySelectorAll(".ark-meny-nymarke")).toHaveLength(1);
 });
 
 it("en hopfälld gren märks inte – ny syns först när grenen är utfälld", () => {
-  render(<Processträd flöden={MED_NY} aktivtFlöde="felanmalan-paminn-mig-handlaggare" onÖppna={() => {}} nu={NU} />);
+  render(<Processträd flöden={MED_NY} aktivtFlöde="driftfraga-paminn-mig-handlaggare" onÖppna={() => {}} nu={NU} />);
 
   expect(screen.queryByText("Avbryt")).toBeNull();
   expect(document.querySelector(".ark-meny-nymarke")).toBeNull();
 
-  fireEvent.click(screen.getByText("Beställning"));
+  fireEvent.click(screen.getByText("Inköpsorder"));
   const rad = screen.getByText("Avbryt").closest("button")!;
   // Direkt efter namnet, inte i grenrubriken.
   expect(rad.querySelector(".ark-meny-namn")!.nextElementSibling?.className).toBe("ark-meny-nymarke");
@@ -128,7 +134,7 @@ it("efter 48 timmar är märket borta", () => {
   render(
     <Processträd
       flöden={MED_NY}
-      aktivtFlöde="bestallning-avbryt-anvandare"
+      aktivtFlöde="inkopsorder-avbryt-anvandare"
       onÖppna={() => {}}
       nu={NU + 48 * 60 * 60 * 1000}
     />,

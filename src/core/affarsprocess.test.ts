@@ -265,7 +265,7 @@ describe("compileAp – satelliter", () => {
     const m = compileAp(
       draftMed([
         steg("a1", "activity", "Genomför urval", {
-          ap: { krav: ["Öka mångfald"], applikationer: ["Fastighetssystemet"] },
+          ap: { krav: ["Öka mångfald"], applikationer: ["Ärendesystemet"] },
         }),
       ]),
     );
@@ -292,7 +292,7 @@ describe("compileAp – datalager och meddelanden", () => {
     const m = compileAp(
       draftMed([
         steg("a1", "activity", "Registrera ärende"),
-        steg("ds1", "datastore", "SP-listan Incident"),
+        steg("ds1", "datastore", "SP-listan Inkorgen"),
         steg("a2", "activity", "Handlägg ärende"),
       ]),
     );

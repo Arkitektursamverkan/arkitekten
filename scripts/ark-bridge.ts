@@ -18,7 +18,14 @@ export function arkBridge(): Plugin {
       const inst = installningarUrMiljö(server.config.root);
       const logger = server.config.logger;
       const { fel, varningar } = kontrollera();
-      for (const rad of [...fel, ...varningar]) logger.warn(`  [ark] ${rad}`);
+      for (const rad of varningar) logger.warn(`  [ark] ${rad}`);
+      // Som den fristående servern: en felaktig inställning stoppar starten.
+      // REGRESSION: felen loggades bara, och dev-servern gick igång med t.ex.
+      // öppen drift eller en trasig inloggning.
+      if (fel.length) {
+        for (const rad of fel) logger.error(`  [ark] FEL: ${rad}`);
+        throw new Error(`Arkitekten startar inte: ${fel.join(" ")} Rätta miljön (.env) och starta om.`);
+      }
 
       const brygga = skapaBrygga({
         ...inst,
@@ -33,7 +40,17 @@ export function arkBridge(): Plugin {
           } as AiModuler;
         },
       });
-      server.middlewares.use("/__ark", (req, res, next) => void brygga(req, res, next));
+      server.middlewares.use("/__ark", (req, res, next) => {
+        brygga(req, res, next).catch((e) => {
+          logger.error(`  [ark] OHANTERAT FEL: ${e instanceof Error ? e.message : String(e)}`);
+          if (res.headersSent) res.destroy();
+          else {
+            res.statusCode = 500;
+            res.setHeader("content-type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({ ok: false, error: "Internt fel." }));
+          }
+        });
+      });
     },
   };
 }

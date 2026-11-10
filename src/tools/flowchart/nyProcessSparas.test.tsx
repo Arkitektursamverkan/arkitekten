@@ -66,7 +66,7 @@ it("en ny process med ny kategori hamnar i biblioteket direkt", async () => {
 });
 
 it("REGRESSION: begäran om en ny process spelades upp igen och sparade processen TOM ovanpå det man ritat", async () => {
-  // Innovation - demo, 2026-10-01: effekten som tar emot begäran kördes om
+  // En demoprocess, 2026-10-01: effekten som tar emot begäran kördes om
   // (Fast Refresh/ommontering) med SAMMA begäran. Verktyget började om på
   // processen och sparade direkt – en tom version ovanpå den ifyllda.
   sparade.clear();

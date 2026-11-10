@@ -73,7 +73,7 @@ describe("textrutan", () => {
 
 describe("textrutans storlek och färger", () => {
   it("en liten ruta är lägre och rymmer fler tecken per rad än en normal med samma bredd", () => {
-    const text = "Visning bokad med lägenhetsförvaltaren på tisdag";
+    const text = "Visning bokad med utbildningsansvarige på tisdag";
     const normal = textrutaLäge({ bredd: 300, rubrik: "Dag 3", text });
     const liten = textrutaLäge({ bredd: 300, rubrik: "Dag 3", text, skala: 0.75 });
     expect(liten.h).toBeLessThan(normal.h);

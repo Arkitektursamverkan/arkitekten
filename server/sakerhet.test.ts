@@ -13,6 +13,7 @@ import { klientadress, skapaBrygga, viaHttps, type AiModuler } from "./brygga";
 import { skapaServer } from "./arkitekten.mjs";
 import { installningarUrMiljö, kontrollera } from "./installningar";
 import { Inloggningsspärr, spärrnycklar } from "./konton";
+import { väntandeBegäranden } from "./brevlada";
 import { inloggningsfelKod, inloggningsfelText } from "../src/core/inloggningsfel";
 
 const MILJÖ = { ...process.env };
@@ -158,7 +159,7 @@ describe("AI-brevlådan per användare", () => {
   });
 
   it("REGRESSION: underlagen låg kvar för alltid och kunde läsas genom en annans begäran", async () => {
-    const upp = await anna("/__ark/underlag?namn=rutin.txt", { method: "POST", body: "Annas rutin", headers: { "content-type": "application/octet-stream" } });
+    const upp = await anna("/__ark/underlag?namn=rutin.txt", { method: "POST", body: "Annas rutin", headers: { "content-type": "application/octet-stream", origin: bas } });
     expect(upp.status).toBe(200);
     const sökväg = upp.kropp.sökväg as string;
     const fil = path.isAbsolute(sökväg) ? sökväg : path.join(tmp, sökväg);
@@ -176,16 +177,16 @@ describe("AI-brevlådan per användare", () => {
   });
 
   it("underlag äldre än ett dygn gallras vid nästa uppladdning, i alla brevlådor", async () => {
-    const upp = await anna("/__ark/underlag?namn=gammal.txt", { method: "POST", body: "gammalt", headers: { "content-type": "application/octet-stream" } });
+    const upp = await anna("/__ark/underlag?namn=gammal.txt", { method: "POST", body: "gammalt", headers: { "content-type": "application/octet-stream", origin: bas } });
     const sökväg = upp.kropp.sökväg as string;
     const fil = path.isAbsolute(sökväg) ? sökväg : path.join(tmp, sökväg);
     const förr = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     fs.utimesSync(fil, förr, förr);
-    await bo("/__ark/underlag?namn=ny.txt", { method: "POST", body: "nytt", headers: { "content-type": "application/octet-stream" } });
+    await bo("/__ark/underlag?namn=ny.txt", { method: "POST", body: "nytt", headers: { "content-type": "application/octet-stream", origin: bas } });
     expect(fs.existsSync(fil)).toBe(false);
   });
 
-  it("utvecklarläget har EN brevlåda direkt i arkDir – den Claude Code läser", async () => {
+  it("REGRESSION: utvecklarläget med inloggning delade EN brevlåda – nu har var och en sin, och Claude Code hittar den", async () => {
     const dev = fs.mkdtempSync(path.join(os.tmpdir(), "sakerhet-dev-"));
     const inst = installningarUrMiljö(dev, {});
     const s = skapaServer(
@@ -209,7 +210,17 @@ describe("AI-brevlådan per användare", () => {
         body: JSON.stringify({ rawText: "x", via: "claude-code" }),
       });
       expect(r.status).toBe(200);
-      expect(fs.existsSync(path.join(inst.arkDir, "request.json"))).toBe(true);
+      const id = (await r.json()).id;
+      expect(fs.existsSync(path.join(inst.arkDir, "request.json"))).toBe(false);
+      // Begäran ligger i användarens låda och syns för den som svarar för hand.
+      const väntande = väntandeBegäranden(inst.arkDir);
+      expect(väntande.map((b) => b.id)).toEqual([id]);
+      expect(väntande[0].katalog).toContain(`${path.sep}anvandare${path.sep}`);
+      // Ett svar i SAMMA katalog plockas upp av rätt användare.
+      fs.writeFileSync(väntande[0].response, JSON.stringify({ requestId: id, aiText: "svar" }));
+      const svar = await fetch(`http://127.0.0.1:${port}/__ark/response`, { headers: { cookie: kaka } });
+      expect(svar.status).toBe(200);
+      expect((await svar.json()).response.aiText).toBe("svar");
     } finally {
       await new Promise<void>((klar) => s.close(() => klar()));
       fs.rmSync(dev, { recursive: true, force: true });
@@ -232,8 +243,9 @@ describe("inloggningsspärren", () => {
     expect(spärr.spärradTill(spärrnycklar("anna", "10.0.1.1"))).toBeGreaterThan(0);
   });
 
-  it("REGRESSION: bakom en proxy var alla samma adress – med ARK_BETRODD_PROXY är klienten första ledet i X-Forwarded-For", () => {
-    const req = { headers: { "x-forwarded-for": "203.0.113.9, 10.0.0.1" }, socket: { remoteAddress: "10.0.0.1" } } as unknown as IncomingMessage;
+  it("REGRESSION: bakom en proxy var alla samma adress – med ARK_BETRODD_PROXY är klienten ledet proxyn lade till", () => {
+    // Proxyn lägger klientens adress SIST (sakerhet-3.test.ts: det första ledet kan klienten ha skrivit själv).
+    const req = { headers: { "x-forwarded-for": "198.51.100.7, 203.0.113.9" }, socket: { remoteAddress: "10.0.0.1" } } as unknown as IncomingMessage;
     expect(klientadress(req, true)).toBe("203.0.113.9");
     expect(klientadress(req, false)).toBe("10.0.0.1");
   });

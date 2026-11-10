@@ -32,8 +32,10 @@ function ögonblicksbild(): Record<string, string> {
 
 /** Innehållet (flows/) ligger inte i git – i en ren klon hoppas testerna över. */
 const HAR_FLÖDEN = fs.existsSync("flows");
-/** Processnumreringen finns bara i en installations egna flöden, inte i exempelpaketet. */
-const HAR_NUMRERADE = HAR_FLÖDEN && fs.readdirSync("flows").some((f) => f.includes("uthyrning-av-nyproduktion"));
+/** En affärsprocess ur biblioteket att bygga en scen för, om det finns någon. */
+const EN_AFFÄRSPROCESS = HAR_FLÖDEN
+  ? fs.readdirSync("flows").find((f) => f.startsWith("ap-") && f.endsWith(".json"))?.replace(/\.json$/, "")
+  : undefined;
 
 const FÖRE = ögonblicksbild();
 
@@ -62,8 +64,8 @@ describe("flödestjänsten", () => {
     expect(new Set(d.flows.map((f: { familj: string }) => f.familj))).toContain("affarsprocess");
   });
 
-  it.skipIf(!fs.existsSync("flows/ap-2-1-0-kohantering.json"))("bygger en scen för en affärsprocess", async () => {
-    const d = await (await fetch(`${bas}/api/flows/ap-2-1-0-kohantering/scen`)).json();
+  it.skipIf(!EN_AFFÄRSPROCESS)("bygger en scen för en affärsprocess", async () => {
+    const d = await (await fetch(`${bas}/api/flows/${EN_AFFÄRSPROCESS}/scen`)).json();
     expect(d.ok).toBe(true);
     expect(d.scen.format).toBe("ark-scen");
     expect(d.scen.noder.length).toBeGreaterThan(0);
@@ -76,7 +78,7 @@ describe("flödestjänsten", () => {
    * bruten av något som ingen tittade på.
    */
   it.each(["PUT", "DELETE", "PATCH"])("avvisar %s", async (metod) => {
-    const r = await fetch(`${bas}/api/flows/ap-2-1-0-kohantering`, { method: metod });
+    const r = await fetch(`${bas}/api/flows/ap-1-0-0-nagon-process`, { method: metod });
     expect(r.status).toBe(405);
   });
 
@@ -95,15 +97,18 @@ describe("flödestjänsten", () => {
    * EA-portalen. Härleds det fel finns kopplingen inte, och en process visar
    * inget flödesschema utan att något går sönder synligt.
    */
-  it.skipIf(!HAR_NUMRERADE)("härleder processprefixet ur namnet", async () => {
+  it.skipIf(!HAR_FLÖDEN)("härleder processprefixet ur namnet", async () => {
     const d = await (await fetch(`${bas}/api/flows`)).json();
-    const ap = d.flows.filter((f: { familj: string }) => f.familj === "affarsprocess");
-    expect(ap.length).toBeGreaterThan(0);
-    const uthyrning = ap.find((f: { id: string }) => f.id.includes("uthyrning-av-nyproduktion"));
-    expect(uthyrning?.prefix).toBe("2.2.7");
+    const numrerade = d.flows.filter(
+      (f: { familj: string; name: string }) => f.familj === "affarsprocess" && /^\d+(\.\d+)*\s/.test(f.name),
+    );
+    for (const f of numrerade) expect(f.prefix, f.id).toBe(/^(\d+(?:\.\d+)*)\s/.exec(f.name)![1]);
     // Portalflödena har ingen processnumrering och ska inte få ett påhittat prefix.
-    const portal = d.flows.find((f: { familj: string }) => f.familj === "flodesschema");
-    expect(portal?.prefix).toBeUndefined();
+    const portal = d.flows.filter(
+      (f: { familj: string; name: string; publicering?: unknown }) =>
+        f.familj === "flodesschema" && !f.publicering && !/^\d/.test(f.name),
+    );
+    for (const f of portal) expect(f.prefix, f.id).toBeUndefined();
   });
 
   it("lämnar flows/ orört efter alla anrop", () => {
@@ -147,17 +152,17 @@ describe("flödestjänsten och publiceringen", () => {
         publiceradAt: "2026-10-08T10:00:00.000Z",
       },
     });
-    flöde("ap-opublicerad", "4.4.3 Incident");
+    flöde("ap-opublicerad", "4.4.3 Granskning");
     // En Systemprocess publicerad på en APPLIKATION i portalen.
-    const draft = textToDraft("Ny beställning\nAnvändare → Fyller i formulär → System sparar beställningen");
-    flöde("bestallning-ny", "Ny beställning", {
+    const draft = textToDraft("Ny inköpsorder\nAnvändare → Fyller i formulär → System sparar inköpsordern");
+    flöde("inkopsorder-ny", "Ny inköpsorder", {
       draft,
       versions: [{ id: "v1", savedAt: "2026-10-08T00:00:00.000Z", status: "fastslagen", rawText: "", draft }],
       publicering: {
         eaNodId: "app-1",
         eaNodNamn: "Kundportalen",
         ägare: "Systemförvaltare",
-        beskrivning: "Hur en beställning tar sig genom portalen.",
+        beskrivning: "Hur en inköpsorder tar sig genom portalen.",
         publiceradAt: "2026-10-08T10:00:00.000Z",
       },
     });
@@ -190,18 +195,18 @@ describe("flödestjänsten och publiceringen", () => {
 
   it("ritar en scen också för en Systemprocess, och publiceringen följer med", async () => {
     const d = await (await fetch(`${adress}/api/flows`)).json();
-    const sys = d.flows.find((f: { id: string }) => f.id === "bestallning-ny");
+    const sys = d.flows.find((f: { id: string }) => f.id === "inkopsorder-ny");
     expect(sys.familj).toBe("flodesschema");
     expect(sys.publicering.eaNodId).toBe("app-1");
     expect(sys.prefix).toBeUndefined();
 
-    const r = await (await fetch(`${adress}/api/flows/bestallning-ny/scen`)).json();
+    const r = await (await fetch(`${adress}/api/flows/inkopsorder-ny/scen`)).json();
     expect(r.ok).toBe(true);
     expect(r.scen.familj).toBe("flodesschema");
     expect(r.scen.noder.length).toBeGreaterThan(0);
     expect(r.scen.bakgrund).toContain("<rect");
 
-    const svg = await fetch(`${adress}/api/flows/bestallning-ny/svg`);
+    const svg = await fetch(`${adress}/api/flows/inkopsorder-ny/svg`);
     expect(svg.status).toBe(200);
     expect(await svg.text()).toMatch(/^<svg/);
   });

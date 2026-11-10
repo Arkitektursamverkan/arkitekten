@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   andelAvPath,
@@ -188,8 +188,18 @@ describe("pointsToPath", () => {
   });
 });
 
+const EXEMPELFLÖDEN = "innehallspaket/exempel/flows";
+
+/** En katalogs flödesscheman (inte affärsprocesserna, som har en egen motor). */
+function flödesschemaFiler(katalog = "flows"): string[] {
+  if (!existsSync(katalog)) return [];
+  return readdirSync(katalog).filter((f) => f.endsWith(".json") && !f.startsWith("ap-"));
+}
+
 describe("kollisionsundvikande i verkliga flöden", () => {
-  it("inga sekvensflöden korsar en nod i felanmälan eller beställning", async () => {
+  // Exempelpaketets flödesscheman ligger i git och prövas alltid. (En
+  // installation kan pröva sina egna flöden på samma sätt i sin `.lokalt/`.)
+  it("inga sekvensflöden korsar en nod i exempelpaketets flöden", async () => {
     const fs = await import("node:fs");
     const { compileDraft } = await import("@/core/draft");
     const { layoutModel } = await import("@/tools/flowchart/layout/layout");
@@ -200,10 +210,13 @@ describe("kollisionsundvikande i verkliga flöden", () => {
         : s === "left" ? { x, y: y + h / 2 }
         : { x: x + w, y: y + h / 2 };
     };
-    for (const f of ["felanmalan-ny", "bestallning-ny"]) {
-      const path = `flows/${f}.json`;
-      if (!fs.existsSync(path)) continue;
-      const m = compileDraft(JSON.parse(fs.readFileSync(path, "utf8")).draft);
+    const filer = flödesschemaFiler(EXEMPELFLÖDEN);
+    expect(filer.length).toBeGreaterThan(0);
+    for (const f of filer) {
+      const path = `${EXEMPELFLÖDEN}/${f}`;
+      const draft = JSON.parse(fs.readFileSync(path, "utf8")).draft;
+      if (!draft?.steps) continue;
+      const m = compileDraft(draft);
       const lo = layoutModel(m);
       const byId = new Map(lo.nodes.map((n: any) => [n.node.id, n]));
       const H = lo.nodes.map((n: any) => ({ id: n.node.id, r: { x: n.x, y: n.y, w: n.w, h: n.h } }));
@@ -338,7 +351,7 @@ describe("REGRESSION: pilspetsen möter alltid porten längs portens axel", () =
   // in i en topp-port. Rättad tre gånger på symptomnivå; nu är riktningen en
   // INVARIANT i routern och låst här, över alla riktiga flöden och format.
   // Flödena ligger inte i git. Utan dem, som i en ren klon eller med bara exempelpaketet, hoppas testet över.
-  it.skipIf(!existsSync("flows/felanmalan-ny.json"))("gäller varje kant i exempel- och sparade flöden, i alla format", async () => {
+  it.skipIf(flödesschemaFiler().length === 0)("gäller varje kant i exempel- och sparade flöden, i alla format", async () => {
     const fs = await import("node:fs");
     const { compileDraft } = await import("@/core/draft");
     const { filterByPerspective } = await import("@/tools/flowchart/perspective");
@@ -351,9 +364,9 @@ describe("REGRESSION: pilspetsen möter alltid porten längs portens axel", () =
       : { x: n.x + n.w, y: n.y + n.h / 2 };
 
     const flöden: any[] = [];
-    for (const f of ["felanmalan-ny", "bestallning-ny", "felanmalan-forandring"]) {
-      const p = `flows/${f}.json`;
-      if (fs.existsSync(p)) flöden.push(JSON.parse(fs.readFileSync(p, "utf8")).draft);
+    for (const f of flödesschemaFiler()) {
+      const draft = JSON.parse(fs.readFileSync(`flows/${f}`, "utf8")).draft;
+      if (draft?.steps) flöden.push(draft);
     }
     /** Både AVGÅNG och ANKOMST ska följa portens axel, åt rätt håll. */
     const kontrolleraVäg = (pts: any[], sa: string, sb: string, namn: string) => {
@@ -431,7 +444,7 @@ describe("REGRESSION: decimalkoordinater knäcker inte A*", () => {
     // Manuellt dragna objekt ger decimalkoordinater (y=538.767…). Rutnätets
     // linjer avrundas, porten gjorde det inte – A* hittade inga grannar och
     // gav upp TYST. Nödvägen tog över och plöjde genom objekt eller loopade
-    // vänster. Exakt reprot ur Beställning - ny.
+    // vänster. Exakt reprot ur Inköpsorder - ny.
     const hinder: Rect = { x: 1894, y: 538.767356453926, w: 132, h: 54 };
     const pts = routeEdge({
       from: { x: 881.317515711115, y: 536.9816601827143 },
@@ -614,7 +627,7 @@ describe("etikettens ankare", () => {
 
 describe("pil in i ovansidan mellan två tätt staplade rader", () => {
   it("REGRESSION: går ut, över och NER i porten – ingen krok runt mottagaren", () => {
-    // Verklig geometri ur "Utvecklingsförslag – mer information krävs": ett
+    // Verklig geometri ur "Verksamhetsförslag – mer information krävs": ett
     // beslut vars Nej-gren ligger en rad ner, med Ja-grenens ruta rakt ovanför
     // mottagaren. Felbeteendet: stubbarna hamnade på olika höjd (14 ut ur
     // botten, men bara ~7 fanns framför toppen), A* kom inte rakt emellan och
@@ -798,7 +811,7 @@ describe("snabbruttningen", () => {
 
 describe("andra brytpunkten – sista sträckan in i målet", () => {
   // Källan till HÖGER, målet långt till vänster: en räls under kedjan, som
-  // 2.2.1:s "Byter annonstyp" (Bearbetar nästa sökande → Publicerar lägenhet).
+  // en lång återkoppling i en affärsprocess (Bearbetar nästa → tillbaka till första steget).
   const req = {
     from: { x: 1000, y: 100 },
     fromSide: "right" as const,

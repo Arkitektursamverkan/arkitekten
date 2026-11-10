@@ -11,14 +11,14 @@ import { textToDraft } from "../parser/toDraft";
 import { byggFlödesScen, byggFlödesUtlägg } from "./scen-flodesschema";
 import { renderSvgSized } from "./svg";
 
-const TEXT = `Felanmälan ny
+const TEXT = `Driftfråga ny
 Fel uppkommer → Användare → Fyller i formulär → System sparar ärendet (↓ Om prioritet = Hög → Handläggare larmas) → Handläggare tar emot ärendet`;
 
 function exempel(): SavedFlow {
   const draft = textToDraft(TEXT);
   return {
-    id: "felanmalan-ny",
-    name: "Felanmälan ny",
+    id: "driftfraga-ny",
+    name: "Driftfråga ny",
     savedAt: "2026-10-22T08:00:00.000Z",
     rawText: TEXT,
     draft,

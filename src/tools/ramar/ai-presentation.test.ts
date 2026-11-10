@@ -16,23 +16,23 @@ import {
   sparaPresentation,
 } from "./ai-presentation";
 
-const KÄLLA = { flödeId: "ap-uthyrning", namn: "Uthyrning", beskrivning: "Uthyrning\nA → B" };
+const KÄLLA = { flödeId: "ap-utlaning", namn: "Utlåning", beskrivning: "Utlåning\nA → B" };
 
 const FÖRENKLAD = {
-  aiText: "Uthyrning\nPublicerar lägenhet → Visar lägenhet → Skriver avtal",
-  title: "Uthyrning",
+  aiText: "Utlåning\nPublicerar utrustning → Visar utrustning → Skriver avtal",
+  title: "Utlåning",
   subtitle: null,
-  lanes: [{ id: "Uthyrning", title: "Uthyrning" }],
+  lanes: [{ id: "Utlåning", title: "Utlåning" }],
   steps: [
-    { id: "publicera", type: "activity", text: "Publicerar lägenhet [In: Ledig lägenhet] [Roll: Kundkoordinator U] [IT: Fastighetssystemet]", laneId: "Uthyrning" },
-    { id: "visa", type: "activity", text: "Visar lägenhet [Roll: Förvaltare U]", laneId: "Uthyrning" },
-    { id: "avtal", type: "activity", text: "Skriver avtal [Roll: Kundkoordinator U] [Ut: Lägenhet uthyrd]", laneId: "Uthyrning" },
+    { id: "publicera", type: "activity", text: "Publicerar utrustning [In: Ledig utrustning] [Roll: Lånehandläggare U] [IT: Utlåningssystemet]", laneId: "Utlåning" },
+    { id: "visa", type: "activity", text: "Visar utrustning [Roll: Förvaltare U]", laneId: "Utlåning" },
+    { id: "avtal", type: "activity", text: "Skriver avtal [Roll: Lånehandläggare U] [Ut: Utrustning utlånad]", laneId: "Utlåning" },
   ],
 };
 
 const ram = (extra: Record<string, unknown> = {}) => ({
   rubrik: "Steg 1",
-  text: "Lägenheten publiceras.",
+  text: "Utrustningen publiceras.",
   markeringar: [
     { mål: { typ: "nod", id: "publicera" }, verktyg: "puls", färg: "#f59f00" },
     { mål: { typ: "kant", id: "publicera->visa" }, verktyg: "puls", färg: "#f59f00" },
@@ -63,8 +63,8 @@ function minne(): Storage {
 
 describe("presentationsFlödeId", () => {
   it("härleds ur källans id och är alltid en affärsprocess", () => {
-    expect(presentationsFlödeId("ap-uthyrning")).toBe("ap-uthyrning-presentation");
-    expect(presentationsFlödeId("felanmalan-ny")).toBe("ap-felanmalan-ny-presentation");
+    expect(presentationsFlödeId("ap-utlaning")).toBe("ap-utlaning-presentation");
+    expect(presentationsFlödeId("driftfraga-ny")).toBe("ap-driftfraga-ny-presentation");
   });
 
   it("ryms i bryggans id-regel också för ett långt källnamn", () => {
@@ -74,7 +74,7 @@ describe("presentationsFlödeId", () => {
   });
 
   it("väljer ett ledigt id när processen redan har en presentation", () => {
-    expect(presentationsFlödeId("ap-uthyrning", ["ap-uthyrning-presentation"])).toBe("ap-uthyrning-presentation-2");
+    expect(presentationsFlödeId("ap-utlaning", ["ap-utlaning-presentation"])).toBe("ap-utlaning-presentation-2");
     const lång = "ap-" + "omforhandling-av-kommersiella-lokaler-".repeat(3);
     expect(presentationsFlödeId(lång, [presentationsFlödeId(lång)])).toMatch(/^[a-z0-9-]{1,64}$/);
   });
@@ -85,7 +85,7 @@ describe("byggPresentation", () => {
     const p = byggFörenklad({ förenklad: FÖRENKLAD }, KÄLLA);
     expect(p.draft.diagramType).toBe("affarsprocess");
     expect(p.draft.meta.origin).toBe("ai");
-    expect(p.bild.zoner.map((z) => z.namn)).toEqual(["Kundkoordinator", "Förvaltare"]);
+    expect(p.bild.zoner.map((z) => z.namn)).toEqual(["Lånehandläggare", "Förvaltare"]);
     expect(p.bild.rutor.filter((r) => r.sort === "steg").map((r) => r.id)).toEqual(["publicera", "visa", "avtal"]);
   });
 
@@ -94,8 +94,8 @@ describe("byggPresentation", () => {
       ...FÖRENKLAD,
       steps: [
         ...FÖRENKLAD.steps.slice(0, 2),
-        { id: "vill", type: "decision", text: "Vill sökande ha lägenheten?", laneId: "Uthyrning" },
-        { id: "nasta", type: "activity", text: "Bjuder in nästa", laneId: "Uthyrning", branchOfStepId: "vill", branchLabel: "Nej" },
+        { id: "vill", type: "decision", text: "Vill sökande ha utrustningen?", laneId: "Utlåning" },
+        { id: "nasta", type: "activity", text: "Bjuder in nästa", laneId: "Utlåning", branchOfStepId: "vill", branchLabel: "Nej" },
         FÖRENKLAD.steps[2],
       ],
       kopplingar: {
@@ -113,12 +113,12 @@ describe("byggPresentation", () => {
   });
 
   it("serien pekar på den förenklade processen, i avskalad stil, med egna id:n på varje ram", () => {
-    const b = byggPresentation(svar([ram(), ram({ rubrik: "Steg 2" })]), KÄLLA, ["ramar-uthyrning-presentation"]);
-    expect(b.flödeId).toBe("ap-uthyrning-presentation");
+    const b = byggPresentation(svar([ram(), ram({ rubrik: "Steg 2" })]), KÄLLA, ["ramar-utlaning-presentation"]);
+    expect(b.flödeId).toBe("ap-utlaning-presentation");
     expect(b.serie.flödeId).toBe(b.flödeId);
     expect(b.serie.stil).toBe("avskalad");
     // Namnet är upptaget – en ny serie, aldrig den gamla överskriven.
-    expect(b.serie.id).toBe("ramar-uthyrning-presentation-2");
+    expect(b.serie.id).toBe("ramar-utlaning-presentation-2");
     expect(new Set(b.serie.ramar.map((r) => r.id)).size).toBe(2);
     expect(b.serie.ramar[0].markeringar).toHaveLength(2);
   });
@@ -201,8 +201,8 @@ describe("sparaPresentation", () => {
   it("första gången: ett nytt flöde i kategorin Presentation och en ramserie", async () => {
     const { flöden, ramar } = lagring();
     const { flöde, serie } = await sparaPresentation(flöden, ramar, byggPresentation(svar([ram()]), KÄLLA));
-    expect(flöde.id).toBe("ap-uthyrning-presentation");
-    expect(flöde.name).toBe("Uthyrning (presentation)");
+    expect(flöde.id).toBe("ap-utlaning-presentation");
+    expect(flöde.name).toBe("Utlåning (presentation)");
     expect(flöde.category).toBe(PRESENTATIONSKATEGORI);
     expect(flöde.versions).toHaveLength(1);
     expect((await ramar.load(serie.id)).flödeId).toBe(flöde.id);
@@ -211,7 +211,7 @@ describe("sparaPresentation", () => {
   it("REGRESSION: en omkörning skrev över den förra förenklade processen (ny version av samma flöde) – nu blir det en NY process", async () => {
     const { flöden, ramar } = lagring();
     await sparaPresentation(flöden, ramar, byggPresentation(svar([ram()]), KÄLLA));
-    const första = await flöden.load("ap-uthyrning-presentation");
+    const första = await flöden.load("ap-utlaning-presentation");
 
     const annan = {
       ...svar([ram()]),
@@ -221,12 +221,12 @@ describe("sparaPresentation", () => {
     const sparade = (await flöden.list()).map((f) => f.id);
     const { flöde, serie } = await sparaPresentation(flöden, ramar, byggPresentation(annan, KÄLLA, serier, sparade));
 
-    expect(flöde.id).toBe("ap-uthyrning-presentation-2");
-    expect(flöde.name).toBe("Uthyrning (presentation 2)");
+    expect(flöde.id).toBe("ap-utlaning-presentation-2");
+    expect(flöde.name).toBe("Utlåning (presentation 2)");
     expect(serie.flödeId).toBe(flöde.id);
-    expect(serie.id).toBe("ramar-uthyrning-presentation-2");
+    expect(serie.id).toBe("ramar-utlaning-presentation-2");
     // Den förra står kvar, orörd.
-    expect(await flöden.load("ap-uthyrning-presentation")).toEqual(första);
+    expect(await flöden.load("ap-utlaning-presentation")).toEqual(första);
     expect(await ramar.list()).toHaveLength(2);
   });
 });

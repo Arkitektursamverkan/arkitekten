@@ -133,7 +133,7 @@ function Exempelinnehall() {
   async function läggIn(id: string) {
     setBesked(null);
     try {
-      const b = await (await fetch(`/__ark/innehallspaket/${id}/import`, { method: "POST" })).json();
+      const b = await (await fetch(`/__ark/innehallspaket/${id}/import`, { method: "POST", headers: { "content-type": "application/json" } })).json();
       if (!b.ok) throw new Error(b.error);
       const r = b.rapport;
       setBesked(

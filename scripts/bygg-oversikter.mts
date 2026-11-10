@@ -3,7 +3,7 @@
  *
  * En box per process, placerad i banan för den som kan starta den. Inga pilar,
  * inga event: kartan visar vad som FINNS, inte i vilken ordning det sker.
- * Formen är avläst ur `utvecklingsforslag-oversikt`, som är gjord för hand.
+ * Formen är avläst ur en översikt som gjordes för hand.
  *
  * VARFÖR HÄRLEDD OCH INTE HANDSKRIVEN: en översikt som skrivs av är sann den
  * dag den skrivs. Nästa flöde som tillkommer syns i menyn men inte i kartan,
@@ -19,8 +19,10 @@
  * Bilderna skrivs som UTKAST. Fastslåendet är processägarens beslut.
  *
  *   npx tsx scripts/bygg-oversikter.mts            – bygger de som saknas
- *   npx tsx scripts/bygg-oversikter.mts --alla     – bygger om ALLA, även
- *                                                    utvecklingsförslagets
+ *   npx tsx scripts/bygg-oversikter.mts --alla     – bygger om ALLA (utom
+ *                                                    de fastslagna)
+ *   npx tsx scripts/bygg-oversikter.mts --ordning <fil> – läsordningen per
+ *                                                    ärendetyp (se nedan)
  */
 
 import fs from "node:fs";
@@ -33,7 +35,7 @@ import {
   type ProcessDraft,
 } from "@/core/draft";
 import { flowActor } from "@/core/flow-store";
-import { kortnamn, ÄRENDETYPER, ärendetypFör } from "@/core/flow-tree";
+import { kortnamn, ärendetyper, ärendetypFör } from "@/core/flow-tree";
 import { senasteFastslagna, normaliseraStatus } from "@/core/status";
 import { validateModel } from "@/tools/flowchart/parser/validate";
 import { filterByPerspective } from "@/tools/flowchart/perspective";
@@ -56,47 +58,23 @@ const KOLUMNER = 4;
  * sist i sin bana, i bokstavsordning – nytillkomna flöden syns alltså direkt
  * i stället för att tyst hamna på en godtycklig plats.
  */
-const PROCESSORDNING: Record<string, string[]> = {
-  avvikelse: [
-    // Användare
-    "avvikelse-spara-utkast",
-    "avvikelse-nytt",
-    "avvikelse-ta-bort",
-    "avvikelse-andra",
-    "avvikelse-mer-information-kravs-anvandare",
-    // Godkännare
-    "avvikelse-byt-arendetyp",
-    "avvikelse-byt-avdelning",
-    "avvikelse-mer-information-kravs-godkannare",
-    "avvikelse-atgardas-inte",
-    "avvikelse-atgardas",
-    "avvikelse-kommentera-godkannare",
-    "avvikelse-las-upp-formular-godkannare",
-    "avvikelse-byt-handlaggare",
-    // Handläggare
-    "avvikelse-kommentera-handlaggare",
-    "avvikelse-las-upp-formular-handlaggare",
-    "avvikelse-planera-atgard",
-    "avvikelse-rapportera-atgardad",
-  ],
-  reduktion: [
-    // Användare
-    "reduktion-spara-utkast",
-    "reduktion-skicka-for-beslutsattest",
-    "reduktion-las-upp-for-redigering",
-    "reduktion-ladda-ner-avtal",
-    "reduktion-signering-klar",
-    // Handläggare
-    "reduktion-godkann",
-    "reduktion-avsla",
-    "reduktion-kommentera",
-    "reduktion-las-upp-formular",
-    // Power Automate
-    "reduktion-skapa-enskilt-dokument",
-    "reduktion-flytta-signerat-dokument",
-    "reduktion-skapa-manadens-dokument",
-  ],
-};
+const PROCESSORDNING = läsProcessordning();
+
+/**
+ * Ordningen är INSTALLATIONENS – den nämner dess flöden och hör inte hemma i
+ * koden. Den läses ur en JSON-fil ({ "<ärendetyp>": ["<flödes-id>", …] }):
+ * `--ordning <fil>`, annars `.lokalt/processordning.json` om den finns.
+ * Saknas filen gäller bokstavsordning överallt.
+ */
+function läsProcessordning(): Record<string, string[]> {
+  const i = process.argv.indexOf("--ordning");
+  const fil = i >= 0 ? process.argv[i + 1] : path.join(".lokalt", "processordning.json");
+  if (!fil || !fs.existsSync(fil)) {
+    if (i >= 0) throw new Error(`Hittar inte ordningsfilen ${fil ?? "(ingen angiven)"}`);
+    return {};
+  }
+  return JSON.parse(fs.readFileSync(fil, "utf8")) as Record<string, string[]>;
+}
 
 /** Banorna i översiktens ordning. Andra banor läggs sist, i bokstavsordning. */
 const BANORDNING = [
@@ -177,10 +155,10 @@ function villkorstext(vakt: DraftStep | undefined, draft: ProcessDraft, bana: st
 
 /** Processerna i en ärendetyp, i den ordning de ska stå i kartan. */
 function processerFör(typId: string, flöden: Fil[]): Process[] {
-  const typ = ÄRENDETYPER.find((t) => t.id === typId)!;
+  const typ = ärendetyper().find((t) => t.id === typId)!;
   const hör = (f: Fil) =>
     ärendetypFör(f.id).id === typId ||
-    // De DELADE flödena ("Felanmälan och beställning – ny kommentar") hamnar i
+    // De DELADE flödena ("<typ> och <annan typ> – ny kommentar") hamnar i
     // Gemensamt i menyn, men de finns på riktigt i båda ärendetyperna och ska
     // därför synas i båda kartorna.
     f.name.toLowerCase().startsWith(`${typ.titel.toLowerCase()} och `) ||
@@ -351,19 +329,17 @@ const optioner = {
 };
 
 let skrivna = 0;
-for (const typ of ÄRENDETYPER) {
+for (const typ of ärendetyper()) {
   // "Gemensamt" är ingen ärendetyp – det är en hög med det som gäller flera.
   if (typ.id === "gemensamt") continue;
 
   const fil = path.join(KATALOG, `${typ.id}-oversikt.json`);
   const fanns = fs.existsSync(fil);
-  // Utvecklingsförslagets karta ligger på en annan filnamnsform sedan tidigare.
-  const gammal = path.join(KATALOG, "utvecklingsforslag-oversikt.json");
-  const målfil = typ.id === "utvecklingsforslag" && fs.existsSync(gammal) ? gammal : fil;
+  const målfil = fil;
   if (fs.existsSync(målfil)) {
     /**
      * EN FASTSLAGEN BILD ÄR PROCESSÄGARENS BESLUT och rörs aldrig, inte ens med
-     * --alla. Skriptet skrev en gång över utvecklingsförslagets fastslagna
+     * --alla. Skriptet skrev en gång över en handgjord, fastslagen
      * karta: historiken överlevde, men flödet stod plötsligt på ett utkast
      * som ingen bett om. Fastslagenheten är spärren, inte flaggan.
      */

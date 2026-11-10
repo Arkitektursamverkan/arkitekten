@@ -15,9 +15,13 @@
  *   - "claude-code": UTVECKLARLÄGET (`ARK_UTVECKLARLAGE=1`). Begäran läggs i
  *     brevlådan och besvaras av Claude Code i en terminal på samma maskin:
  *
- *       1. Appen POST:ar sin beskrivning        → <arkDir>/request.json
- *       2. Claude Code läser den, tolkar, skriver → <arkDir>/response.json
+ *       1. Appen POST:ar sin beskrivning        → <låda>/request.json
+ *       2. Claude Code läser den, tolkar, skriver → <låda>/response.json
  *       3. Appen pollar och plockar upp svaret   → mellanlagret fylls
+ *
+ *     <låda> är användarens egen brevlåda (`<arkDir>/anvandare/<hash>/`, se
+ *     server/brevlada.ts) – bara i öppen drift är den `<arkDir>` självt.
+ *     `npx tsx scripts/brevlada.mts` listar de väntande begärandena.
  *
  *     Den som svarar kopierar `id` ur request.json till `requestId` i
  *     response.json – korrelationen hindrar att ett sent svar på en avbruten
@@ -66,7 +70,7 @@ import {
   utloggningsUrl,
   öppenAnvändare,
 } from "./auth";
-import { bytYta, prövaRamserie, prövaSparning } from "./atkomst";
+import { bytYta, prövaPublicering, prövaRamserie, prövaSparning } from "./atkomst";
 import { läsStilar, valdStil, väljStil } from "./symbolstilar";
 import { Inloggningsspärr, Kontofel, Kontolager, somAnvändare, spärrnycklar, utåt } from "./konton";
 import { ALLMÄNT_FEL, Användarfel, Kroppsfel } from "./fel";
@@ -84,12 +88,8 @@ import {
   type Yta,
 } from "../src/core/behorighet";
 
-const REQUEST = "request.json";
-const RESPONSE = "response.json";
-/** Uppladdade underlag till ett uppdrag (t.ex. dokumentet en rutin ska byggas ur). */
-const UNDERLAG = "underlag";
-/** Brevlådorna per användare (utanför utvecklarläget), under `arkDir`. */
-const ANVÄNDARLÅDOR = "anvandare";
+// Brevlådornas namn och platser bor i server/brevlada.ts (läses också av skripten).
+import { ANVÄNDARLÅDOR, REQUEST, RESPONSE, UNDERLAG, brevlådekatalog } from "./brevlada";
 /** Ett underlag som ingen begäran tagit hand om tas bort efter ett dygn. */
 const UNDERLAG_LIVSLÄNGD_MS = 24 * 60 * 60 * 1000;
 /** Högst så mycket underlag per brevlåda åt gången. */
@@ -206,18 +206,132 @@ function json(res: ServerResponse, status: number, body: unknown) {
 }
 
 /**
- * Klientens adress. Bakom en betrodd proxy (ARK_BETRODD_PROXY) är det första
- * ledet i X-Forwarded-For; annars socketens – som bakom en proxy är proxyns
- * egen. Sätt bara ARK_BETRODD_PROXY när appen INTE kan nås förbi proxyn:
- * annars kan vem som helst skriva huvudet själv.
+ * ARK_BETRODD_PROXY som ANTAL betrodda proxyer framför appen. "1", "true",
+ * "ja" och "on" (de gamla på-värdena) är en proxy; tomt, "0" eller något
+ * annat är av.
  */
-export function klientadress(req: IncomingMessage, betroddProxy: boolean): string {
-  if (betroddProxy) {
+export function betroddaProxyer(v: string | undefined): number {
+  const t = v?.trim().toLowerCase() ?? "";
+  if (/^(true|ja|on)$/.test(t)) return 1;
+  const n = Number(t);
+  return Number.isInteger(n) && n > 0 && n <= 10 ? n : 0;
+}
+
+/**
+ * Klientens adress. Bakom n betrodda proxyer (ARK_BETRODD_PROXY=n) är det
+ * led nummer n RÄKNAT FRÅN HÖGER i X-Forwarded-For: varje proxy lägger till
+ * adressen den fick begäran från sist, så de n sista leden är skrivna av
+ * proxyer vi litar på. Det som står till vänster om dem kan klienten ha
+ * skrivit själv. Annars socketens adress – som bakom en proxy är proxyns.
+ *
+ * REGRESSION: det FÖRSTA ledet togs, och det skriver klienten själv – en
+ * gissare som bytte huvudet vid varje försök slapp inloggningsspärren.
+ */
+export function klientadress(req: IncomingMessage, proxyer: number | boolean): string {
+  const n = typeof proxyer === "boolean" ? (proxyer ? 1 : 0) : proxyer;
+  if (n > 0) {
     const xff = req.headers["x-forwarded-for"];
-    const första = (Array.isArray(xff) ? xff[0] : xff)?.split(",")[0]?.trim();
-    if (första) return första;
+    const led = (Array.isArray(xff) ? xff.join(",") : (xff ?? ""))
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const vald = led[led.length - n];
+    if (vald) return vald;
   }
   return req.socket.remoteAddress ?? "";
+}
+
+/** Vägar som tar emot binärt (inte JSON) – de prövas bara på ursprunget. */
+const BINÄRA_VÄGAR = new Set(["/underlag"]);
+
+/**
+ * En enkel hastighetsgräns i minnet: högst `tak` händelser per nyckel inom
+ * `fönsterMs`. REGRESSION: en inloggad kunde skicka hur många betalda anrop
+ * som helst på installationens AI-nyckel.
+ */
+export class Hastighetsgräns {
+  private händelser = new Map<string, number[]>();
+  constructor(
+    readonly tak: number,
+    private readonly fönsterMs: number,
+  ) {}
+
+  private färska(nyckel: string, nu: number): number[] {
+    const kvar = (this.händelser.get(nyckel) ?? []).filter((t) => nu - t < this.fönsterMs);
+    if (kvar.length) this.händelser.set(nyckel, kvar);
+    else this.händelser.delete(nyckel);
+    return kvar;
+  }
+
+  /** Räknar händelsen och svarar om den får ske. */
+  tillåt(nyckel: string, nu = Date.now()): boolean {
+    const kvar = this.färska(nyckel, nu);
+    if (kvar.length >= this.tak) return false;
+    this.händelser.set(nyckel, [...kvar, nu]);
+    return true;
+  }
+
+  /** Hur länge tills nästa händelse får ske. */
+  väntaMs(nyckel: string, nu = Date.now()): number {
+    const kvar = this.färska(nyckel, nu);
+    return kvar.length < this.tak ? 0 : Math.max(0, this.fönsterMs - (nu - kvar[0]));
+  }
+}
+
+/** Värden (host:port) ur en adress, eller tomt. */
+function värdUr(adress: string | undefined): string {
+  try {
+    return adress?.trim() ? new URL(adress.trim()).host : "";
+  } catch {
+    return "";
+  }
+}
+
+/** Ett huvud som text (första värdet). */
+function huvud(req: IncomingMessage, namn: string): string {
+  const v = req.headers[namn];
+  return ((Array.isArray(v) ? v[0] : v) ?? "").trim();
+}
+
+/**
+ * CSRF-skyddet – EN plats, så att båda värdarna (servern och Vite) får det.
+ * Gäller allt som ändrar något (POST/PUT/PATCH/DELETE under /__ark):
+ *
+ * - Bär begäran `Origin` ska den vara appens egen (värden i `Host`,
+ *   proxyns `X-Forwarded-Host` bakom en betrodd proxy, eller ARK_BAS_URL).
+ *   Saknas den gäller `Sec-Fetch-Site`: same-origin eller none.
+ * - Kroppen ska vara `application/json` – ett formulär från en annan sida kan
+ *   inte skicka det utan att webbläsaren först frågar (CORS). DELETE har
+ *   ingen kropp och kan inte skickas av ett formulär. Uppladdningarna
+ *   (BINÄRA_VÄGAR) tar binärt och kräver i stället ett ursprung som stämmer.
+ *
+ * Ger felet i klartext, eller null när begäran får passera.
+ */
+export function prövaUrsprung(req: IncomingMessage, url: string, egnaVärdar: string[]): string | null {
+  const metod = (req.method ?? "GET").toUpperCase();
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(metod)) return null;
+  const origin = huvud(req, "origin");
+  const plats = huvud(req, "sec-fetch-site").toLowerCase();
+  const värdar = egnaVärdar.map((v) => v.trim().toLowerCase()).filter(Boolean);
+  let ursprungStämmer = false;
+  if (origin) {
+    let värd = "";
+    try {
+      värd = new URL(origin).host.toLowerCase();
+    } catch {
+      /* "null" och skräp är inget ursprung */
+    }
+    if (!värd || !värdar.includes(värd)) return "Begäran kom från en annan webbplats.";
+    ursprungStämmer = true;
+  } else if (plats) {
+    if (plats !== "same-origin" && plats !== "none") return "Begäran kom från en annan webbplats.";
+    ursprungStämmer = plats === "same-origin";
+  }
+  if (BINÄRA_VÄGAR.has(url)) return ursprungStämmer ? null : "Uppladdningen saknar ett ursprung från appen.";
+  if (metod === "DELETE") return null;
+  if (!/^application\/json\b/i.test(huvud(req, "content-type")))
+    return "Begäran måste skickas som JSON (content-type: application/json).";
+  return null;
 }
 
 /** Nåddes appen över https? Proxyn framför säger det med `x-forwarded-proto`. */
@@ -287,8 +401,8 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
       const basHttps = (auth.läge === "entra" || auth.läge === "lokal") && auth.basUrl.startsWith("https:");
       const säkerKaka = (req: IncomingMessage) =>
         basHttps || ((auth.läge === "entra" || auth.läge === "lokal") && viaHttps(req));
-      /** ARK_BETRODD_PROXY: klientens adress tas ur X-Forwarded-For (se `klientadress`). */
-      const betroddProxy = /^(1|true|ja|on)$/i.test(process.env.ARK_BETRODD_PROXY?.trim() ?? "");
+      /** ARK_BETRODD_PROXY: antal betrodda proxyer – klientens adress tas ur X-Forwarded-For (se `klientadress`). */
+      const betroddProxy = betroddaProxyer(process.env.ARK_BETRODD_PROXY);
       const konton = new Kontolager(o.kontonFil);
       const spärr = new Inloggningsspärr();
       if (auth.läge === "entra") {
@@ -343,9 +457,13 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
        * id:t – inget namn i filsystemet), och begäran, svaret och underlagen
        * hör till den som är inloggad.
        *
-       * UTVECKLARLÄGET (och öppen drift, där alla är samma användare) har EN
-       * brevlåda, direkt i `arkDir` (`.ark/request.json`): det är den Claude
-       * Code läser och skriver (CLAUDE.md, "AI-bryggan").
+       * Det gäller ÄVEN UTVECKLARLÄGET när inloggning är på (entra/lokal/dev):
+       * Claude Code hittar begäran i användarens låda (server/brevlada.ts,
+       * `scripts/brevlada.mts`) och svarar i samma katalog. REGRESSION: i
+       * utvecklarläget delade alla inloggade EN låda – den som installerat
+       * med ARK_UTVECKLARLAGE=1 i drift fick tillbaka felet ovan. Bara ÖPPEN
+       * drift, där alla är samma användare, har kvar EN brevlåda direkt i
+       * `arkDir` (`.ark/request.json`).
        */
       interface Brevlåda {
         nyckel: string;
@@ -354,10 +472,11 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
         response: string;
         underlag: string;
       }
-      const delad = utvecklarläge || auth.läge === "öppen";
+      const delad = auth.läge === "öppen";
+      /** Högst så många API-anrop per användare och timme (ARK_AI_TAK_PER_TIMME, förval 30). */
+      const aiGräns = new Hastighetsgräns(Number(process.env.ARK_AI_TAK_PER_TIMME) || 30, 60 * 60_000);
       const brevlåda = (u: Användare): Brevlåda => {
-        const nyckel = delad ? "" : crypto.createHash("sha256").update(u.id).digest("hex").slice(0, 32);
-        const katalog = delad ? dir : path.join(dir, ANVÄNDARLÅDOR, nyckel);
+        const { nyckel, katalog } = brevlådekatalog(dir, delad ? null : u.id);
         return {
           nyckel,
           katalog,
@@ -525,6 +644,18 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
         const url = (req.url ?? "").split("?")[0];
 
         try {
+          // --- CSRF: allt som ändrar något måste komma från appen själv.
+          const egnaVärdar = [
+            huvud(req, "host"),
+            ...(betroddProxy ? [huvud(req, "x-forwarded-host").split(",")[0]] : []),
+            värdUr(process.env.ARK_BAS_URL),
+          ];
+          const csrf = prövaUrsprung(req, url, egnaVärdar);
+          if (csrf) {
+            json(res, 403, { ok: false, error: csrf });
+            return;
+          }
+
           // --- Inloggningen. De här vägarna är de enda som nås utan session.
           if (url === "/auth/me" && req.method === "GET") {
             json(res, 200, {
@@ -648,9 +779,18 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             }
           }
 
+          // Utloggningen är en POST (och därmed CSRF-skyddad): en GET kunde
+          // läggas i en bild på vilken sida som helst och logga ut den som
+          // tittade. Svaret säger vart webbläsaren ska gå sedan.
           if (url === "/auth/logout") {
+            if (req.method !== "POST") {
+              res.setHeader("allow", "POST");
+              json(res, 405, { ok: false, error: "Utloggningen är en POST." });
+              return;
+            }
             const rensa = kaka(SESSION_KAKA, "", { maxÅlder: 0, säker: säkerKaka(req) });
-            omdirigera(res, auth.läge === "entra" && !saknas.length ? utloggningsUrl(auth) : "/", [rensa]);
+            res.setHeader("set-cookie", [rensa]);
+            json(res, 200, { ok: true, tillbaka: auth.läge === "entra" && !saknas.length ? utloggningsUrl(auth) : "/" });
             return;
           }
 
@@ -695,6 +835,16 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               return;
             }
             const body = JSON.parse((await readBody(req)) || "{}");
+            // Hastighetsgränsen gäller anropen på installationens nyckel.
+            const viaApi = läge === "api" && !(utvecklarläge && body.via === "claude-code");
+            if (viaApi && !aiGräns.tillåt(användare.id)) {
+              res.setHeader("retry-after", String(Math.ceil(aiGräns.väntaMs(användare.id) / 1000)));
+              json(res, 429, {
+                ok: false,
+                error: `Du har gjort ${aiGräns.tak} AI-anrop den senaste timmen – vänta en stund och försök igen.`,
+              });
+              return;
+            }
             const låda = brevlåda(användare);
             fs.mkdirSync(låda.katalog, { recursive: true });
             // Gammalt svar rensas, annars plockar appen upp fel tolkning.
@@ -734,7 +884,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             fs.writeFileSync(låda.request, JSON.stringify(begäran, null, 2), "utf8");
             // `via: "claude-code"` = användaren valde Claude Code i kostnadsrutan –
             // bara i utvecklarläget; annars finns ingen som läser brevlådan.
-            const medApi = läge === "api" && !(utvecklarläge && body.via === "claude-code");
+            const medApi = viaApi;
             if (medApi) {
               log.info(`\n  [ark] Begäran ${id} (${begäran.uppdrag}) – besvaras med API:t.`);
               void svaraMedApi(begäran, låda);
@@ -823,6 +973,31 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 // Portalens webbadress – rutan länkar till processen där.
                 webb: (process.env.EA_WEBB_URL?.trim() ?? "").replace(/\/+$/, ""),
               });
+              return;
+            }
+            // Publiceringen på FLÖDET (core/publicering.ts) skrivs bara här,
+            // aldrig med en vanlig sparning: admin + gemensam katalog
+            // (prövaPublicering i server/atkomst.ts). Ingen ny version.
+            const pubMatch = /^\/ea\/publicering\/([^/]+)$/.exec(url);
+            if (pubMatch && (req.method === "PUT" || req.method === "DELETE")) {
+              const id = decodeURIComponent(pubMatch[1]);
+              const file = path.join(flowsDir, `${id}.json`);
+              const befintlig = SAFE_ID.test(id) ? läsJson(file) : null;
+              if (!befintlig || !kanLäsa(användare, befintlig)) {
+                json(res, 404, { ok: false, error: "Flödet finns inte." });
+                return;
+              }
+              const b = req.method === "PUT" ? JSON.parse((await readBody(req)) || "{}") : null;
+              const prövad = prövaPublicering(användare, befintlig, b ? (b.publicering ?? {}) : null);
+              if (!prövad.ok) {
+                json(res, prövad.status, { ok: false, error: prövad.fel });
+                return;
+              }
+              fs.writeFileSync(file, JSON.stringify(prövad.värde, null, 2), "utf8");
+              log.info(
+                `  [ark] ${b ? "Publicerade" : "Avpublicerade"} ${FLOWS}/${id}.json i EA-portalen (${användare.namn})`,
+              );
+              json(res, 200, { ok: true, flow: prövad.värde });
               return;
             }
             if (!ea) {

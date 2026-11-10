@@ -23,7 +23,7 @@ import {
 
 function mall(): Mall {
   return {
-    titel: "Felanmälan",
+    titel: "Driftfråga",
     underrubrik: "Från fel till avslutat ärende",
     banor: ["Användare", "Portalen", "Power Automate", "SharePoint"],
     rader: [
@@ -97,7 +97,7 @@ describe("mallen bygger vad man valt", () => {
 
   it("resultatet går hela vägen genom kompileringen", () => {
     const m = compileDraft(mallTillDraft(mall()));
-    expect(m.title).toBe("Felanmälan");
+    expect(m.title).toBe("Driftfråga");
     expect(m.nodes.length).toBeGreaterThan(4);
     expect(m.edges.length).toBeGreaterThan(3);
     // Beslutet ska ha två utgående kanter med var sin etikett.
@@ -152,7 +152,7 @@ describe("mallen säger vad som saknas", () => {
 describe("mallen som text", () => {
   it("skrivs i samma pilformat som beskrivningsrutan", () => {
     const t = mallSomText(mall());
-    expect(t.split("\n")[0]).toBe("Felanmälan");
+    expect(t.split("\n")[0]).toBe("Driftfråga");
     expect(t).toContain("Fel uppkommer → Startar Portalen");
     expect(t).toContain("↓ Om Ja → Teamschatt skapas");
   });

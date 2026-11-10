@@ -14,7 +14,7 @@ vi.mock("@/core/ram-store", () => ({ getRamStore: async () => ({}) }));
 
 import { PresentationsKnapp } from "./PresentationsKnapp";
 
-const KÄLLA = () => ({ flödeId: "ap-uthyrning", namn: "Uthyrning", beskrivning: "…", struktur: {} });
+const KÄLLA = () => ({ flödeId: "ap-utlaning", namn: "Utlåning", beskrivning: "…", struktur: {} });
 
 afterEach(() => {
   cleanup();
@@ -39,14 +39,14 @@ describe("PresentationsKnapp", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Förenkla och presentera/ }));
     await waitFor(() => expect(begärPresentation).toHaveBeenCalled());
-    expect(begärPresentation.mock.calls[0][0]).toMatchObject({ flödeId: "ap-uthyrning" });
+    expect(begärPresentation.mock.calls[0][0]).toMatchObject({ flödeId: "ap-utlaning" });
     expect(screen.getByText(/request\.json/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Avbryt" })).toBeTruthy();
     expect(onArbetar).toHaveBeenLastCalledWith(true);
 
     svara({
-      flöde: { id: "ap-uthyrning-presentation", name: "Uthyrning (presentation)" },
-      serie: { id: "ramar-uthyrning-presentation", ramar: [{}, {}, {}] },
+      flöde: { id: "ap-utlaning-presentation", name: "Utlåning (presentation)" },
+      serie: { id: "ramar-utlaning-presentation", ramar: [{}, {}, {}] },
       anmärkningar: ["Ram 2: struket."],
     });
     await screen.findByText(/3 ramar är sparade/);
@@ -56,9 +56,9 @@ describe("PresentationsKnapp", () => {
     expect(screen.getByText(/1 anmärkning/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Öppna i Visualisering/ }));
-    expect(onÖppnaRamserie).toHaveBeenCalledWith("ramar-uthyrning-presentation");
+    expect(onÖppnaRamserie).toHaveBeenCalledWith("ramar-utlaning-presentation");
     fireEvent.click(screen.getByRole("button", { name: /Öppna den förenklade processen/ }));
-    expect(onÖppnaFlöde).toHaveBeenCalledWith("ap-uthyrning-presentation");
+    expect(onÖppnaFlöde).toHaveBeenCalledWith("ap-utlaning-presentation");
   });
 
   it("ett fel visas i klartext och knappen går att trycka på igen", async () => {

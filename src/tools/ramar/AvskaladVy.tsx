@@ -27,6 +27,7 @@ import {
   type AvskaladeLägen,
 } from "./avskalad";
 import type { Side } from "@/tools/flowchart/layout/edge-router";
+import { säkerSvg } from "@/render/saker-svg";
 
 /** Hur nära (i bildens pixlar) en mittlinje måste ligga för att snäppa. */
 export const SNÄPP = 12;
@@ -93,7 +94,10 @@ export function AvskaladVy(props: {
     [modell, lägen, kopplingar, utkastLägen, utkastKopplingar],
   );
   const svg = useMemo(
-    () => renderAvskaladSvg(bild, { handtag: redigerar && Boolean(props.onKoppling), vald: redigerar ? props.vald : null }),
+    () =>
+      säkerSvg(
+        renderAvskaladSvg(bild, { handtag: redigerar && Boolean(props.onKoppling), vald: redigerar ? props.vald : null }),
+      ),
     [bild, redigerar, props.onKoppling, props.vald],
   );
 

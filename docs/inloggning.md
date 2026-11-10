@@ -75,9 +75,15 @@ ARK_KONTON=/data/konton.json                 # i avbilden redan satt
   gissare kan alltså inte låsa ute någon annan – inte heller administratören.
   Prövningen (scrypt) körs utan att låsa servern.
 - **Bakom en proxy** (Render, en omvänd proxy) är socketens adress proxyns,
-  och alla hade delat samma spärr. Sätt då `ARK_BETRODD_PROXY=1`: klientens
-  adress tas ur första ledet i `X-Forwarded-For`. Sätt den BARA när appen inte
-  kan nås förbi proxyn – annars kan vem som helst skriva huvudet själv.
+  och alla hade delat samma spärr. Sätt då `ARK_BETRODD_PROXY` till ANTALET
+  proxyer framför appen (oftast `1`; de gamla värdena `true`/`ja` betyder 1).
+  Klientens adress tas ur `X-Forwarded-For`, led nummer n räknat från höger –
+  varje proxy lägger till adressen den fick begäran från, så de n sista leden
+  är proxyernas, och det som står till vänster kan klienten ha skrivit själv.
+  Står t.ex. en lastbalanserare framför en omvänd proxy: `2`. Sätt den BARA
+  när appen inte kan nås förbi proxyerna.
+- Spärren minns högst 10 000 namn/adresser (den äldsta glöms först), och en
+  post utan spärr glöms efter en timme utan nya fel.
 - **Sessionskakan** får `Secure` när `ARK_BAS_URL` är https, eller när proxyn
   säger att begäran kom över https (`X-Forwarded-Proto: https`). I drift
   (`NODE_ENV=production`) startar lokala konton inte utan `ARK_BAS_URL`.

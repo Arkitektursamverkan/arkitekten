@@ -142,3 +142,31 @@ export function sökApplikationer(appar: EaApplikation[], sök: string): EaAppli
     .filter((a) => !q || a.namn.toLowerCase().includes(q))
     .sort((a, b) => avvecklad(a) - avvecklad(b) || a.namn.localeCompare(b.namn, "sv"));
 }
+
+/**
+ * En publicering ur okänd data (bryggans `/__ark/ea/publicering/:id`). Bara de
+ * kända fälten följer med, alla som text med ett tak; ett fel ger `null`.
+ * Servern skriver publiceringen – den läses aldrig ur en vanlig sparning.
+ */
+export function läsPublicering(v: unknown): Publicering | null {
+  if (!v || typeof v !== "object") return null;
+  const p = v as Record<string, unknown>;
+  const text = (x: unknown, max: number) => (typeof x === "string" ? x.trim().slice(0, max) : "");
+  const eaNodId = text(p.eaNodId, 200);
+  const ägare = text(p.ägare, 200);
+  const beskrivning = text(p.beskrivning, 5000);
+  if (!eaNodId || !ägare || !beskrivning) return null;
+  const eaPrefix = text(p.eaPrefix, 40);
+  const publiceradAv = text(p.publiceradAv, 200);
+  const tid = text(p.publiceradAt, 40);
+  return {
+    eaNodId,
+    eaNodNamn: text(p.eaNodNamn, 300),
+    ...(eaPrefix && PREFIX.test(eaPrefix) ? { eaPrefix } : {}),
+    ...(p.egenNod === true ? { egenNod: true } : {}),
+    ägare,
+    beskrivning,
+    publiceradAt: tid && !Number.isNaN(Date.parse(tid)) ? tid : new Date().toISOString(),
+    ...(publiceradAv ? { publiceradAv } : {}),
+  };
+}

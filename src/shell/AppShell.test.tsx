@@ -16,11 +16,12 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AppShell } from "./AppShell";
+import { användTestärendetyper, återställÄrendetyper } from "@/core/test-arendetyper";
 
 const FLÖDEN = [
   {
-    id: "utvecklingsforslag-kommentera-handlaggare",
-    name: "Utvecklingsförslag - kommentera ärendet (handläggare)",
+    id: "verksamhetsforslag-kommentera-handlaggare",
+    name: "Verksamhetsförslag - kommentera ärendet (handläggare)",
     draft: {
       steps: [{ id: "s1", type: "start", laneId: "Handläggare", text: "Start" }],
       lanes: [],
@@ -30,8 +31,8 @@ const FLÖDEN = [
     },
   },
   {
-    id: "felanmalan-paminn-mig-handlaggare",
-    name: "Felanmälan - påminn mig (handläggare)",
+    id: "driftfraga-paminn-mig-handlaggare",
+    name: "Driftfråga - påminn mig (handläggare)",
     draft: {
       steps: [{ id: "s1", type: "start", laneId: "Handläggare", text: "Start" }],
       lanes: [],
@@ -43,6 +44,8 @@ const FLÖDEN = [
 ];
 
 beforeEach(() => {
+  // Påhittade ärendetyper – standardlistan är en viss installations portal.
+  användTestärendetyper();
   history.replaceState(null, "", location.pathname);
   localStorage.clear();
   for (const f of FLÖDEN) {
@@ -58,6 +61,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  återställÄrendetyper();
 });
 
 /**
@@ -82,7 +86,7 @@ async function kortIKatalogen(fråga: string): Promise<HTMLElement> {
   return document.querySelector(".ark-kort") as HTMLElement;
 }
 
-const PÅMINN = "Felanmälan - påminn mig (handläggare)";
+const PÅMINN = "Driftfråga - påminn mig (handläggare)";
 
 it("appen börjar med valet: skapa nytt eller öppna befintligt", () => {
   render(<AppShell />);
@@ -129,7 +133,7 @@ it("ett kort i katalogen öppnar processen på arbetsytan", async () => {
   await waitFor(() => expect(document.querySelector(".ark-flow-header")).toBeTruthy());
   const rubrik = document.querySelector(".ark-flow-header") as HTMLElement;
   expect(within(rubrik).getByText("Systemprocess")).toBeTruthy();
-  expect(within(rubrik).getByText("Felanmälan - påminn mig (handläggare)")).toBeTruthy();
+  expect(within(rubrik).getByText("Driftfråga - påminn mig (handläggare)")).toBeTruthy();
 });
 
 /**
@@ -164,7 +168,7 @@ it("REGRESSION: arbetsytan lever kvar när man går till katalogen och tillbaka"
   // …och menyn erbjuder vägen tillbaka dit. Menyvalet bär processens namn, så
   // man ser VAD man går tillbaka till och inte bara "arbetsytan".
   const tillbaka = meny().querySelector(".ark-navval-namn")!.closest("button")!;
-  expect(tillbaka.textContent).toContain("Felanmälan - påminn mig (handläggare)");
+  expect(tillbaka.textContent).toContain("Driftfråga - påminn mig (handläggare)");
   fireEvent.click(tillbaka);
   expect(document.querySelector(".ark-verktygsyta")!.className).not.toContain("dold");
 });
@@ -205,7 +209,7 @@ it("en öppnad process hamnar under 'Senast öppnade' på startsidan", async () 
   const start = within(document.querySelector(".ark-start") as HTMLElement);
   expect(start.getByText("Senast öppnade")).toBeTruthy();
   expect(
-    start.getByRole("button", { name: "Felanmälan - påminn mig (handläggare)" }),
+    start.getByRole("button", { name: "Driftfråga - påminn mig (handläggare)" }),
   ).toBeTruthy();
 });
 
@@ -220,10 +224,10 @@ it("strukturens översta nivå står i menyn redan från start, infälld", async
   await waitFor(() => expect(within(meny()).getByText("Systemprocesser")).toBeTruthy());
   expect(within(meny()).getByText("Processer")).toBeTruthy();
   // Infälld: nivåerna under syns inte förrän man fäller ut.
-  expect(within(meny()).queryByText("Felanmälan")).toBeNull();
+  expect(within(meny()).queryByText("Driftfråga")).toBeNull();
 
   fireEvent.click(within(meny()).getByText("Systemprocesser"));
-  expect(within(meny()).getByText("Felanmälan")).toBeTruthy();
+  expect(within(meny()).getByText("Driftfråga")).toBeTruthy();
 });
 
 /**
@@ -292,7 +296,7 @@ it("en ny process börjar direkt i redigeringsläge", async () => {
 
   fireEvent.click(screen.getByText("Skapa ny process"));
   fireEvent.change(screen.getByLabelText("Namn på processen"), {
-    target: { value: "Beställning - ny (användare)" },
+    target: { value: "Inköpsorder - ny (användare)" },
   });
   fireEvent.change(screen.getByPlaceholderText(/En rad per spår/), {
     target: { value: "Medarbetare → Startar portalen" },
@@ -314,18 +318,18 @@ it("adressen följer processen man öppnar, och töms när man går till start",
   render(<AppShell />);
   tillKatalogen();
   fireEvent.click(await kortIKatalogen(PÅMINN));
-  await waitFor(() => expect(location.hash).toBe("#/process/felanmalan-paminn-mig-handlaggare"));
+  await waitFor(() => expect(location.hash).toBe("#/process/driftfraga-paminn-mig-handlaggare"));
 
   fireEvent.click(screen.getByTitle("Till startsidan"));
   await waitFor(() => expect(location.hash).toBe(""));
 });
 
 it("en länk öppnar processen direkt, i läsläge", async () => {
-  history.replaceState(null, "", "#/process/felanmalan-paminn-mig-handlaggare");
+  history.replaceState(null, "", "#/process/driftfraga-paminn-mig-handlaggare");
   render(<AppShell />);
 
-  await waitFor(() => expect(rubrikNamn()).toContain("Felanmälan - påminn mig (handläggare)"));
-  expect(location.hash).toBe("#/process/felanmalan-paminn-mig-handlaggare");
+  await waitFor(() => expect(rubrikNamn()).toContain("Driftfråga - påminn mig (handläggare)"));
+  expect(location.hash).toBe("#/process/driftfraga-paminn-mig-handlaggare");
   // Läsläge: knappen bjuder in till redigering, den pågår inte.
   expect(screen.getByText(/Redigera/)).toBeTruthy();
 });
@@ -339,13 +343,13 @@ it("en länk till en process som inte finns landar på startsidan med ren adress
 });
 
 it("bakåt i webbläsaren går tillbaka till processen man tittade på nyss", async () => {
-  history.replaceState(null, "", "#/process/felanmalan-paminn-mig-handlaggare");
+  history.replaceState(null, "", "#/process/driftfraga-paminn-mig-handlaggare");
   render(<AppShell />);
   await waitFor(() => expect(rubrikNamn()).toContain("påminn mig"));
 
   // Webbläsaren byter adress och säger till – som vid bakåt/framåt.
-  history.pushState(null, "", "#/process/utvecklingsforslag-kommentera-handlaggare");
+  history.pushState(null, "", "#/process/verksamhetsforslag-kommentera-handlaggare");
   window.dispatchEvent(new PopStateEvent("popstate"));
   await waitFor(() => expect(rubrikNamn()).toContain("kommentera ärendet"));
-  expect(location.hash).toBe("#/process/utvecklingsforslag-kommentera-handlaggare");
+  expect(location.hash).toBe("#/process/verksamhetsforslag-kommentera-handlaggare");
 });

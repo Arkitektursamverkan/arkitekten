@@ -33,6 +33,7 @@ import {
 } from "@/tools/ramar/ai-presentation";
 
 import { systemPrompt, userPrompt, type PromptDiagramType } from "./prompt";
+import { REVIEW_PROMPT } from "./review";
 import { DRAFT_JSON_SCHEMA, type AiDraftResponse } from "./schema";
 
 export type Meddelande = Anthropic.Beta.BetaMessageParam;
@@ -70,14 +71,21 @@ export interface Miljö {
 
 /** Besvarar en begäran. Kastar Error med ett svenskt meddelande när det inte går. */
 export async function besvara(b: ArkBegäran, m: Miljö): Promise<Record<string, unknown>> {
+  // REGRESSION: beskrivningen hade inget tak – en enda begäran kunde bli ett
+  // mycket dyrt anrop på installationens nyckel.
+  if ((b.rawText ?? "").length > TEXT_TAK)
+    throw new Error(`Underlaget är för långt (över ${TEXT_TAK.toLocaleString("sv-SE")} tecken).`);
   switch (b.uppdrag) {
     case "presentation":
       return besvaraPresentation(b, m);
     case "rutin":
       return besvaraRutin(b, m);
     case "utvärdering": {
+      // Systemprompten byggs HÄR, per uppdrag – aldrig ur begäran.
+      // REGRESSION: klientens `instruction` blev systemprompt, så vem som helst
+      // med inloggning kunde använda installationens nyckel till vad som helst.
       const { text } = await m.fråga({
-        system: b.instruction ?? "",
+        system: REVIEW_PROMPT,
         meddelanden: [{ role: "user", content: b.rawText }],
         signal: m.signal,
       });
@@ -279,6 +287,8 @@ export async function underlagSomBlock(
     throw new Error(`Filformatet .${ändelse} kan inte läsas – spara underlaget som PDF, Word (.docx) eller text.`);
   }
   if (!text.trim()) throw new Error(`Hittade ingen text i "${namn}".`);
+  if (text.length > TEXT_TAK)
+    throw new Error(`Underlaget "${namn}" är för långt (över ${TEXT_TAK.toLocaleString("sv-SE")} tecken) – korta det eller dela upp det.`);
   return { type: "document", source: { type: "text", media_type: "text/plain", data: text }, title: namn };
 }
 
@@ -329,6 +339,14 @@ function xmlTillText(xml: string, stycke: string): string {
 }
 
 /**
+ * Taken för det som skickas till modellen. Ett zip-arkiv kan packa upp till
+ * tusen gånger sin storlek; utan tak läste servern hela "zip-bomben" i minnet.
+ */
+export const ZIP_TAK = 10 * 1024 * 1024;
+/** Tecken text (ur ett dokument eller en beskrivning) som skickas i ett anrop. */
+export const TEXT_TAK = 200_000;
+
+/**
  * Läser EN fil ur ett zip-arkiv (docx och odt är zip). Liten och beroendefri:
  * centralkatalogen pekar ut posten, och `deflate-raw` packas upp med
  * plattformens DecompressionStream.
@@ -349,18 +367,43 @@ export async function läsZip(zip: Uint8Array, sökt: string): Promise<string> {
     if (v.getUint32(p, true) !== 0x02014b50) break;
     const metod = v.getUint16(p + 10, true);
     const packad = v.getUint32(p + 20, true);
+    const uppackad = v.getUint32(p + 24, true);
     const namnLängd = v.getUint16(p + 28, true);
     const extra = v.getUint16(p + 30, true);
     const kommentar = v.getUint16(p + 32, true);
     const lokal = v.getUint32(p + 42, true);
     const namn = new TextDecoder().decode(zip.subarray(p + 46, p + 46 + namnLängd));
     if (namn === sökt) {
+      // REGRESSION: en liten docx som packade upp till gigabyte lästes hel i minnet.
+      if (uppackad > ZIP_TAK) throw new Error("Dokumentet är för stort att läsa (över 10 MB uppackat).");
       const start = lokal + 30 + v.getUint16(lokal + 26, true) + v.getUint16(lokal + 28, true);
       const rå = zip.subarray(start, start + packad);
       if (metod === 0) return new TextDecoder().decode(rå);
       if (metod !== 8) throw new Error(`Okänd komprimering (${metod}) i dokumentet.`);
-      const ström = new Blob([rå.slice()]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-      return new Response(ström).text();
+      // Katalogens storlek kan ljuga: strömmen läses i bitar och avbryts vid taket.
+      const läsare = new Blob([rå.slice()])
+        .stream()
+        .pipeThrough(new DecompressionStream("deflate-raw"))
+        .getReader();
+      const bitar: Uint8Array[] = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await läsare.read();
+        if (done) break;
+        total += value.length;
+        if (total > ZIP_TAK) {
+          await läsare.cancel();
+          throw new Error("Dokumentet är för stort att läsa (över 10 MB uppackat).");
+        }
+        bitar.push(value);
+      }
+      const ut = new Uint8Array(total);
+      let o = 0;
+      for (const b of bitar) {
+        ut.set(b, o);
+        o += b.length;
+      }
+      return new TextDecoder().decode(ut);
     }
     p += 46 + namnLängd + extra + kommentar;
   }

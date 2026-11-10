@@ -201,6 +201,22 @@ function Inloggningsruta({
 }
 
 /** Raden längst ner i menyn: vem man är, vilken roll, och vägen ut. */
+/**
+ * Utloggningen är en POST (CSRF-skyddad i bryggan); svaret säger vart man ska –
+ * Entras utloggning eller startsidan.
+ */
+async function loggaUt(): Promise<void> {
+  let till = "/";
+  try {
+    const res = await fetch("/__ark/auth/logout", { method: "POST", headers: { "content-type": "application/json" } });
+    const b = await res.json();
+    if (typeof b?.tillbaka === "string") till = b.tillbaka;
+  } catch {
+    /* startsidan visar inloggningen om kakan ändå är kvar */
+  }
+  window.location.assign(till);
+}
+
 export function Kontorad() {
   const { användare, läge } = useContext(Kontext);
   const admin = användare.roller.includes("admin");
@@ -214,9 +230,9 @@ export function Kontorad() {
       </span>
       {admin && <InstallningarKnapp läge={läge} egetId={användare.id} />}
       {läge === "lokal" && <BytLösenordKnapp />}
-      <a className="ark-linkbtn ark-konto-ut" href="/__ark/auth/logout">
+      <button type="button" className="ark-linkbtn ark-konto-ut" onClick={() => void loggaUt()}>
         Logga ut
-      </a>
+      </button>
     </div>
   );
 }

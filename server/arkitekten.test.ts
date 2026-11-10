@@ -92,7 +92,7 @@ describe("hälsan och bryggan", () => {
   it("utan nyckel och utvecklarläge är AI-stödet av, och Claude Code erbjuds inte", async () => {
     const status = await (await fetch(`${bas}/__ark/status`)).json();
     expect(status).toMatchObject({ besvaras: "av", claudeCode: false });
-    const res = await fetch(`${bas}/__ark/request`, { method: "POST", body: "{}" });
+    const res = await fetch(`${bas}/__ark/request`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
     expect(res.status).toBe(503);
     expect(fs.existsSync(path.join(tmp, ".ark", "request.json"))).toBe(false);
   });
@@ -123,13 +123,13 @@ describe("symbolstilen", () => {
     const lista = await (await fetch(`${bas}/__ark/symbolstilar`)).json();
     expect(lista.stilar.map((s: { id: string }) => s.id)).toEqual(["neutral", "egen"]);
     expect(lista.fel.join(" ")).toContain("trasig.json");
-    const val = await fetch(`${bas}/__ark/symbolstil`, { method: "PUT", body: JSON.stringify({ id: "egen" }) });
+    const val = await fetch(`${bas}/__ark/symbolstil`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: "egen" }) });
     expect(val.status).toBe(200);
     expect((await (await fetch(`${bas}/__ark/symbolstil`)).json()).stil.aktör).toBe("arbetsplats");
   });
 
   it("ett okänt id väljs aldrig", async () => {
-    const res = await fetch(`${bas}/__ark/symbolstil`, { method: "PUT", body: JSON.stringify({ id: "finns-inte" }) });
+    const res = await fetch(`${bas}/__ark/symbolstil`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: "finns-inte" }) });
     expect(res.status).toBe(404);
   });
 });

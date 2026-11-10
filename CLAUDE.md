@@ -437,15 +437,22 @@ Rutan kan också skicka begäran till Claude Code i stället (`via:
 brevlådan som utan nyckel). Bara i utvecklarläget – annars erbjuder rutan
 den inte, och servern bortser från `via`.
 
-**Brevlådan är per användare utanför utvecklarläget**
-(`<ARK_DIR>/anvandare/<hash av användar-id>/`, med `underlag/` i samma
-katalog), så att ingen kan hämta en annans svar. I utvecklarläget (och i öppen
-drift) finns EN brevlåda direkt i `.ark/` – den nedan. Underlagen tas bort när
-svaret är hämtat och gallras efter ett dygn (`server/brygga.ts`).
+**Brevlådan är per användare** så snart inloggning är på (`entra`, `lokal`,
+`dev`) – OCKSÅ i utvecklarläget: `<ARK_DIR>/anvandare/<hash av användar-id>/`
+(`request.json`, `response.json` och `underlag/` i samma katalog), så att
+ingen kan hämta en annans svar. Bara i ÖPPEN drift (alla är samma användare)
+finns EN brevlåda direkt i `.ark/`. Platserna bor i `server/brevlada.ts`;
+underlagen tas bort när svaret är hämtat och gallras efter ett dygn
+(`server/brygga.ts`). Nedan betyder `<låda>` den brevlåda begäran ligger i.
 
-När du (Claude Code) besvarar en tolkningsbegäran: läs `.ark/request.json`,
-skriv `.ark/response.json` och **kopiera `id` ur begäran till fältet
-`requestId` i svaret**. Det är korrelationen som hindrar att ett sent svar på
+**Hitta begäran:** `npx tsx scripts/brevlada.mts` listar de väntande
+begärandena i alla brevlådor (`ARK_DIR`, annars `.ark`) med sökvägen till
+`request.json` och till svaret som ska skrivas. Bryggan skriver samma sökväg i
+loggen när en begäran väntar på Claude Code.
+
+När du (Claude Code) besvarar en tolkningsbegäran: läs `<låda>/request.json`,
+skriv `<låda>/response.json` – i SAMMA katalog – och **kopiera `id` ur
+begäran till fältet `requestId` i svaret**. Det är korrelationen som hindrar att ett sent svar på
 en avbruten begäran plockas upp av fel begäran. Svarsformat: antingen fullt
 strukturerat enligt `ai/schema.ts` (`aiText`, `title`, `subtitle`, `lanes`,
 `steps`) eller bara `{ "aiText": "..." }` i pilformat. Svenska. Verifiera
@@ -491,7 +498,8 @@ samma knapp i båda verktygen). Då väntas TVÅ saker i samma svar:
 **Arbeta i ett utkast, aldrig rakt i `response.json`** – appen plockar upp
 svaret i samma stund som filen finns:
 
-1. Skriv `förenklad` till `.ark/utkast.json`, kör `npx tsx scripts/presentation.mts`.
+1. Skriv `förenklad` till `.ark/utkast.json`, kör `npx tsx scripts/presentation.mts`
+   (skriptet hittar själv den brevlåda där presentationsuppdraget väntar).
    Den listar den avskalade bildens objekt-id:n och kopplingsnycklar – ENDAST
    de går att markera (mellanliggande verksamhetsobjekt ritas inte).
 2. Lägg till `presentation`, kör igen tills anmärkningarna är borta. `--png
@@ -514,7 +522,7 @@ knappen får tryckas igen.
 `uppdrag: "rutin"` kommer ur knappen **✦ Skapa ur fil** i rutinvyn
 (`tools/affarsprocess/RutinVy.tsx`, `tools/affarsprocess/ai-rutin.ts`).
 `rawText` är JSON med `fil` (sökvägen till det uppladdade underlaget,
-`.ark/underlag/…` – LÄS filen; den kan vara Word, PDF, text eller en bild),
+`<låda>/underlag/…` – LÄS filen; den kan vara Word, PDF, text eller en bild),
 `krav` och `aktivitet`. Svara med `{ "requestId": "<id>", "rutin": "<text>" }`:
 en rad per moment, indragen rad (två blanksteg) = underpunkt, ` → ` mellan
 klicken i en klickväg, momentet börjar med verbet. Hela formen står i

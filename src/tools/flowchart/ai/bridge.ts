@@ -145,7 +145,7 @@ async function postaOchPolla(
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     if (signal?.aborted) {
-      await fetch("/__ark/cancel", { method: "POST" }).catch(() => {});
+      await fetch("/__ark/cancel", { method: "POST", headers: { "content-type": "application/json" } }).catch(() => {});
       throw new Error("Avbruten.");
     }
 

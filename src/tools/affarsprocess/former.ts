@@ -9,7 +9,7 @@
  */
 
 import type { ApNode, ApNodeKind, ApRelation, ApRelationKind } from "@/core/affarsprocess";
-import type { Huki } from "@/core/draft";
+import { giltigHuki, type Huki } from "@/core/draft";
 import { esc, wrap } from "../flowchart/render/text-util";
 import { symbolstil, type Formstil } from "./symbolstil";
 
@@ -99,7 +99,7 @@ export const HUKI_MENING: Record<Huki, (aktör: string, aktivitet: string) => st
  * ton smälte allt ihop till ett grått nystan så fort en aktivitet hade både
  * roll och system under sig. Färgerna står i symbolstilen.
  */
-export const hukiFärg = (h: Huki): string => symbolstil().huki[h];
+export const hukiFärg = (h: Huki): string => symbolstil().huki[giltigHuki(h, "U")];
 export const relationsFärg = (kind: ApRelationKind): string => symbolstil().relationer[kind];
 
 /**
@@ -128,7 +128,7 @@ export const apHörnradie = (): number => symbolstil().hörnradie;
  */
 export function apMarkerDefs(): string {
   const fylld = (id: string, färg: string) =>
-    `<marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="${färg}"/></marker>`;
+    `<marker id="${esc(id)}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="${esc(färg)}"/></marker>`;
   const stil = symbolstil();
   return [
     ...Object.entries(stil.relationer).map(([kind, färg]) => fylld(`ap-arrow-${kind}`, färg)),
@@ -141,7 +141,7 @@ export function apMarkerDefs(): string {
  * Relationens färg. HUKI läses per bokstav, allt annat per sort.
  */
 export function apRelationFärg(rel: ApRelation): string {
-  if (rel.kind === "huki") return hukiFärg(rel.huki ?? "U");
+  if (rel.kind === "huki") return hukiFärg(giltigHuki(rel.huki, "U"));
   return relationsFärg(rel.kind) ?? relationsFärg("flode");
 }
 
@@ -155,7 +155,7 @@ export function apRelationFärg(rel: ApRelation): string {
  */
 export function apMarkerId(rel: ApRelation): string {
   return rel.kind === "huki"
-    ? `ap-arrow-huki-${rel.huki ?? "U"}`
+    ? `ap-arrow-huki-${giltigHuki(rel.huki, "U")}`
     : `ap-arrow-${rel.kind}`;
 }
 
@@ -405,7 +405,7 @@ export function textEtikettMått(
   if (kind === "forum") {
     // Forumet står i en AKTIVITETS ställe och är lika stort som en, SVANSEN
     // INRÄKNAD. Vi blåste förut upp en ballong runt texten – 251 × 140 för
-    // "Avdelningsledningsgruppen", dubbelt så bred och nästan tre gånger så
+    // ett långt gruppnamn, dubbelt så bred och nästan tre gånger så
     // hög som aktiviteterna bredvid (beslut 2026-10-13: "för stor, fel
     // dimension"). Kroppen får aktivitetens texthöjd; bara sidorna får några
     // pixlar extra, eftersom ellipsen rundar av där raderna slutar.

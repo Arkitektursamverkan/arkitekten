@@ -26,7 +26,7 @@
  */
 
 import { delaChecklista } from "./rutin";
-import { compileDraft, type ApStegInfo, type Huki, type ProcessDraft } from "./draft";
+import { compileDraft, giltigHuki, type ApStegInfo, type Huki, type ProcessDraft } from "./draft";
 import type { ProcessModel } from "./model";
 
 /* ------------------------------------------------------------------ */
@@ -607,8 +607,10 @@ export function transformToAp(pm: ProcessModel, draft: ProcessDraft): ApModel {
       if (relKind === "samverkar") rel(s.id, id, relKind);
       else rel(id, s.id, relKind, huki, huki);
     };
-    for (const r of info.roller ?? []) lägg("roll", r.namn, "huki", r.huki ?? "U");
-    for (const r of info.intressenter ?? []) lägg("intressent", r.namn, "huki", r.huki ?? "I");
+    // Bokstaven prövas här, där ap-blocket kompileras: allt efteråt (former,
+    // SVG, scen, BMT) kan lita på att den är H, U, K eller I.
+    for (const r of info.roller ?? []) lägg("roll", r.namn, "huki", giltigHuki(r.huki, "U"));
+    for (const r of info.intressenter ?? []) lägg("intressent", r.namn, "huki", giltigHuki(r.huki, "I"));
     for (const namn of info.applikationer ?? []) lägg("applikation", namn, "samverkar");
     for (const namn of info.arkiv ?? []) lägg("arkiv", namn, "samverkar");
     for (const namn of info.krav ?? []) lägg("krav", namn, "adresserar");

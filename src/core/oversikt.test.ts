@@ -6,15 +6,15 @@
  * räknar: varje ärendetyp ska ha en översikt, och den ska ha lika många boxar
  * som ärendetypen har processer.
  *
- * Texterna jämförs INTE. Den handskrivna utvecklingsförslagskartan säger
- * "Nytt utvecklingsförslag" där den härledda skulle säga "Nytt" – båda är
+ * Texterna jämförs INTE. En handskriven karta kan säga "Nytt förslag" där
+ * den härledda skulle säga "Nytt" – båda är
  * riktiga, och en formuleringsspärr hade bara gjort testet till en boja.
  */
 
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { ÄRENDETYPER, ärendetypFör } from "./flow-tree";
+import { ärendetyper, ärendetypFör } from "./flow-tree";
 import { flowFamily } from "./flow-store";
 import type { ProcessDraft } from "./draft";
 
@@ -26,8 +26,13 @@ interface Fil {
   draft: ProcessDraft;
 }
 
-/** Testerna läser en viss installations flöden, som inte ligger i git. Utan dem, som i en ren klon eller med bara exempelpaketet, hoppas de över. */
-const HAR_FLÖDEN = fs.existsSync(path.join(KATALOG, "avvikelse-byt-avdelning.json"));
+/**
+ * Testerna läser installationens flöden, som inte ligger i git. Bara en
+ * installation som HAR översiktsbilder prövas – utan dem, som i en ren klon
+ * eller med bara exempelpaketet, hoppas de över.
+ */
+const HAR_FLÖDEN =
+  fs.existsSync(KATALOG) && fs.readdirSync(KATALOG).some((f) => f.endsWith(".json") && f.includes("oversikt"));
 
 function alla(): Fil[] {
   if (!HAR_FLÖDEN) return [];
@@ -44,7 +49,7 @@ const FLÖDEN = FILER.filter((f) => !f.id.includes("oversikt"));
 
 /** Samma regel som generatorn: delade flöden räknas i BÅDA ärendetyperna. */
 function processerFör(typId: string): Fil[] {
-  const typ = ÄRENDETYPER.find((t) => t.id === typId)!;
+  const typ = ärendetyper().find((t) => t.id === typId)!;
   return FLÖDEN.filter(
     (f) =>
       ärendetypFör(f.id).id === typId ||
@@ -54,9 +59,9 @@ function processerFör(typId: string): Fil[] {
 }
 
 describe.skipIf(!HAR_FLÖDEN)("översikter per ärendetyp", () => {
-  const ärendetyper = ÄRENDETYPER.filter((t) => t.id !== "gemensamt");
+  const typer = ärendetyper().filter((t) => t.id !== "gemensamt");
 
-  for (const typ of ärendetyper) {
+  for (const typ of typer) {
     const processer = processerFör(typ.id);
     if (processer.length === 0) continue;
 

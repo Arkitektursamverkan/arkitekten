@@ -219,7 +219,7 @@ export const FlowLibrary = forwardRef<FlowLibraryHandle, FlowLibraryProps>(funct
    * men en ny process sparas direkt i en effekt i samma commit – och den
    * sparningen läste då FÖREGÅENDE flödet. Den nya processen frågade "Byta
    * namn på …?" och blev en ny version av den gamla i stället för en egen
-   * (2026-10-20, "Möte i avdelningsledningsgruppen 2").
+   * (2026-10-20, "Möte i ledningsgruppen 2").
    */
   const aktuellt = openedFlow?.id === currentId ? openedFlow : null;
 

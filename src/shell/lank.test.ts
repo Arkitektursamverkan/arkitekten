@@ -2,8 +2,8 @@ import { expect, it } from "vitest";
 import { läsProcessLänk, processLänk } from "./lank";
 
 it("länken bär processens id, och läses tillbaka till samma id", () => {
-  expect(processLänk("ap-begaran-om-mejllogg")).toBe("#/process/ap-begaran-om-mejllogg");
-  expect(läsProcessLänk("#/process/ap-begaran-om-mejllogg")).toBe("ap-begaran-om-mejllogg");
+  expect(processLänk("ap-begaran-om-loggutdrag")).toBe("#/process/ap-begaran-om-loggutdrag");
+  expect(läsProcessLänk("#/process/ap-begaran-om-loggutdrag")).toBe("ap-begaran-om-loggutdrag");
   const udda = "flöde med å/ä?";
   expect(läsProcessLänk(processLänk(udda))).toBe(udda);
 });

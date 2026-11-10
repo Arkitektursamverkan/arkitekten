@@ -9,8 +9,8 @@ afterEach(() => {
 });
 
 it("länken är appens adress plus processens id", () => {
-  expect(helLänk("bestallning-forandring")).toBe(
-    location.origin + location.pathname + "#/process/bestallning-forandring",
+  expect(helLänk("inkopsorder-forandring")).toBe(
+    location.origin + location.pathname + "#/process/inkopsorder-forandring",
   );
 });
 
@@ -18,11 +18,11 @@ it("kopierar länken och kvitterar", async () => {
   const writeText = vi.fn(async () => {});
   vi.stubGlobal("navigator", { clipboard: { writeText } });
   vi.stubGlobal("isSecureContext", true);
-  render(<KopieraLänk flowId="bestallning-forandring" />);
+  render(<KopieraLänk flowId="inkopsorder-forandring" />);
 
   fireEvent.click(screen.getByText("Kopiera länk"));
   await waitFor(() => expect(screen.getByText("Länken kopierad")).toBeTruthy());
-  expect(writeText).toHaveBeenCalledWith(helLänk("bestallning-forandring"));
+  expect(writeText).toHaveBeenCalledWith(helLänk("inkopsorder-forandring"));
 });
 
 /**
@@ -34,7 +34,7 @@ it("kopierar även utan säker kontext, genom reservvägen", async () => {
   vi.stubGlobal("isSecureContext", false);
   const exec = vi.fn(() => true);
   (document as unknown as { execCommand: unknown }).execCommand = exec;
-  render(<KopieraLänk flowId="bestallning-forandring" />);
+  render(<KopieraLänk flowId="inkopsorder-forandring" />);
 
   fireEvent.click(screen.getByText("Kopiera länk"));
   await waitFor(() => expect(screen.getByText("Länken kopierad")).toBeTruthy());

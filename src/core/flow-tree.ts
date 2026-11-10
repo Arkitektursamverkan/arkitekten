@@ -2,7 +2,7 @@
  * Flödesbibliotekets NAVIGERINGSTRÄD: kategori → ärendetyp → målgrupp → flöde.
  *
  * Menyn var en platt lista med trettio rader som alla började med samma ord
- * ("Utvecklingsförslag – …"), avhuggna i en smal spalt. Det gick inte att se
+ * (ärendetypens namn), avhuggna i en smal spalt. Det gick inte att se
  * vilket flöde som var vilket. Trädet gör det som beställdes: portalen
  * överst, sedan ärendetyp, sedan målgruppen som utför processen.
  *
@@ -170,7 +170,15 @@ export interface Ärendetyp {
   test: (id: string) => boolean;
 }
 
-export const ÄRENDETYPER: Ärendetyp[] = [
+/**
+ * STANDARDLISTAN – en installations portal, inbyggd sedan menyn byggdes.
+ * Den är organisationsspecifik och ska lyftas ut i installationens
+ * inställningar (eller dess innehållspaket); tills dess är den standard så att
+ * menyn inte ändrar beteende. Läs den ALDRIG direkt – gå via `ärendetyper()`,
+ * så att en installation (och testerna) kan sätta en egen lista med
+ * `sättÄrendetyper`.
+ */
+const ÄRENDETYPER: Ärendetyp[] = [
   {
     id: "felanmalan",
     titel: "Felanmälan",
@@ -192,6 +200,22 @@ export const ÄRENDETYPER: Ärendetyp[] = [
   // schemalagda flödena som går över alla ärenden.
   { id: "gemensamt", titel: "Gemensamt", test: () => true },
 ];
+
+/** Den lista som gäller just nu: satt med `sättÄrendetyper`, annars standardlistan. */
+let satta: Ärendetyp[] | null = null;
+
+/**
+ * Ärendetyperna i visningsordning. Den SISTA är reservgrenen (allt som inte
+ * hör till en ärendetyp) och ska därför matcha allt.
+ */
+export function ärendetyper(): Ärendetyp[] {
+  return satta ?? ÄRENDETYPER;
+}
+
+/** Sätter installationens ärendetyper; `null` återställer standardlistan. */
+export function sättÄrendetyper(lista: Ärendetyp[] | null): void {
+  satta = lista;
+}
 
 /** Målgrupperna i visningsordning. Nyckeln är banan där startpunkten ligger. */
 const MÅLGRUPPER: Array<{ id: string; titel: string; banor: string[] }> = [
@@ -230,7 +254,8 @@ function ärÖversikt(flow: FlowSummary): boolean {
  * ärendetyp dyka upp i menyn utan att få en översikt, eller tvärtom.
  */
 export function ärendetypFör(id: string): Ärendetyp {
-  return ÄRENDETYPER.find((t) => t.test(id)) ?? ÄRENDETYPER[ÄRENDETYPER.length - 1];
+  const typer = ärendetyper();
+  return typer.find((t) => t.test(id)) ?? typer[typer.length - 1];
 }
 
 function målgruppFör(flow: FlowSummary) {
@@ -242,27 +267,28 @@ function målgruppFör(flow: FlowSummary) {
 
 /**
  * Namnet utan ärendetypens prefix och rollens parentes.
- * "Utvecklingsförslag - kommentera ärendet (godkännare)" → "Kommentera ärendet"
+ * "Driftfråga - kommentera ärendet (godkännare)" → "Kommentera ärendet"
  * Blir det tomt (namnet ÄR bara ärendetypen) behålls hela namnet.
  */
 export function kortnamn(namn: string, ärendetypTitel: string): string {
   let t = namn.trim();
   /**
-   * LÄNGST PREFIX VINNER. De sammansatta ("Felanmälan och beställning") måste
-   * provas före de enkla, annars kapar "Felanmälan" halva prefixet och lämnar
-   * "Och beställning - ny kommentar".
+   * LÄNGST PREFIX VINNER. De sammansatta ("Driftfråga och inköpsorder") måste
+   * provas före de enkla, annars kapar "Driftfråga" halva prefixet och lämnar
+   * "Och inköpsorder - ny kommentar".
    *
    * REGRESSION: grenens egen titel stod först i listan och slog ut just den
-   * ordningen – ett delat flöde visat under "Felanmälan" fick "Och beställning
+   * ordningen – ett delat flöde visat under "Driftfråga" fick "Och inköpsorder
    * – ny kommentar" som rad. Längdsorteringen kan inte hamna i den fällan:
    * det mest specifika prefixet är alltid det längsta.
    */
+  const typer = ärendetyper();
   const prefix = [
     ärendetypTitel,
-    ...ÄRENDETYPER.flatMap((a) =>
-      ÄRENDETYPER.filter((b) => b.id !== a.id).map((b) => `${a.titel} och ${b.titel.toLowerCase()}`),
+    ...typer.flatMap((a) =>
+      typer.filter((b) => b.id !== a.id).map((b) => `${a.titel} och ${b.titel.toLowerCase()}`),
     ),
-    ...ÄRENDETYPER.map((a) => a.titel),
+    ...typer.map((a) => a.titel),
   ].sort((a, b) => b.length - a.length);
   for (const p of prefix) {
     if (!t.toLowerCase().startsWith(p.toLowerCase())) continue;
@@ -271,7 +297,7 @@ export function kortnamn(namn: string, ärendetypTitel: string): string {
      * Prefixet måste sluta vid en ORDGRÄNS. Utan det kapade rubriken "Arkiv"
      * mitt i ordet och "Arkivering av ritningar" blev "Ering av ritningar" –
      * synligt så fort man fick namnge grenarna själv, men lika trasigt för de
-     * inbyggda ("Beställningsvara …" hade blivit "Svara …").
+     * inbyggda ("Inköpsorderrad …" hade blivit "Rad …").
      */
     if (rest && !/^[\s\-–—:]/.test(rest)) continue;
     t = rest.replace(/^\s*[-–—:]\s*/, "").trim();
@@ -293,7 +319,7 @@ function ordning(a: string, b: string): number {
  * innehållsförteckning, inte som en historik.
  */
 export function byggFlödesträd(flöden: FlowSummary[]): ÄrendeGren[] {
-  const grenar: ÄrendeGren[] = ÄRENDETYPER.map((t) => ({
+  const grenar: ÄrendeGren[] = ärendetyper().map((t) => ({
     id: t.id,
     titel: t.titel,
     målgrupper: [],
@@ -339,7 +365,7 @@ export function byggFlödesträd(flöden: FlowSummary[]): ÄrendeGren[] {
   }
 
   /**
-   * Reglernas grenar behåller sin ordning (Felanmälan, Beställning, …); egna
+   * Reglernas grenar behåller sin ordning (ärendetypernas egen); egna
    * underkategorier läggs sist i bokstavsordning. Sorterades allt alfabetiskt
    * kunde en ny gren hamna ovanför de ärendetyper man arbetar i dagligen.
    */

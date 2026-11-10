@@ -36,6 +36,9 @@ export { pulsStreck, väglängd } from "./effekt-spec";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+/** Det `läggPåRam` lämnar när indata inte gick att tolka. */
+export const TOM_SVG = `<svg xmlns="${SVG_NS}" width="0" height="0"/>`;
+
 /** Minsta utsnitt vid zoom – ett ensamt objekt ska inte fylla hela skärmen. */
 const MIN_UTSNITT = { w: 420, h: 260 };
 /** Luft runt det markerade i utsnittet. */
@@ -75,7 +78,10 @@ export function läggPåRam(svg: string, ram: Ram | null, opts: RamOptioner = {}
   const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
   const rot = doc.documentElement;
   if (rot.nodeName !== "svg" || doc.getElementsByTagName("parsererror").length) {
-    return { svg, utsnitt: null, saknas: [] };
+    // REGRESSION: indata som inte gick att tolka som SVG lämnades tillbaka
+    // orörd – och lades i sidan med innerHTML. Det som inte är en bild blir
+    // en tom bild, aldrig HTML.
+    return { svg: TOM_SVG, utsnitt: null, saknas: [] };
   }
   const prefix = opts.prefix ?? "ark-ram";
   const el = (namn: string, attr: Record<string, string | number> = {}, ...barn: Element[]) => {

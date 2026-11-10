@@ -15,10 +15,10 @@ import { textToDraft } from "../parser/toDraft";
 import { layoutModel, PAGE_FORMATS, type PageFormatId } from "./layout";
 import { granskaSidor, rapportSomText } from "./page-rules";
 
-const EXEMPEL = `Felanmälan ny
-Fel uppkommer → Medarbetare → Startar Portalen → Väljer ny felanmälan från startsidan → Fyller i formulär för felanmälan → Väljer skicka in formuläret för felanmälan → Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att felanmälan har inkommit
+const EXEMPEL = `Driftfråga ny
+Fel uppkommer → Medarbetare → Startar Portalen → Väljer ny driftfråga från startsidan → Fyller i formulär för driftfråga → Väljer skicka in formuläret för driftfråga → Handläggare utses automatiskt utifrån det system som valts → Kommer till en sida med tack för ditt ärende → Får via mejl bekräftelse på att driftfråga har inkommit
 
-Felanmälan inkommer i SP-listan "Incident" → Power Automate flödet "INC nytt ärende" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
+Driftfråga inkommer i SP-listan "Inkorgen" → Power Automate flödet "DRF nytt ärende" triggas (↓ Om klassificering = Hög prioritet → Teamschatt skapas med alla handläggare på IT → Chattmeddelande genereras för det specifika ärendet) → Mejlbekräftelse skickas till användaren → Mejl skickas till handläggaren → Loggpost skapas`;
 
 /** Alla flöden som granskas: exemplet + de sparade. */
 function allaFlöden(): { namn: string; draft: ProcessDraft }[] {
@@ -107,7 +107,7 @@ describe("R6: dömer motorn, inte användarens geometri", () => {
 
 describe("R3/R4: pinnade objekt är användarens val", () => {
   it("REGRESSION: ett objekt pinnat till en tidigare del friar bakåtpil och grenseparation", () => {
-    // Användaren drog s5 i Beställning-ny till del 1 (pagePin) – då pekade s4→s5
+    // Användaren drog s5 i Inköpsorder-ny till del 1 (pagePin) – då pekade s4→s5
     // bakåt och gatewayn skildes från sin gren. Det är ett medvetet delbyte,
     // inte motorns fel, och regelverket ska fria det.
     const draft = textToDraft(EXEMPEL);

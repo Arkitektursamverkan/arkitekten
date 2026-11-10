@@ -5,7 +5,7 @@
  * Det är enda sättet att se om nodtexten går att läsa: på skärmen ser allt bra
  * ut, det är nedskalningen till spaltbredden som avgör.
  *
- *   npx tsx scripts/preview-word.mts flows/bestallning-ny.json /tmp/ut
+ *   npx tsx scripts/preview-word.mts flows/<flöde>.json /tmp/ut
  */
 import fs from "node:fs";
 import { Resvg } from "@resvg/resvg-js";

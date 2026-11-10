@@ -142,8 +142,11 @@ function listaFlöden(flowsDir: string) {
         // Var i EA-portalen processen är publicerad (core/publicering.ts).
         // Plattformen speglar bara publicerade flöden, och portalen kopplar
         // flödet till noden på `eaNodId` – inte på numret, som en ny process
-        // utan processnummer inte har.
-        ...(flow.publicering?.eaNodId
+        // utan processnummer inte har. BARA den gemensamma katalogen
+        // publiceras (kanPublicera): en publicering på en Demo-process följer
+        // aldrig med ut, så plattformens `endast_publicerade` aldrig hämtar den.
+        // REGRESSION: en publicering i Demo – där alla får spara – gick ut.
+        ...(flow.publicering?.eaNodId && ytaFör(flow) === "gemensam"
           ? {
               publicering: {
                 eaNodId: flow.publicering.eaNodId,
@@ -193,12 +196,15 @@ export function skapaHanterare(
 ) {
   // Slutets reservbana är portalbanan – samma namn som i appen.
   sättOrganisation(organisationUrMiljö(process.env));
-  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-    const väg = url.pathname.replace(/\/+$/, "") || "/";
-    const metod = req.method ?? "GET";
-
+  const hantera = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    let väg = "?";
     try {
+      // Tolkningen inne i try och mot en FAST bas: ett trasigt Host-huvud eller
+      // en konstig sökväg kastade förut UTANFÖR felhanteringen.
+      const url = new URL(req.url ?? "/", "http://localhost");
+      väg = url.pathname.replace(/\/+$/, "") || "/";
+      const metod = req.method ?? "GET";
+
       if (metod !== "GET") {
         res.setHeader("allow", "GET");
         return fel(res, 405, "Tjänsten är läsbar. Endast GET.");
@@ -240,6 +246,10 @@ export function skapaHanterare(
         }
         res.statusCode = 200;
         res.setHeader("content-type", "image/svg+xml; charset=utf-8");
+        // En SVG som öppnas direkt i en flik är ett dokument som kan bära skript.
+        // Bilden ska bara visas: inga skript, inga hämtningar, bara egna stilar.
+        res.setHeader("x-content-type-options", "nosniff");
+        res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'");
         if (ärAp) {
           const { lo, textScale } = byggUtlägg(flöde, { version });
           res.end(renderApSvg(lo, { textScale }));
@@ -257,13 +267,39 @@ export function skapaHanterare(
       // med sökvägar, gick rakt ut.
       if (e instanceof Användarfel) return fel(res, e.status, e.message);
       console.warn(`[flödestjänst] FEL i ${väg}: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
       return fel(res, 400, "Flödet kunde inte läsas eller ritas.");
     }
   };
+  /**
+   * Det som ändå tar sig ut ur hanteraren blir ett 500-svar, aldrig ett
+   * ohanterat löfte. REGRESSION: en begäran som kastade utanför try lämnade
+   * ett avvisat löfte efter sig och anslutningen hängde.
+   */
+  return (req: IncomingMessage, res: ServerResponse): Promise<void> =>
+    hantera(req, res).catch((e) => {
+      console.warn(`[flödestjänst] OHANTERAT FEL: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+      if (res.headersSent) res.destroy();
+      else fel(res, 500, "Internt fel.");
+    });
+}
+
+/**
+ * Ett avvisat löfte som ingen fångat loggas – processen lever vidare.
+ * Node avslutar annars hela tjänsten, och med den alla andras hämtningar.
+ */
+export function loggaOhanteradeLöften(namn: string): void {
+  process.on("unhandledRejection", (skäl) => {
+    console.error(`[${namn}] OHANTERAT AVVISAT LÖFTE: ${skäl instanceof Error ? (skäl.stack ?? skäl.message) : String(skäl)}`);
+  });
 }
 
 /** Startas bara när filen körs direkt – inte när ett test importerar den. */
 if (process.argv[1] && /flodestjanst\.mts$/.test(process.argv[1])) {
+  loggaOhanteradeLöften("flödestjänst");
   const server = http.createServer(skapaHanterare());
   // Ruttningen är SYNKRON och kan ta över tio sekunder för en stor process
   // (över hundra objekt). Under tiden står Nodes event-loop stilla, och med

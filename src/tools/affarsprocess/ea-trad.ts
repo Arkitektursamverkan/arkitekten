@@ -105,7 +105,7 @@ export function förvaldProcess(
   return prefix ? processer.find((p) => p.prefix === prefix) : undefined;
 }
 
-/** Vägen ner till noden: "4 Stödprocesser › 4.4 IT › 4.4.3 …". */
+/** Vägen ner till noden: "4 Stödprocesser › 4.4 Drift › 4.4.3 …". */
 export function vägTill(processer: readonly EaProcess[], id: string | null): string {
   const efter = new Map(processer.map((p) => [p.id, p]));
   const led: string[] = [];

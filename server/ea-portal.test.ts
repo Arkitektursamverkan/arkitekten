@@ -44,14 +44,14 @@ describe("EA-portalens klient", () => {
   it("läser processträdet med nyckeln och plockar ut förälder och nummer", async () => {
     const { k, anrop } = falskPortal(() => [
       { id: "a", name: "4 Stödprocesser", external_source: "EXTERN", is_structure: true, attributes: { prefix: "4" } },
-      { id: "b", name: "4.4 IT", external_source: "EXTERN", attributes: { prefix: "4.4", parent_id: "a" } },
+      { id: "b", name: "4.4 Drift", external_source: "EXTERN", attributes: { prefix: "4.4", parent_id: "a" } },
     ]);
     const p = await listaProcesser(k);
     expect(anrop[0].väg).toBe("/nodes?node_type=Process&archived=false&limit=10000");
     expect(anrop[0].nyckel).toBe("hemlig");
     expect(p).toEqual([
       { id: "a", namn: "4 Stödprocesser", prefix: "4", struktur: true, källa: "EXTERN" },
-      { id: "b", namn: "4.4 IT", prefix: "4.4", förälderId: "a", struktur: false, källa: "EXTERN" },
+      { id: "b", namn: "4.4 Drift", prefix: "4.4", förälderId: "a", struktur: false, källa: "EXTERN" },
     ]);
   });
 

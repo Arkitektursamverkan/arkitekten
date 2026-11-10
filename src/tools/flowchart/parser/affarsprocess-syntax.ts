@@ -1,7 +1,7 @@
 /**
  * Hakparentessyntaxen för affärsprocessens satelliter i beskrivningstexten:
  *
- *   Genomför urval [Roll: Rekryteringsansvarig U] [IT: Fastighetssystemet]
+ *   Genomför urval [Roll: Rekryteringsansvarig U] [IT: Ärendesystemet]
  *     [Krav: Öka mångfald] [In: Ansökningar] [Ut: Beslut om slutkandidat]
  *
  * Allt i hakparenteser lyfts UT ur stegtexten och läggs i stegets ap-block –

@@ -193,7 +193,7 @@ describe("forum i kedjan", () => {
     ]);
 
   it("REGRESSION: ett [Forum]-steg ritas som forum och får sitt objekt i kedjan, som en aktivitet", () => {
-    const model = compileAp(MÖTE("Sker i avdelningsledningsgruppen."));
+    const model = compileAp(MÖTE("Sker i ledningsgruppen."));
     expect(model.nodes.find((n) => n.id === "s2")?.kind).toBe("forum");
     // Mellan aktiviteten och forumet sprängs förädlingsobjektet in.
     expect(model.nodes.some((n) => n.id === "vo_s1")).toBe(true);

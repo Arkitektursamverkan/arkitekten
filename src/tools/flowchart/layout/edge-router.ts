@@ -44,9 +44,9 @@ export interface RouteRequest {
    * En brytpunkt styr vägens andra hörn, men den sista sträckan in i målet
    * låg alltid precis framför målets port – och där står ofta målets egna
    * satelliter. En räls (upp/ner ur källan, tvärs över, in i målet) har
-   * två fria hörn: 2.2.1:s "Byter annonstyp" gick in till "Publicerar
-   * lägenhet" genom Lägenhetsförvaltare, Kundkoordinator och RitoCad, och
-   * gick inte att flytta (2026-09-30). Se `sistaSträckan`.
+   * två fria hörn: en lång återkoppling i en affärsprocess gick in till
+   * sitt mål rakt genom målets tre satelliter (två roller och ett IT-stöd),
+   * och gick inte att flytta (2026-09-30). Se `sistaSträckan`.
    */
   via2?: Point | null;
 }
@@ -252,7 +252,7 @@ export type Sträckgrepp = "via.x" | "via.y" | "via2.x" | "via2.y";
  * DE STRÄCKOR PÅ EN MANUELL VÄG SOM GÅR ATT DRA – och vad draget ändrar.
  *
  * Ett handtag på en punkt räcker inte när vägen är tusentals pixlar lång:
- * 2.2.1:s "Byter annonstyp" har brytpunkten längst ut till höger och sista
+ * en lång återkoppling i en affärsprocess har brytpunkten längst ut till höger och sista
  * sträckan långt ner till vänster, och i en normal vy syntes inget av dem
  * ("nu kan jag bara hantera högra delen av flödet", 2026-09-30). Man
  * tar i stället tag i LINJEN där man ser den, som i andra ritverktyg:

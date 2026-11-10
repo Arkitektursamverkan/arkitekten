@@ -20,8 +20,8 @@ const APPAR: EaApplikation[] = [
 
 function flöde(publicering?: SavedFlow["publicering"]): SavedFlow {
   return {
-    id: "bestallning-ny",
-    name: "Ny beställning",
+    id: "inkopsorder-ny",
+    name: "Ny inköpsorder",
     savedAt: "2026-10-01T00:00:00.000Z",
     rawText: "",
     draft: { steps: [] } as unknown as SavedFlow["draft"],
@@ -44,6 +44,15 @@ function bygg(start: SavedFlow) {
       const metod = init.method ?? "GET";
       anrop.push({ väg: url, metod });
       if (url === "/__ark/flows") return svar({ ok: true, flows: [] });
+      // Publiceringen skrivs av bryggan (server/atkomst.ts prövaPublicering) –
+      // aldrig med en vanlig sparning.
+      if (url.startsWith("/__ark/ea/publicering/")) {
+        const id = decodeURIComponent(url.slice("/__ark/ea/publicering/".length));
+        const { publicering: _gammal, ...utan } = filer.get(id)!;
+        const ny = metod === "PUT" ? { ...utan, publicering: JSON.parse(String(init.body)).publicering } : utan;
+        filer.set(id, ny as SavedFlow);
+        return svar({ ok: true, flow: ny });
+      }
       if (url.startsWith("/__ark/flows/")) {
         const id = decodeURIComponent(url.slice("/__ark/flows/".length));
         if (metod === "PUT") {
@@ -89,7 +98,7 @@ describe("Publicera en Systemprocess i EA-portalen", () => {
 
     fireEvent.click(screen.getByRole("option", { name: /Kundportalen/ }));
     fireEvent.change(screen.getByLabelText("Ägare *"), { target: { value: "Systemförvaltare" } });
-    fireEvent.change(screen.getByLabelText("Beskrivning *"), { target: { value: "Så går en beställning." } });
+    fireEvent.change(screen.getByLabelText("Beskrivning *"), { target: { value: "Så går en inköpsorder." } });
     fireEvent.click(screen.getByRole("button", { name: "Publicera" }));
 
     await waitFor(() => expect(screen.getByText(/är publicerad hos/)).toBeTruthy());
@@ -99,7 +108,7 @@ describe("Publicera en Systemprocess i EA-portalen", () => {
       eaNodId: "portal",
       eaNodNamn: "Kundportalen",
       ägare: "Systemförvaltare",
-      beskrivning: "Så går en beställning.",
+      beskrivning: "Så går en inköpsorder.",
     });
     expect(sparad.publicering?.egenNod).toBeUndefined();
     // Ingen ny version, ingen ändrad sparad-tid (invariant 11).

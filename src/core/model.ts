@@ -276,7 +276,7 @@ export interface Swimlane {
 }
 
 export interface ProcessModel {
-  /** Diagrammets titel, t.ex. "Felanmälan ny". */
+  /** Diagrammets titel, t.ex. "Driftfråga ny". */
   title: string;
   /** Fri undertext / beskrivning som visas i titelrutan. */
   subtitle?: string;

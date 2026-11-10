@@ -198,14 +198,14 @@ En RAM per moment i berättelsen: en startram (vad som utlöser processen), en
 ram per steg och beslut, grenarna var för sig, och en slutram. Räkna med
 ungefär lika många ramar som den förenklade processen har rutor, plus två.
 
-  { "rubrik": "Steg 1 · Lägenheten publiceras",
+  { "rubrik": "Steg 1 · Ärendet registreras",
     "text": "Två–tre meningar som talaren kan säga till bilden.",
     "markeringar": [                 // FLÖDET: vad som lyfts fram i processen
       { "mål": { "typ": "nod",  "id": "<objektets id>" },       "verktyg": "puls", "färg": "#f59f00" },
       { "mål": { "typ": "kant", "id": "<kopplingens nyckel>" }, "verktyg": "puls", "färg": "#f59f00" } ],
     "scen": {                        // BILDEN: vad som händer i scenen
       "markeringar": [ { "figur": "<figur-id>", "verktyg": "blink", "färg": "#e8590c" } ],
-      "pulser":      [ { "från": "<figur-id>", "till": "<figur-id>", "färg": "#f59f00", "text": "Annons" } ],
+      "pulser":      [ { "från": "<figur-id>", "till": "<figur-id>", "färg": "#f59f00", "text": "Ärende" } ],
       "bubblor":     [ { "figur": "<figur-id>", "text": "Välkommen in!" } ],
       "dolda":       [ "<figur-id>", … ],          // figurer som INTE syns i ramen
       "textrutor":   [ { "x": 40, "y": 40, "bredd": 520, "rubrik": "KUNDCENTER · Steg 1", "text": "…" } ],
@@ -232,8 +232,8 @@ IT-stöd), ge dem egna id:n, och låt scenen växa: dölj en figur med "dolda"
 tills ramen där den kommer in i berättelsen. Figurerna står på samma plats
 genom hela serien – annars hoppar bilden mellan ramarna.
 
-Förlaga: ramar/ramar-uthyrning-claude.json (serien till flows/
-ap-demo-uthyrning-ordinarie.json).
+Förlaga: en befintlig ramserie i ramar/, om installationen har någon – läs
+den för form och ton.
 
 ── Arbetsgång ─────────────────────────────────────────────────────────────────
 1. Skriv "förenklad" till .ark/utkast.json och kör
