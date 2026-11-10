@@ -196,12 +196,15 @@ export function skapaHanterare(
 ) {
   // Slutets reservbana är portalbanan – samma namn som i appen.
   sättOrganisation(organisationUrMiljö(process.env));
-  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-    const väg = url.pathname.replace(/\/+$/, "") || "/";
-    const metod = req.method ?? "GET";
-
+  const hantera = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    let väg = "?";
     try {
+      // Tolkningen inne i try och mot en FAST bas: ett trasigt Host-huvud eller
+      // en konstig sökväg kastade förut UTANFÖR felhanteringen.
+      const url = new URL(req.url ?? "/", "http://localhost");
+      väg = url.pathname.replace(/\/+$/, "") || "/";
+      const metod = req.method ?? "GET";
+
       if (metod !== "GET") {
         res.setHeader("allow", "GET");
         return fel(res, 405, "Tjänsten är läsbar. Endast GET.");
@@ -264,13 +267,39 @@ export function skapaHanterare(
       // med sökvägar, gick rakt ut.
       if (e instanceof Användarfel) return fel(res, e.status, e.message);
       console.warn(`[flödestjänst] FEL i ${väg}: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
       return fel(res, 400, "Flödet kunde inte läsas eller ritas.");
     }
   };
+  /**
+   * Det som ändå tar sig ut ur hanteraren blir ett 500-svar, aldrig ett
+   * ohanterat löfte. REGRESSION: en begäran som kastade utanför try lämnade
+   * ett avvisat löfte efter sig och anslutningen hängde.
+   */
+  return (req: IncomingMessage, res: ServerResponse): Promise<void> =>
+    hantera(req, res).catch((e) => {
+      console.warn(`[flödestjänst] OHANTERAT FEL: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
+      if (res.headersSent) res.destroy();
+      else fel(res, 500, "Internt fel.");
+    });
+}
+
+/**
+ * Ett avvisat löfte som ingen fångat loggas – processen lever vidare.
+ * Node avslutar annars hela tjänsten, och med den alla andras hämtningar.
+ */
+export function loggaOhanteradeLöften(namn: string): void {
+  process.on("unhandledRejection", (skäl) => {
+    console.error(`[${namn}] OHANTERAT AVVISAT LÖFTE: ${skäl instanceof Error ? (skäl.stack ?? skäl.message) : String(skäl)}`);
+  });
 }
 
 /** Startas bara när filen körs direkt – inte när ett test importerar den. */
 if (process.argv[1] && /flodestjanst\.mts$/.test(process.argv[1])) {
+  loggaOhanteradeLöften("flödestjänst");
   const server = http.createServer(skapaHanterare());
   // Ruttningen är SYNKRON och kan ta över tio sekunder för en stor process
   // (över hundra objekt). Under tiden står Nodes event-loop stilla, och med

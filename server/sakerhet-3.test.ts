@@ -209,3 +209,25 @@ describe("flödestjänstens SVG", () => {
     }
   });
 });
+
+describe("flödestjänstens felhantering", () => {
+  it("REGRESSION: en sökväg som inte gick att tolka kastade utanför felhanteringen – nu 400 och tjänsten lever", async () => {
+    const tjänst = http.createServer(skapaHanterare(path.join(tmp, "flows"), path.join(tmp, "stilar"), ""));
+    await new Promise<void>((klar) => tjänst.listen(0, klar));
+    try {
+      const port = (tjänst.address() as { port: number }).port;
+      const status = await new Promise<number | undefined>((klar) => {
+        const req = http.request({ host: "127.0.0.1", port, path: "//[trasig", method: "GET" }, (res) => {
+          res.resume();
+          klar(res.statusCode);
+        });
+        req.on("error", () => klar(undefined));
+        req.end();
+      });
+      expect(status).toBe(400);
+      expect((await fetch(`http://127.0.0.1:${port}/health`)).status).toBe(200);
+    } finally {
+      await new Promise<void>((klar) => tjänst.close(() => klar()));
+    }
+  });
+});

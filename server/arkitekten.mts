@@ -132,7 +132,10 @@ function hantera(inst: Installningar, brygga: Hanterare, req: IncomingMessage, r
     if (väg === "/__ark" || väg.startsWith("/__ark/")) {
       // Som Vites montering: hanteraren ser vägen utan prefixet.
       req.url = (req.url ?? "").slice("/__ark".length) || "/";
-      void brygga(req, res, () => json(res, 404, { ok: false, error: "Okänd väg." }));
+      brygga(req, res, () => json(res, 404, { ok: false, error: "Okänd väg." })).catch(() => {
+        if (res.headersSent) res.destroy();
+        else json(res, 500, { ok: false, error: "Internt fel." });
+      });
       return;
     }
     statiskt(inst.distDir, req, res);
@@ -184,6 +187,12 @@ if (process.argv[1] && /arkitekten\.mts$/.test(process.argv[1])) {
     process.exit(1);
   });
 
+  // Ett avvisat löfte som ingen fångat loggas; servern kraschar inte för det.
+  process.on("unhandledRejection", (skäl) => {
+    console.error(
+      `[arkitekten] OHANTERAT AVVISAT LÖFTE: ${skäl instanceof Error ? (skäl.stack ?? skäl.message) : String(skäl)}`,
+    );
+  });
   const server = skapaServer(inst, brygga);
   server.listen(inst.port, () => {
     console.log(`[arkitekten] ${inst.version} lyssnar på :${inst.port} – AI: ${aiLäge(inst.utvecklarläge)}`);
