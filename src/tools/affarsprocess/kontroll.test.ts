@@ -46,7 +46,7 @@ describe("granskaAp", () => {
   it("aktivitet utan beskrivning ger råd; intressent räcker som HUKI", () => {
     const draft = draftMed([
       steg("a1", "activity", "Genomför urval", {
-        ap: { intressenter: [{ namn: "Hyresgäst", huki: "I" }] },
+        ap: { intressenter: [{ namn: "Kund", huki: "I" }] },
       }),
     ]);
     expect(ids(draft)).toEqual(["beskrivning-saknas"]);

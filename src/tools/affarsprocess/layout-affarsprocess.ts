@@ -917,7 +917,7 @@ export function layoutAp(model: ApModel, opts?: ApLayoutOptions): ApLayout {
    * GEMENSAM LINJE per aktivitet och riktning: den höjd där satelliternas
    * streck böjer, och där bokstaven står.
    *
-   * Utan den låg HR:s böj på en höjd och ReachMees på en annan, och bokstaven
+   * Utan den låg HR:s böj på en höjd och rekryteringssystemets på en annan, och bokstaven
    * satt mitt på VAR LINJE – och eftersom en hatt och en cylinder är olika
    * höga hamnade bokstäverna på olika höjd också. "De ska linjera och vara
    * symmetriska vid böjar". Linjen läggs mitt emellan aktivitetens

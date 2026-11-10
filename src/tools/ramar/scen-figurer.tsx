@@ -51,7 +51,7 @@ function fönster(x0: number, y0: number, kol: number, rad: number, bw: number, 
 
 export const FIGURER: Record<FigurTyp, FigurDef> = {
   hyresgast: {
-    namn: "Hyresgäst",
+    namn: "Kund",
     grupp: "Personer",
     w: 50,
     h: 94,
@@ -97,7 +97,7 @@ export const FIGURER: Record<FigurTyp, FigurDef> = {
       ),
   },
   huvudkontor: {
-    namn: "Huvudkontor",
+    namn: "Kontor",
     grupp: "Byggnader",
     w: 190,
     h: 210,

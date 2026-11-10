@@ -49,7 +49,7 @@ describe("pratbubblan", () => {
 });
 
 describe("dra en figur", () => {
-  it("REGRESSION: figurerna (Hyresgäst, Bostad, Huvudkontor) gick bara att flytta med verktyget Flytta – med förvalda 'Puls mellan' hände ingenting när man drog", () => {
+  it("REGRESSION: figurerna (Kund, Hem, Kontor) gick bara att flytta med verktyget Flytta – med förvalda 'Puls mellan' hände ingenting när man drog", () => {
     // Nedslaget blir en flytt så fort pekaren rört sig; står den still är det
     // ett klick och verktyget (puls, markering, bubbla …) gör sitt.
     expect(ärDragning({ x: 100, y: 100 }, { x: 101, y: 102 })).toBe(false);

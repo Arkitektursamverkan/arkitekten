@@ -34,7 +34,7 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
       () => document.querySelector(".ark-tool-main")?.textContent ?? "",
     );
     expect(text).toContain("Genomför urval");
-    expect(text).toContain("ReachMee"); // [IT: …]-satelliten
+    expect(text).toContain("Rekryteringssystem"); // [IT: …]-satelliten
     expect(text).toContain("Öka mångfald"); // [Krav: …]-satelliten
   });
 
@@ -442,7 +442,7 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
     await page.locator('.react-flow__node[data-id="s3"]').click();
     await page.waitForSelector(".ark-ap-inspektor", { timeout: 5_000 });
     const fält = page.locator(".ark-ap-inspektor input").nth(1);
-    await fält.fill("Annonsen läggs ut i ReachMee samma dag.");
+    await fält.fill("Annonsen läggs ut i Rekryteringssystem samma dag.");
     await fält.press("Enter");
     await page.waitForTimeout(500);
 
@@ -452,7 +452,7 @@ describe.skipIf(!chromium)("Affärsprocess som eget verktyg", () => {
           .querySelector('.react-flow__node[data-id="s3"] .ark-ap-nod')
           ?.getAttribute("title") ?? "",
     );
-    expect(titel).toContain("Annonsen läggs ut i ReachMee");
+    expect(titel).toContain("Annonsen läggs ut i Rekryteringssystem");
     expect(rigg.fel).toEqual([]);
   });
 

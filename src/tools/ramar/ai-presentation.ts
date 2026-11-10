@@ -128,11 +128,11 @@ export function apUnderlag(m: ApModel) {
 }
 
 const FIGURNAMN: Record<FigurTyp, string> = {
-  hyresgast: "en hyresgäst",
+  hyresgast: "en kund (boende, beställare – den processen är till för)",
   person: "en person i allmänhet (sökande, kund, medarbetare)",
   hantverkare: "en hantverkare",
   handlaggare: "en handläggare/tjänsteman",
-  huvudkontor: "huvudkontoret (stor byggnad)",
+  huvudkontor: "kontoret/organisationen (stor byggnad)",
   bostadshus: "ett bostadshus (stor byggnad)",
   dator: "en dator",
   mobil: "en mobil (app, Mina sidor)",
