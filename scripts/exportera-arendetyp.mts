@@ -26,12 +26,16 @@ import { compileDraft } from "../src/core/draft";
 import { senasteFastslagna, versionsBeteckning } from "../src/core/status";
 import { flowActor, type FlowSummary } from "../src/core/flow-store";
 import { byggFlödesträd, ärendetyper } from "../src/core/flow-tree";
+import { organisationUrMiljö, sättOrganisation } from "../src/core/organisation";
 import { filterByPerspective } from "../src/tools/flowchart/perspective";
 import { layoutModel, PAGE_FORMATS } from "../src/tools/flowchart/layout/layout";
 import { renderSvgSized } from "../src/tools/flowchart/export/svg";
 import { revisionAvVersion } from "../src/tools/flowchart/export/revision";
 import type { ColorMode } from "../src/tools/flowchart/theme";
 import type { Perspective } from "../src/core/model";
+
+// Ärendetyperna (ARK_ARENDETYPER) är installationens – samma som menyns.
+sättOrganisation(organisationUrMiljö(process.env));
 
 const FLÖDEN = "flows";
 const UT = "Export";

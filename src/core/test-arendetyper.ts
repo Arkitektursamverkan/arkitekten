@@ -1,9 +1,8 @@
 /**
  * PÅHITTADE ärendetyper för testerna.
  *
- * Standardlistan i `flow-tree.ts` är en viss installations portal. Testerna
- * ska inte bära den organisationens processnamn, så de sätter den här
- * neutrala uppsättningen i stället – med samma form som standardlistan: ett
+ * Installationens ärendetyper kommer ur ARK_ARENDETYPER (förval: inga).
+ * Testerna sätter den här neutrala uppsättningen i stället: ett
  * prefix som måste skiljas från ett sammansatt ("driftfraga-och-…"), en
  * sammansatt titel ("Reklamation och skador") och reservgrenen sist.
  *

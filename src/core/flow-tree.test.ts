@@ -16,7 +16,7 @@ import { användTestärendetyper, återställÄrendetyper } from "./test-arendet
 
 /**
  * Testerna använder PÅHITTADE ärendetyper (`test-arendetyper.ts`), inte
- * standardlistan – den är en viss installations portal.
+ * installationens (ARK_ARENDETYPER).
  */
 beforeEach(användTestärendetyper);
 afterEach(återställÄrendetyper);
@@ -117,7 +117,7 @@ describe("kortnamn", () => {
   });
 
   it("prefixen kommer ur den ärendetypslista som är satt", () => {
-    // Standardlistan gäller igen efter återställningen – en titel som bara
+    // Installationens lista (här: ingen) gäller igen efter återställningen – en titel som bara
     // finns i testlistan kapas då inte längre.
     återställÄrendetyper();
     expect(kortnamn("Driftfråga - påminn mig", "Gemensamt")).toBe("Driftfråga - påminn mig");

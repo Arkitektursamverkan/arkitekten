@@ -418,7 +418,10 @@ Organisationens namn som inte är utseende kommer ur `core/organisation.ts`:
 portalbanan i en systemprocess är `portalbana()` (`ARK_PORTALBANA`, förval
 "Portalen") och katalogens samling för systemprocesser utan kategori
 `organisation().systemprocesskategori` (`ARK_SYSTEMPROCESS_KATEGORI`, förval
-"Systemprocesser"). Skriv aldrig in ett sådant namn i koden.
+"Systemprocesser"). Katalogens ÄRENDETYPER (`ärendetyper()` i
+`core/flow-tree.ts`) kommer ur `organisation().ärendetyper`
+(`ARK_ARENDETYPER`, kommaseparerad, "Titel" eller "prefix=Titel"; förval tom =
+ingen gruppering). Skriv aldrig in ett sådant namn i koden.
 
 AI-stödet har tre lägen: **api** (nyckel i miljön), **claude-code**
 (`ARK_UTVECKLARLAGE=1`, brevlådan nedan) och **av** (inget av dem – knapparna
