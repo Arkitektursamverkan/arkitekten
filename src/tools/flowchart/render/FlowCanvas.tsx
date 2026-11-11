@@ -123,6 +123,12 @@ interface Props {
   /** Rapporterar en utdragen swimlane-höjd (null = auto). I flersidigt läge
    *  gäller höjden BARA delen som drogs (page); i fri form alla delar. */
   onLaneResize?: (laneId: string, height: number | null, page?: number) => void;
+  /**
+   * De markerade PROCESSOBJEKTENS id:n (ram eller Ctrl-klick) – verktygsradens
+   * åtgärder för markeringen arbetar på dem. Rapporteras bara när listan
+   * faktiskt ändrats (se `rapporteraMarkering`).
+   */
+  onSelectionChange?: (ids: string[]) => void;
   /** Tar bort en koppling ur diagrammet. */
   onEdgeRemove?: (source: string, target: string, label?: string) => void;
   /** Döljer en sidhänvisning som användaren klickat på. */
@@ -218,6 +224,7 @@ export function FlowCanvas({
   etikettHinder,
   onEdgeSidesReset,
   onLaneResize,
+  onSelectionChange,
   onEdgeRemove,
   onPageRefHide,
   onEdgeAdd,
@@ -277,6 +284,22 @@ export function FlowCanvas({
 
   /** React Flow-instansen – behövs för att rama in innehållet igen. */
   const rf = useRef<ReactFlowInstance | null>(null);
+  /**
+   * Markeringen rapporteras upp med en STABIL handlare som bara anropar
+   * föräldern när listan ändrats. React Flows SelectionListener kör sin effekt
+   * varje gång handlaren byts, och en ny handlare per render gav en evig
+   * slinga i affärsprocessverktyget ("Maximum update depth exceeded").
+   */
+  const selectionProp = useRef(onSelectionChange);
+  selectionProp.current = onSelectionChange;
+  const senastMarkerade = useRef<string[]>([]);
+  const rapporteraMarkering = useCallback(({ nodes: valda }: { nodes: Node[] }) => {
+    const ids = valda.filter((n) => n.type === "process").map((n) => n.id);
+    const förra = senastMarkerade.current;
+    if (ids.length === förra.length && ids.every((id, i) => id === förra[i])) return;
+    senastMarkerade.current = ids;
+    selectionProp.current?.(ids);
+  }, []);
 
   /**
    * Vyn hittar tillbaka till banan man just dragit i.
@@ -1245,6 +1268,7 @@ export function FlowCanvas({
          * inspektören, där man ser vad man tar bort.
          */
         onBeforeDelete={async ({ nodes: markerade }) => markerade.length === 0}
+        onSelectionChange={rapporteraMarkering}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}

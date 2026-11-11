@@ -27,6 +27,7 @@
 
 import type { DataStore, Pool, ProcessModel, ProcessNode } from "@/core/model";
 import { wrap } from "../render/text-util";
+import { kolumnFaktorer } from "./avstand";
 
 /** Basmått vid skala 1.0. Medvetet nätta – "något mindre" som standard. */
 export const BASE_DIMS = {
@@ -648,6 +649,7 @@ function placeLaneNodes(
   laneNodes: ProcessNode[],
   rank: Map<string, number>,
   colX: number[],
+  gap: number[],
   contentTop: number,
   rowCount: number,
   d: Dims,
@@ -676,20 +678,24 @@ function placeLaneNodes(
   let used = laneNodes.length ? 1 : 0;
   for (const n of sorterad) {
     const { w, h } = nodeSize(n, d);
-    const önskadX = colX[rank.get(n.id) ?? 0] ?? colX[0];
+    const nr = rank.get(n.id) ?? 0;
+    const önskadX = colX[nr] ?? colX[0];
+    // Krocken i raden mäts med mellanrummet FÖRE nodens kolumn – annars sköt
+    // det vanliga avståndet isär kolumner som användaren gjort tätare.
+    const lucka = gap[nr - 1] ?? d.colGap;
     // Välj rad: den som ger minsta x, helst == önskadX (då hamnar parallella
     // steg lodrätt i samma kolumn i stället för att knuffas åt höger).
     let rad = 0;
     let bäst = Infinity;
     for (let r = 0; r < rader; r++) {
-      const x = Math.max(önskadX, rowRight[r] + d.colGap);
+      const x = Math.max(önskadX, rowRight[r] + lucka);
       const kostnad = (x > önskadX + 0.5 ? 1e9 : 0) + x + r * 0.001;
       if (kostnad < bäst) {
         bäst = kostnad;
         rad = r;
       }
     }
-    const x = Math.max(önskadX, rowRight[rad] + d.colGap);
+    const x = Math.max(önskadX, rowRight[rad] + lucka);
     rowRight[rad] = x + w;
     used = Math.max(used, rad + 1);
     const auto = { x, y: rowY(rad) + (d.nodeH - h) / 2 };
@@ -742,18 +748,23 @@ export function columnGeometry(model: ProcessModel, rank: Map<string, number>, d
     const r = rank.get(n.id) ?? 0;
     colWidth[r] = Math.max(colWidth[r], nodeSize(n, d).w);
   }
+  // Mellanrummet EFTER varje kolumn: användarens faktor (layout/avstand.ts)
+  // gånger det vanliga.
+  const faktorAv = kolumnFaktorer(model.nodes.map((n) => ({ kolumn: rank.get(n.id) ?? 0, avståndEfter: n.avståndEfter })));
+  const gap: number[] = [];
   const colX: number[] = [];
   let cx = d.poolLabelW + d.lanePadX;
   for (let r = 0; r <= maxRank; r++) {
     colX[r] = cx;
-    cx += colWidth[r] + d.colGap;
+    gap[r] = d.colGap * (faktorAv.get(r) ?? 1);
+    cx += colWidth[r] + gap[r];
   }
-  return { colWidth, colX, maxRank, slut: cx - d.colGap };
+  return { colWidth, colX, gap, maxRank, slut: cx - gap[maxRank] };
 }
 
 /** Fri layout (standard): ett långt horisontellt band per lane, allt på en sida. */
 function layoutFree(model: ProcessModel, rank: Map<string, number>, d: Dims, scale: number): LayoutResult {
-  const { colX, slut } = columnGeometry(model, rank, d);
+  const { colX, gap, slut } = columnGeometry(model, rank, d);
   let totalWidth = slut + d.lanePadX;
   // Ett manuellt draget objekt kan ligga längre åt höger än sista kolumnen.
   // Räknas det inte in hamnar det utanför både sin bana och sidan.
@@ -788,7 +799,7 @@ function layoutFree(model: ProcessModel, rank: Map<string, number>, d: Dims, sca
       : d.lanePadY;
     const contentTop = laneTop + d.laneHeaderH + padY;
     const före = laidNodes.length;
-    const used = placeLaneNodes(laneNodes, rank, colX, contentTop, rowCount, d, laidNodes);
+    const used = placeLaneNodes(laneNodes, rank, colX, gap, contentTop, rowCount, d, laidNodes);
     // Banan måste alltid omsluta sina noder – även manuellt dragna (sparad
     // position). Annars hänger en nedåtdragen nod utanför banan när banan krymper.
     const nodeH = laneNodeExtent(laidNodes, före, laneTop, d, padY, storeH);
@@ -865,7 +876,6 @@ function planeraSidor(
   contentW: number,
   model: ProcessModel,
   rank: Map<string, number>,
-  d: Dims,
 ): { delar: { från: number; till: number }[]; tidigaSnitt: number } {
   // Förbjudna snittgränser (R3): gränsen mellan en gateway och dess NÄRMASTE
   // grenhuvud (grenmål i kolumnen direkt intill). Nej-vägen och senare grenar
@@ -899,7 +909,8 @@ function planeraSidor(
       while (b > start + 1 && förbjuden.has(b)) b--;
       if (förbjuden.has(b)) b = r; // ingen tillåten gräns – nödfall
       if (b < r) tidigaSnitt++;
-      delar.push({ från: colX[start], till: colX[b] - d.colGap / 2 });
+      // Mitt i mellanrummet före kolumn b – det kan vara användarens eget.
+      delar.push({ från: colX[start], till: (colX[b - 1] + colWidth[b - 1] + colX[b]) / 2 });
       start = b;
       r = b; // fortsätt packningen från det faktiska snittet
     }
@@ -1145,7 +1156,7 @@ function layoutPaged(
   const ord = pageHeight != null ? "Sida" : "Del";
 
   const { colWidth, colX } = columnGeometry(model, rank, d);
-  const { delar, tidigaSnitt } = planeraSidor(colWidth, colX, contentW, model, rank, d);
+  const { delar, tidigaSnitt } = planeraSidor(colWidth, colX, contentW, model, rank);
 
   /** Vilken del ligger en KOLUMN i? */
   const delFörKolumn = (col: number): number => {

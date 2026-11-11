@@ -92,6 +92,8 @@ export interface ApNode {
   /** Manuellt satt position (affärsprocessvyns egna koordinater). null = auto. */
   position?: { x: number; y: number } | null;
   textSize?: number;
+  /** Faktor för avståndet till nästa kolumn i kedjan (se `ProcessDraft.kolumnAvstånd`). */
+  avståndEfter?: number;
 }
 
 export interface ApRelation {
@@ -620,6 +622,13 @@ export function transformToAp(pm: ProcessModel, draft: ProcessDraft): ApModel {
     for (const namn of info.problem ?? []) lägg("problem", namn, "adresserar");
     for (const namn of info.risker ?? []) lägg("risk", namn, "adresserar");
     for (const namn of info.mojligheter ?? []) lägg("mojlighet", namn, "adresserar");
+  }
+
+  if (draft.kolumnAvstånd) {
+    for (const n of ap.nodes) {
+      const f = draft.kolumnAvstånd[n.id];
+      if (f !== undefined) n.avståndEfter = f;
+    }
   }
 
   return ap;

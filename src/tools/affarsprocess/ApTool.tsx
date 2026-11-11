@@ -27,8 +27,11 @@ import {
   setPresentationsKoppling,
   setPresentationsLäge,
   setStepPosition,
+  setKolumnAvstånd,
   type ProcessDraft,
 } from "@/core/draft";
+import { AvstandsKnappar } from "@/shell/AvstandsKnappar";
+import { avståndFör, avståndsMål } from "../flowchart/layout/avstand";
 import type { EdgeSide } from "@/core/model";
 import {
   AP_FLOW_PREFIX,
@@ -676,6 +679,22 @@ export function ApTool({
   }, [layout, markerade, setDraft]);
 
   /**
+   * Avståndet mellan de markerade objektens kolumner (layout/avstand.ts).
+   * Kolumnerna läses ur layouten – en satellit räknas till sitt ankares.
+   */
+  const avståndMål = useMemo(() => {
+    const kolumnAv = new Map<string, number>();
+    for (const n of layout.nodes) if (n.kolumn !== undefined) kolumnAv.set(n.node.id, n.kolumn);
+    return avståndsMål(kolumnAv, markerade);
+  }, [layout, markerade]);
+  const ändraAvstånd = useCallback(
+    (faktor: number) => {
+      if (avståndMål) setDraft((d) => setKolumnAvstånd(d, avståndMål, faktor));
+    },
+    [avståndMål, setDraft],
+  );
+
+  /**
    * Vald kopplingspunkt på ett objekt: vilken SIDA pilen fäster i. Sparas i
    * mellanlagret som allt annat manuellt, med kantens etikett i nyckeln så att
    * två pilar mellan samma par (H och K från olika roller) hålls isär.
@@ -1014,6 +1033,13 @@ export function ApTool({
             >
               ⌗ Räta upp kopplingarna
             </VradKnapp>
+          </VradGrupp>
+
+          <VradGrupp>
+            <AvstandsKnappar
+              värde={avståndMål ? avståndFör(avståndMål, draft.kolumnAvstånd) : null}
+              onÄndra={ändraAvstånd}
+            />
           </VradGrupp>
             </>
           )}

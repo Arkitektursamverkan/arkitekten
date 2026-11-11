@@ -35,8 +35,11 @@ import {
   setTextStyle,
   updateStep,
   läggTillFritt,
+  setKolumnAvstånd,
   type ProcessDraft,
 } from "@/core/draft";
+import { AvstandsKnappar } from "@/shell/AvstandsKnappar";
+import { avståndFör, avståndsMål } from "./layout/avstand";
 import {
   flowId as idUrNamn,
   getFlowStore,
@@ -78,7 +81,7 @@ import { toDrawioXml } from "./export/drawio";
 import { toMermaid } from "./export/mermaid";
 import { renderSvg, renderSvgSized } from "./export/svg";
 import { copySvgAsPng } from "./export/clipboard";
-import { extractPage, layoutModel, PAGE_FORMATS, wordPointSize, type PageFormatId } from "./layout/layout";
+import { computeRanks, extractPage, layoutModel, PAGE_FORMATS, wordPointSize, type PageFormatId } from "./layout/layout";
 import { FlowCanvas } from "./render/FlowCanvas";
 import {
   Rullgardin,
@@ -625,6 +628,19 @@ export function FlowchartTool({
    * samma skäl: i strikt BPMN är formerna färglösa också i rutan.
    */
   const figurer = useMemo(() => flödesFigurer(filtered, colorMode), [filtered, colorMode]);
+
+  /**
+   * Objekten användaren markerat på ytan, och avståndet mellan dem. Kolumnerna
+   * räknas på det som RITAS (`ritad`), samma modell som layouten på ytan.
+   */
+  const [markerade, setMarkerade] = useState<string[]>([]);
+  const avståndMål = useMemo(() => avståndsMål(computeRanks(ritad), markerade), [ritad, markerade]);
+  const ändraAvstånd = useCallback(
+    (faktor: number) => {
+      if (avståndMål) setDraft((d) => setKolumnAvstånd(d, avståndMål, faktor));
+    },
+    [avståndMål, setDraft],
+  );
   /**
    * Kanterna i vyn kan vara genvägar förbi dolda noder och motsvarar då inget
    * verkligt nodpar i modellen. Bara verkliga par går att ändra.
@@ -1248,6 +1264,13 @@ export function FlowchartTool({
               </VradKnapp>
             )}
           </VradGrupp>
+
+          <VradGrupp>
+            <AvstandsKnappar
+              värde={avståndMål && !locked ? avståndFör(avståndMål, draft.kolumnAvstånd) : null}
+              onÄndra={ändraAvstånd}
+            />
+          </VradGrupp>
             </>
           )}
 
@@ -1626,6 +1649,7 @@ export function FlowchartTool({
               </button>
             )}
             <FlowCanvas
+              onSelectionChange={setMarkerade}
               model={locked || läser || helskärm.aktiv ? filtered : ritad}
               locked={locked || läser || helskärm.aktiv}
               pageFormat={pageFormat}
