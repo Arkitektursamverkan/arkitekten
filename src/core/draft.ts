@@ -373,6 +373,13 @@ export interface ProcessDraft {
    */
   pagePins?: Record<string, number>;
   /**
+   * Avståndet till NÄSTA kolumn, som faktor (1 = normalt), per nod-id. Sätts
+   * på de markerade objekten med `setKolumnAvstånd`; layouten läser det per
+   * kolumn (största faktorn bland kolumnens objekt). Nycklas på nod-id, så
+   * både steg och auto-noder kan bära det (invariant 2).
+   */
+  kolumnAvstånd?: Record<string, number>;
+  /**
    * FRIA affärsprocessobjekt, utplacerade från paletten. Ett fritt objekt har INGEN
    * koppling alls förrän användaren drar en pil – först då knyts det in
    * (en roll blir aktivitetens roll, ett VO blir dess ut-objekt, en fri
@@ -1083,6 +1090,12 @@ export function compileDraft(draft: ProcessDraft): ProcessModel {
       if (pin !== undefined) n.pagePin = pin;
     }
   }
+  if (draft.kolumnAvstånd) {
+    for (const n of model.nodes) {
+      const f = draft.kolumnAvstånd[n.id];
+      if (f !== undefined) n.avståndEfter = f;
+    }
+  }
 
   return model;
 }
@@ -1367,6 +1380,20 @@ export function setTextSize(draft: ProcessDraft, nodeId: string, faktor: number 
   if (klämd === null || klämd === 1) delete autoTextSizes[nodeId];
   else autoTextSizes[nodeId] = klämd;
   return { ...draft, autoTextSizes, meta: { ...draft.meta, origin: "manual" } };
+}
+
+/**
+ * Avståndet till nästa kolumn för objekten `ids` (faktor, 1 = normalt; null
+ * eller 1 tar bort). Vilka objekt som berörs av en markering räknas av
+ * `avståndsMål` i layout/avstand.ts; faktorn kläms där också.
+ */
+export function setKolumnAvstånd(draft: ProcessDraft, ids: readonly string[], faktor: number | null): ProcessDraft {
+  const kolumnAvstånd = { ...draft.kolumnAvstånd };
+  for (const id of ids) {
+    if (faktor === null || faktor === 1) delete kolumnAvstånd[id];
+    else kolumnAvstånd[id] = faktor;
+  }
+  return { ...draft, kolumnAvstånd, meta: { ...draft.meta, origin: "manual" } };
 }
 
 /** Nuvarande textstorlek för ett objekt (1 = normal). */

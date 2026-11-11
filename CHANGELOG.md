@@ -7,7 +7,7 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
-- (inget än)
+- **Avståndet mellan markerade objekt** går att ändra, i både Affärsprocess och Systemprocess. Markera objekten (dra en ram, eller Ctrl-klicka) och tryck **→←** för tätare eller **←→** för glesare i verktygsraden (30–200 %, procenttalet återställer till 100 %). Mellanrummen mellan de markerade kolumnerna ändras, också genom kolumner där inget är markerat; resten av diagrammet står still. Faktorn sparas med processen (`kolumnAvstånd` i mellanlagret) och gäller både ritytan och exporterna. Reglaget *Avstånd mellan objekt* under Vy gäller fortfarande hela diagrammet.
 
 ## 0.10.0 – 2026-11-10
 

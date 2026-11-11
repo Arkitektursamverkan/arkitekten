@@ -234,6 +234,14 @@ parser, AI-brygga, historik och lagring. Plan och symbolkatalog:
   aldrig hamna på samma linje i båda led – då offras den snedaste kopplingen.
   Kopplingar UT ur markeringen rörs aldrig. Markeringen ägs av React Flow och
   rapporteras upp med `onSelectionChange`.
+- **Avståndet mellan kolumnerna sätts på MARKERINGEN** (verktygsradens
+  →← / ←→, `shell/AvstandsKnappar.tsx`). Regeln bor i
+  `flowchart/layout/avstand.ts` och gäller BÅDA verktygen: `avståndsMål` ger
+  alla objekt i kolumnerna mellan de markerade, `setKolumnAvstånd` sparar
+  faktorn per nod-id i `draft.kolumnAvstånd`, kompileringen lägger den på
+  noden (`avståndEfter`) och layouten tar den största per kolumn
+  (`kolumnFaktorer`) – i flödesschemat i `columnGeometry`, så sidindelningen
+  ser samma mellanrum. Manuellt flyttade objekt rörs inte.
 - **En manuell väg dras i SINA STRÄCKOR, inte bara i brytpunkten.** Med en
   egen brytpunkt tar man tag i linjen där man ser den (`dragbaraSträckor` i
   edge-router): rälsen upp/ner, en lodrät sträcka i sidled, och SISTA

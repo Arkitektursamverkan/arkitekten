@@ -21,6 +21,7 @@ import { edgeKey, type EdgeSides } from "@/core/draft";
 import { pickEdgeSides, routeEdge, type Point, type Rect, type Side } from "../flowchart/layout/edge-router";
 import { portPoint } from "../flowchart/render/edge-geometry";
 import { BASE_DIMS } from "../flowchart/layout/layout";
+import { kolumnFaktorer } from "../flowchart/layout/avstand";
 import {
   IKONTYPER,
   apKontur,
@@ -115,6 +116,11 @@ export interface ApLaidOutNode {
   h: number;
   /** Vilken del (0-baserad) objektet ritas på. */
   page: number;
+  /**
+   * Kedjans kolumn (rank) – för en satellit ankarets. Saknas för okopplade
+   * objekt. Avståndsreglaget för markeringen läser den (`avståndsMål`).
+   */
+  kolumn?: number;
   /**
    * Förskjutning mellan det här utläggets ram och den FRIA layoutens
    * (invariant 5): manuella positioner sparas i fria koordinater och
@@ -546,6 +552,8 @@ export function layoutAp(model: ApModel, opts?: ApLayoutOptions): ApLayout {
   // som manuella positioner sparas i. dx per kolumn = skillnaden mellan var
   // kolumnen ritas nu och var den ligger i fria ramen.
   const kolXFri = new Map<number, number>();
+  // Användarens avstånd till nästa kolumn, per kolumn (layout/avstand.ts).
+  const faktorAv = kolumnFaktorer(kedja.map((n) => ({ kolumn: rank.get(n.id)!, avståndEfter: n.avståndEfter })));
   let sida = 0;
   let x = d.margin;
   let xFri = d.margin;
@@ -558,8 +566,9 @@ export function layoutAp(model: ApModel, opts?: ApLayoutOptions): ApLayout {
     sidFör.set(r, sida);
     kolX.set(r, x);
     kolXFri.set(r, xFri);
-    x += w + d.colGap;
-    xFri += w + d.colGap;
+    const gap = d.colGap * (faktorAv.get(r) ?? 1);
+    x += w + gap;
+    xFri += w + gap;
   }
   const antalSidor = sida + 1;
 
@@ -654,6 +663,7 @@ export function layoutAp(model: ApModel, opts?: ApLayoutOptions): ApLayout {
       w,
       h,
       page: s,
+      kolumn: r,
       dx,
       dy: 0,
     };
@@ -685,6 +695,7 @@ export function layoutAp(model: ApModel, opts?: ApLayoutOptions): ApLayout {
       w,
       h,
       page: ankare.page, // R8: satelliten följer sitt ankare
+      kolumn: ankare.kolumn,
       dx: ankare.dx,
       dy: 0,
     };

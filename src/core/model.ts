@@ -84,6 +84,11 @@ export interface ProcessNode {
    * räknas om automatiskt eftersom de härleds ur deltillhörigheten.
    */
   pagePin?: number;
+  /**
+   * Faktor för avståndet till nästa kolumn (1 = normalt). Ur
+   * `ProcessDraft.kolumnAvstånd`; se `kolumnFaktor` i layout/avstand.ts.
+   */
+  avståndEfter?: number;
 }
 
 /** Textplacering i en nod. */
