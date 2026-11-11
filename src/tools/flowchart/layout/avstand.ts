@@ -19,14 +19,28 @@ export const AVSTÅND_MIN = 0.3;
 export const AVSTÅND_MAX = 2;
 export const AVSTÅND_STEG = 0.1;
 
-/** Faktorn kläms och avrundas till ett steg, så att +/− alltid går jämnt. */
+/**
+ * Faktorn kläms och avrundas till hela procent – användaren kan skriva in
+ * procenttalet själv (t.ex. 65 %), och knapparna går ±10 därifrån.
+ */
 export function klämAvstånd(faktor: number): number {
   if (!Number.isFinite(faktor)) return 1;
   const k = Math.min(AVSTÅND_MAX, Math.max(AVSTÅND_MIN, faktor));
-  // Heltal tiondelar och sedan division: k / 0,1 * 0,1 gav 0,30000000000000004,
+  // Heltal procent och sedan division: k / 0,1 * 0,1 gav 0,30000000000000004,
   // som både sparades i filen och fick "tätast" att aldrig nås.
-  const tiondelar = Math.round(k / AVSTÅND_STEG);
-  return tiondelar / Math.round(1 / AVSTÅND_STEG);
+  return Math.round(k * 100) / 100;
+}
+
+/**
+ * Ett inskrivet procenttal ("65", "65 %", "65,5") som faktor, klämd.
+ * null = inget tal – fältet återgår då till markeringens värde.
+ */
+export function tolkaProcent(text: string): number | null {
+  const t = text.replace(/%/g, "").replace(",", ".").trim();
+  if (!t) return null;
+  const tal = Number(t);
+  if (!Number.isFinite(tal)) return null;
+  return klämAvstånd(tal / 100);
 }
 
 /**

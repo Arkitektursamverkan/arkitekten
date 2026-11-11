@@ -389,9 +389,13 @@ export function ApCanvas({
   useEffect(() => {
     setNodes((förra) => {
       const mätt = new Map(förra.map((n) => [n.id, n.measured]));
+      // Markeringen bärs också över: en ombyggnad efter t.ex. "tätare" tappade
+      // den, och man fick markera om objekten för att trycka en gång till.
+      const valda = new Set(förra.filter((n) => n.selected).map((n) => n.id));
       return buildNodes().map((n) => {
         const m = mätt.get(n.id);
-        return m ? { ...n, measured: m } : n;
+        const vald = valda.has(n.id) && n.selectable !== false;
+        return m || vald ? { ...n, ...(m && { measured: m }), ...(vald && { selected: true }) } : n;
       });
     });
   }, [buildNodes]);
