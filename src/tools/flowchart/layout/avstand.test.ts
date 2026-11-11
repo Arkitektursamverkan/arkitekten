@@ -15,7 +15,15 @@ import { compileAp } from "@/core/affarsprocess";
 import { compileDraft, emptyDraft, makeLane, setKolumnAvstånd, type DraftStep, type ProcessDraft } from "@/core/draft";
 import type { NodeType } from "@/core/model";
 import { layoutAp } from "@/tools/affarsprocess/layout-affarsprocess";
-import { AVSTÅND_MAX, AVSTÅND_MIN, avståndFör, avståndsMål, klämAvstånd, kolumnFaktorer } from "./avstand";
+import {
+  AVSTÅND_MAX,
+  AVSTÅND_MIN,
+  avståndFör,
+  avståndsMål,
+  klämAvstånd,
+  kolumnFaktorer,
+  tolkaProcent,
+} from "./avstand";
 import { computeRanks, layoutModel } from "./layout";
 
 function steg(id: string, type: NodeType, text: string): DraftStep {
@@ -60,11 +68,24 @@ describe("avståndsMål", () => {
 });
 
 describe("faktorn", () => {
-  it("kläms och avrundas till ett steg", () => {
+  it("kläms och avrundas till hela procent", () => {
     expect(klämAvstånd(0.05)).toBe(AVSTÅND_MIN);
     expect(klämAvstånd(9)).toBe(AVSTÅND_MAX);
-    expect(klämAvstånd(0.7000000001)).toBeCloseTo(0.7);
+    expect(klämAvstånd(0.7000000001)).toBe(0.7);
+    expect(klämAvstånd(0.654)).toBe(0.65);
+    // ±10 från ett inskrivet tal ger ett jämnt tal, inte 0,5499999.
+    expect(klämAvstånd(0.65 - 0.1)).toBe(0.55);
     expect(klämAvstånd(Number.NaN)).toBe(1);
+  });
+
+  it("ett inskrivet procenttal tolkas och kläms", () => {
+    expect(tolkaProcent("65")).toBe(0.65);
+    expect(tolkaProcent(" 65 % ")).toBe(0.65);
+    expect(tolkaProcent("72,4")).toBe(0.72);
+    expect(tolkaProcent("10")).toBe(AVSTÅND_MIN);
+    expect(tolkaProcent("500")).toBe(AVSTÅND_MAX);
+    expect(tolkaProcent("")).toBeNull();
+    expect(tolkaProcent("abc")).toBeNull();
   });
 
   it("per kolumn är den största bland kolumnens objekt", () => {

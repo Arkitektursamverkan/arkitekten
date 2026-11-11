@@ -558,6 +558,17 @@ body { background: var(--bg); color: var(--text); }
 .ark-vrad-knapp.ai { color: var(--ai); }
 .ark-vrad-knapp.ai:hover:not(:disabled) { background: var(--ai-svag); border-color: var(--ai-kant); }
 .ark-vrad-knapp.ikon { padding: 6px 9px; font-size: 15px; line-height: 1; }
+/* Avståndets procentfält (AvstandsKnappar) – ser ut som en knapp i raden. */
+.ark-vrad-procent {
+  display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border);
+  border-radius: 7px; padding: 3px 8px; font-size: 12.5px; color: var(--text-2);
+}
+.ark-vrad-procent.av { opacity: 0.4; }
+.ark-vrad-procent input {
+  width: 3.2em; border: none; background: none; font: inherit; color: var(--text);
+  text-align: right; padding: 2px 0; outline: none;
+}
+.ark-vrad-procent:focus-within { border-color: var(--accent-kant); }
 .ark-vrad-pil { font-size: 9px; color: var(--muted); }
 .ark-vrad-marke {
   background: var(--accent); color: #fff; border-radius: 999px; font-size: 10px; font-weight: 700;

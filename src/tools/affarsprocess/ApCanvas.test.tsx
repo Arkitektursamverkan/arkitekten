@@ -174,6 +174,27 @@ describe("markeringsrapporten", () => {
 });
 
 /**
+ * REGRESSION: markeringen försvann när avståndet ändrades. "Tätare"/"Glesare"
+ * ger ett nytt utlägg, noderna byggdes om utan `selected`, och man fick
+ * markera om objekten för varje klick.
+ */
+describe("markeringen efter ett nytt utlägg", () => {
+  it("står kvar på objekten som finns kvar", async () => {
+    const ny = layoutAp(compileAp({ ...draft, kolumnAvstånd: { s0: 0.5, a1: 0.5 } }));
+    const props = { textScale: 1, onPositionChange: vi.fn(), onWaypointChange: vi.fn(), onSelect: vi.fn() };
+    const { container, rerender } = render(<ApCanvas layout={layout} {...props} />);
+    const a1 = () => container.querySelector('.react-flow__node-ap[data-id="a1"]')!;
+    fireEvent.click(a1());
+    expect(a1().classList.contains("selected")).toBe(true);
+    rerender(<ApCanvas layout={ny} {...props} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(a1().classList.contains("selected")).toBe(true);
+  });
+});
+
+/**
  * REGRESSION: kedjan mellan tolkade steg gick inte att bryta i Affärsprocess.
  * Klick på en kedjepil ger knappen "Bryt kedjan här", som skickar
  * MELLANLAGRETS kant (inte relationens ändar). React Flow ritar inga kanter i

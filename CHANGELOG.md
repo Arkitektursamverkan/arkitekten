@@ -7,7 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
-- (inget än)
+- **Avståndet går att skriva in**: procentfältet mellan **→←** och **←→** tar ett tal (30–200, Enter verkställer, Esc ångrar), och knapparna går ±10 därifrån. Faktorn avrundas nu till hela procent i stället för tiondelar. **↺** återställer till 100 %.
+- **Markeringen står kvar** när avståndet ändrats (och vid andra omritningar), i båda verktygen – man kan trycka flera gånger i rad utan att markera om.
 
 ## 0.11.0 – 2026-11-11
 
