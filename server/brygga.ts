@@ -9,7 +9,8 @@
  *
  * AI-STÖDET har tre lägen, och inget av dem lämnar ut en nyckel:
  *
- *   - "api": `ANTHROPIC_API_KEY` finns i miljön. Servern besvarar varje
+ *   - "api": `ANTHROPIC_API_KEY` eller `BERGET_API_KEY` finns i miljön
+ *     (`aiLeverantör` väljer vilken som svarar). Servern besvarar varje
  *     begäran med src/tools/flowchart/ai/besvara.ts och lägger svaret i
  *     brevlådan. Nyckeln lämnar aldrig servern.
  *   - "claude-code": UTVECKLARLÄGET (`ARK_UTVECKLARLAGE=1`). Begäran läggs i
@@ -38,6 +39,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type * as AiKlient from "../src/tools/flowchart/ai/client";
+import type * as AiBerget from "../src/tools/flowchart/ai/berget";
 import type * as AiBesvara from "../src/tools/flowchart/ai/besvara";
 // Statusreglerna delas med appen. Modulen är avsiktligt beroendefri (ren TS,
 // inget DOM) just för att både bryggan och webbläsaren ska kunna använda den.
@@ -98,7 +100,26 @@ const UNDERLAG_LIVSLÄNGD_MS = 24 * 60 * 60 * 1000;
 const UNDERLAG_TAK = 100_000_000;
 
 /** Nyckeln läses vid varje begäran – en omstart av tjänsten räcker för att byta den. */
-const apiNyckel = () => process.env.ANTHROPIC_API_KEY?.trim() ?? "";
+const apiNyckel = () => (aiLeverantör() ? "finns" : "");
+
+/** Leverantörerna som kan besvara AI-begärandena med installationens nyckel. */
+export type AiLeverantör = "anthropic" | "berget";
+
+/**
+ * Vilken leverantör som svarar. Den som har en nyckel i miljön – finns båda
+ * avgör `ARK_AI_LEVERANTOR` (anthropic | berget), och utan det valet Anthropic,
+ * som förut. Ett val utan nyckel gäller inte: då svarar den som har en.
+ */
+export function aiLeverantör(env: NodeJS.ProcessEnv = process.env): AiLeverantör | null {
+  const har: Record<AiLeverantör, boolean> = {
+    anthropic: !!env.ANTHROPIC_API_KEY?.trim(),
+    berget: !!env.BERGET_API_KEY?.trim(),
+  };
+  const vald = env.ARK_AI_LEVERANTOR?.trim().toLowerCase();
+  if ((vald === "anthropic" || vald === "berget") && har[vald]) return vald;
+  if (har.anthropic) return "anthropic";
+  return har.berget ? "berget" : null;
+}
 
 /** Vem som besvarar AI-begärandena – se filhuvudet. */
 export type AiLäge = "api" | "claude-code" | "av";
@@ -112,6 +133,8 @@ export function aiLäge(utvecklarläge: boolean): AiLäge {
 export interface AiModuler {
   anthropicFråga: typeof AiKlient.anthropicFråga;
   DEFAULT_MODEL: string;
+  bergetFråga: typeof AiBerget.bergetFråga;
+  BERGET_MODELL: string;
   besvara: typeof AiBesvara.besvara;
 }
 
@@ -576,13 +599,21 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
         let svar: Record<string, unknown>;
         try {
           const ai = await o.laddaAi();
-          logg(`besvarar "${String(begäran.uppdrag)}" med ${process.env.ARK_AI_MODELL || ai.DEFAULT_MODEL}`);
+          const berget = aiLeverantör() === "berget";
+          const modell = process.env.ARK_AI_MODELL?.trim() || (berget ? ai.BERGET_MODELL : ai.DEFAULT_MODEL);
+          logg(`besvarar "${String(begäran.uppdrag)}" med ${modell} (${berget ? "Berget AI" : "Anthropic"})`);
           svar = await ai.besvara(begäran, {
-            fråga: ai.anthropicFråga({
-              apiKey: apiNyckel(),
-              model: process.env.ARK_AI_MODELL,
-              workspaceId: process.env.ANTHROPIC_WORKSPACE_ID,
-            }),
+            fråga: berget
+              ? ai.bergetFråga({
+                  apiKey: process.env.BERGET_API_KEY ?? "",
+                  model: modell,
+                  baseUrl: process.env.BERGET_API_URL,
+                })
+              : ai.anthropicFråga({
+                  apiKey: process.env.ANTHROPIC_API_KEY ?? "",
+                  model: modell,
+                  workspaceId: process.env.ANTHROPIC_WORKSPACE_ID,
+                }),
             signal: ctrl.signal,
             läsUnderlag: async (sökväg: string) => {
               // Bara uppladdade underlag – referensen kommer ur begäran.

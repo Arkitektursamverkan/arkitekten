@@ -112,8 +112,8 @@ export function kontrollera(
     else varningar.push(text);
   }
 
-  if (!env.ANTHROPIC_API_KEY?.trim() && !på(env.ARK_UTVECKLARLAGE))
-    varningar.push("AI-stödet är av (ingen ANTHROPIC_API_KEY).");
+  if (!env.ANTHROPIC_API_KEY?.trim() && !env.BERGET_API_KEY?.trim() && !på(env.ARK_UTVECKLARLAGE))
+    varningar.push("AI-stödet är av (ingen ANTHROPIC_API_KEY eller BERGET_API_KEY).");
   if (bmtMallFil(env) && !läsBmtMall(env))
     varningar.push("ARK_BMT_MALL pekar inte på en läsbar modellexport (.bmt) – BMT-exporten är av.");
   if (env.ARK_FLODESTJANST_PORT?.trim() && !env.ARK_FLODESTJANST_NYCKEL?.trim())

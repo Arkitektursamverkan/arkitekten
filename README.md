@@ -102,7 +102,8 @@ in med innehållspaket ([docs/innehallspaket.md](docs/innehallspaket.md)).
 AI ritar aldrig – den fyller bara mellanlagret, precis som regelmotorn. AI-stödet
 är valbart och har tre lägen (`GET /__ark/status`, se `server/brygga.ts`):
 
-1. **API-nyckel** (`ANTHROPIC_API_KEY`): servern besvarar begäran. Nyckeln
+1. **API-nyckel** (`ANTHROPIC_API_KEY` för Claude eller `BERGET_API_KEY` för
+   Berget AI; finns båda väljer `ARK_AI_LEVERANTOR`): servern besvarar begäran. Nyckeln
    lämnar aldrig servern, och varje anrop godkänns först i kostnadsrutan.
 2. **Utvecklarläget** (`ARK_UTVECKLARLAGE=1`): begäran läggs i den inloggades
    brevlåda (`.ark/anvandare/<hash>/request.json`; i öppen drift

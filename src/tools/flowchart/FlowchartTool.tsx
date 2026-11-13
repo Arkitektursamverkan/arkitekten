@@ -1578,7 +1578,7 @@ export function FlowchartTool({
                   {aiVäg !== "av" && (
                     <p className="ark-hint">
                       {aiVäg === "api"
-                        ? "AI-tolkningen görs av servern med Anthropics API."
+                        ? "AI-tolkningen görs av servern med installationens API-nyckel."
                         : "AI-tolkningen görs av Claude Code i utvecklarsessionen – servern har ingen API-nyckel."}
                     </p>
                   )}

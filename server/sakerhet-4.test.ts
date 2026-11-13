@@ -51,6 +51,8 @@ const LÖSEN = "ett långt lösenord";
 const låtsasAi: AiModuler = {
   anthropicFråga: (() => async () => ({ text: "" })) as unknown as AiModuler["anthropicFråga"],
   DEFAULT_MODEL: "låtsas",
+  bergetFråga: (() => async () => ({ text: "" })) as unknown as AiModuler["bergetFråga"],
+  BERGET_MODELL: "låtsas",
   besvara: (async () => ({ aiText: "svar" })) as unknown as AiModuler["besvara"],
 };
 

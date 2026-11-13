@@ -9,7 +9,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { skapaBrygga } from "./brygga";
+import { aiLeverantör, skapaBrygga } from "./brygga";
 import { skapaServer } from "./arkitekten.mjs";
 import { installningarUrMiljö, kontrollera } from "./installningar";
 
@@ -26,7 +26,7 @@ beforeAll(async () => {
   fs.writeFileSync(path.join(tmp, "hemlig.txt"), "utanför dist");
   fs.writeFileSync(path.join(tmp, "package.json"), JSON.stringify({ version: "9.8.7" }));
   // Öppen drift, ingen nyckel, inget utvecklarläge.
-  for (const k of ["ANTHROPIC_API_KEY", "ARK_UTVECKLARLAGE", "ENTRA_TENANT_ID", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET", "ARK_AUTH", "ARK_VERSION"])
+  for (const k of ["ANTHROPIC_API_KEY", "BERGET_API_KEY", "ARK_AI_LEVERANTOR", "ARK_UTVECKLARLAGE", "ENTRA_TENANT_ID", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET", "ARK_AUTH", "ARK_VERSION"])
     delete process.env[k];
   const inst = installningarUrMiljö(tmp, {});
   const logg = { info: () => {}, warn: () => {} };
@@ -105,6 +105,23 @@ describe("hälsan och bryggan", () => {
     process.env.ANTHROPIC_API_KEY = "test";
     const status = await (await fetch(`${bas}/__ark/status`)).json();
     expect(status).toMatchObject({ besvaras: "api", claudeCode: false });
+  });
+
+  it("en nyckel till Berget AI räcker för att servern ska svara", async () => {
+    process.env.BERGET_API_KEY = "test";
+    const status = await (await fetch(`${bas}/__ark/status`)).json();
+    expect(status).toMatchObject({ besvaras: "api", claudeCode: false });
+  });
+
+  it("leverantören följer nyckeln – finns båda gäller valet, annars Anthropic som förut", () => {
+    expect(aiLeverantör({})).toBeNull();
+    expect(aiLeverantör({ ANTHROPIC_API_KEY: "a" })).toBe("anthropic");
+    expect(aiLeverantör({ BERGET_API_KEY: "b" })).toBe("berget");
+    expect(aiLeverantör({ ANTHROPIC_API_KEY: "a", BERGET_API_KEY: "b" })).toBe("anthropic");
+    expect(aiLeverantör({ ANTHROPIC_API_KEY: "a", BERGET_API_KEY: "b", ARK_AI_LEVERANTOR: " Berget " })).toBe("berget");
+    // Ett val utan nyckel gäller inte – den som har en nyckel svarar.
+    expect(aiLeverantör({ ANTHROPIC_API_KEY: "a", ARK_AI_LEVERANTOR: "berget" })).toBe("anthropic");
+    expect(aiLeverantör({ BERGET_API_KEY: "b", ARK_AI_LEVERANTOR: "anthropic" })).toBe("berget");
   });
 });
 

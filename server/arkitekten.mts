@@ -173,10 +173,13 @@ if (process.argv[1] && /arkitekten\.mts$/.test(process.argv[1])) {
     logg: { info: (r) => console.log(r.trim()), warn: (r) => console.warn(r.trim()) },
     laddaAi: async () => {
       const klient = await import("../src/tools/flowchart/ai/client");
+      const berget = await import("../src/tools/flowchart/ai/berget");
       const besvara = await import("../src/tools/flowchart/ai/besvara");
       return {
         anthropicFråga: klient.anthropicFråga,
         DEFAULT_MODEL: klient.DEFAULT_MODEL,
+        bergetFråga: berget.bergetFråga,
+        BERGET_MODELL: berget.BERGET_MODELL,
         besvara: besvara.besvara,
       } satisfies AiModuler;
     },
