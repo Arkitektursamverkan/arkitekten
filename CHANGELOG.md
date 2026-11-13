@@ -7,6 +7,10 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- (inget än)
+
+## 0.13.0 – 2026-11-13
+
 - AI-stödet kan besvaras av **Berget AI** (öppna modeller, drift i Sverige) i
   stället för Claude: lägg `BERGET_API_KEY` i tjänstens miljö. Stödet för
   `ANTHROPIC_API_KEY` är oförändrat; finns båda nycklarna väljer
