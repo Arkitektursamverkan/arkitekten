@@ -7,6 +7,10 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- (inget än)
+
+## 0.14.0 – 2026-11-13
+
 - **Ny standardstil för affärsprocesser**: symbolerna är omritade – aktiviteten har en markerad vänsterkant, verksamhetsobjektet är en lutad ruta, IT-stödet ett programfönster, arkivet en mapp, tiden ett kalenderblad, forumet en kantig pratbubbla – och pilspetsarna har ny form. Verksamhetsobjektet är ljust i stället för mörkt.
 - **Egna symboler i en symbolstil**: ett stilpaket kan byta ut symbolerna sort för sort (`symboler`), välja pilspets (`pilspets`) och säga hur pilar möter forumsymbolen (`forumKontur`). Formen beskrivs i `docs/affarsprocess.md`. Fältet `aktör` läses inte längre – en stil som vill ha en annan aktörssymbol anger den under `symboler`.
 
