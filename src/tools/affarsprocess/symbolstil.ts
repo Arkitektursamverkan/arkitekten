@@ -1,9 +1,12 @@
 /**
  * SYMBOLSTILEN – hur affärsprocessens symboler ser ut: färger, typsnitt,
- * aktörssymbol, skugga och hörnradie.
+ * skugga, hörnradie, pilspets och – om stilen vill – egna symbolformer.
  *
- * Formernas GEOMETRI bor i `former.ts` och är densamma för alla. Allt som en
- * organisation kan vilja ha på sitt eget sätt står här, som DATA: en stil är
+ * Symbolernas MÅTT och fästpunkter bor i `former.ts` och är desamma för alla.
+ * Allt som en organisation kan vilja ha på sitt eget sätt står här, som DATA:
+ * produktens symboler finns i `standardsymboler.ts`, och en stil kan byta ut
+ * vilken som helst av dem mot sin egen (`symboler`, formen i `symbolform.ts`).
+ * En stil är
  * ett JSON-dokument som kan ligga i ett innehållspaket. Produkten har en
  * neutral standardstil; en installation lägger sina egna stilar i
  * `STILAR_DIR` och en administratör väljer bland dem (server/symbolstilar.ts).
@@ -21,6 +24,9 @@
 import type { ApNodeKind, ApRelationKind } from "@/core/affarsprocess";
 import type { Huki } from "@/core/draft";
 
+import type { Symbolnyckel } from "./standardsymboler";
+import { läsSymbol, type Symbol } from "./symbolform";
+
 export interface Formstil {
   fill: string;
   stroke: string;
@@ -29,8 +35,11 @@ export interface Formstil {
   ljus?: string;
 }
 
-/** Aktörernas (roll, intressent) symbol: en person, eller en arbetsplats (skärm på bord). */
-export type Aktörsform = "person" | "arbetsplats";
+/** De symboler en stil kan byta ut. */
+const SYMBOLNYCKLAR: readonly Symbolnyckel[] = [
+  "process", "aktivitet", "vo", "vo:dokument", "vo:meddelande", "regel", "roll", "intressent",
+  "applikation", "arkiv", "krav", "tid", "forum", "plats", "problem", "risk", "mojlighet",
+];
 
 export interface Symbolstil {
   id: string;
@@ -46,9 +55,17 @@ export interface Symbolstil {
   huki: Record<Huki, string>;
   /** Kopplingarnas hörnradie i oskalade pixlar. 0 = räta vinklar. */
   hörnradie: number;
-  /** Mjuk skugga under aktiviteten. */
+  /** Mjuk skugga under aktiviteten (produktens egen aktivitetssymbol). */
   skugga: boolean;
-  aktör: Aktörsform;
+  /** Stilens egna symboler. En sort som saknas ritas med produktens. */
+  symboler?: Partial<Record<Symbolnyckel, Symbol>>;
+  /** Stilens egen pilspets: en bana i en ruta 10 × 10 med udden i (10, 5). */
+  pilspets?: (string | number)[];
+  /**
+   * Hur pilar möter forumsymbolens kropp: som en ruta (förval) eller som en
+   * ellips, för en stil vars forumsymbol är rund.
+   */
+  forumKontur?: "ruta" | "ellips";
 }
 
 /** Standardstilen: neutral, läsbar i svartvitt, utan förebild i någon annan produkt. */
@@ -60,7 +77,7 @@ export const NEUTRAL_STIL: Symbolstil = {
   former: {
     process: { fill: "#dbe7f5", stroke: "#4f6f99", text: "#1f2d3d" },
     aktivitet: { fill: "#f4f7fb", stroke: "#4f6f99", text: "#1f2d3d" },
-    vo: { fill: "#4b5563", stroke: "#374151", text: "#ffffff" },
+    vo: { fill: "#e2e8f0", stroke: "#475569", text: "#1f2937" },
     regel: { fill: "#fde68a", stroke: "#b45309", text: "#422006" },
     roll: { fill: "#60a5fa", stroke: "#1d4ed8", text: "#1e3a8a" },
     intressent: { fill: "#93c5fd", stroke: "#1d4ed8", text: "#1e3a8a" },
@@ -88,7 +105,6 @@ export const NEUTRAL_STIL: Symbolstil = {
   huki: { H: "#b91c1c", U: "#2563eb", K: "#0f766e", I: "#ca8a04" },
   hörnradie: 4,
   skugga: false,
-  aktör: "person",
 };
 
 let aktiv: Symbolstil = NEUTRAL_STIL;
@@ -144,9 +160,28 @@ export function läsSymbolstil(json: unknown): Symbolstil {
   const hörnradie = j.hörnradie ?? n.hörnradie;
   if (typeof hörnradie !== "number" || !(hörnradie >= 0 && hörnradie <= 30))
     throw new Error(`Hörnradien i symbolstilen ${j.id} ska vara ett tal mellan 0 och 30.`);
-  const aktör = j.aktör ?? n.aktör;
-  if (aktör !== "person" && aktör !== "arbetsplats")
-    throw new Error(`Okänd aktörssymbol i symbolstilen ${j.id}: ${String(aktör)}.`);
+  // Egna symboler: bara kända sorter, och varje ritdel prövas (symbolform.ts).
+  const symboler: Partial<Record<Symbolnyckel, Symbol>> = {};
+  if (j.symboler !== undefined) {
+    if (!j.symboler || typeof j.symboler !== "object" || Array.isArray(j.symboler))
+      throw new Error(`Symbolerna i symbolstilen ${j.id} ska vara ett objekt.`);
+    for (const nyckel of Object.keys(j.symboler)) {
+      if (!SYMBOLNYCKLAR.includes(nyckel as Symbolnyckel))
+        throw new Error(`Okänd symbol i symbolstilen ${j.id}: ${nyckel.slice(0, 40)}.`);
+      symboler[nyckel as Symbolnyckel] = läsSymbol(j.symboler[nyckel], `symboler.${nyckel}`);
+    }
+  }
+  let pilspets: (string | number)[] | undefined;
+  if (j.pilspets !== undefined) {
+    // Samma prövning som en bana – men bara tal, rutan är alltid 10 × 10.
+    const [bana] = läsSymbol([{ form: "bana", d: j.pilspets }], "pilspets");
+    const d = bana.form === "bana" ? bana.d : [];
+    if (d.some((v) => typeof v !== "string" && typeof v !== "number"))
+      throw new Error(`Pilspetsen i symbolstilen ${j.id} får bara innehålla kommandon och tal.`);
+    pilspets = d as (string | number)[];
+  }
+  if (j.forumKontur !== undefined && j.forumKontur !== "ruta" && j.forumKontur !== "ellips")
+    throw new Error(`Okänd forumkontur i symbolstilen ${j.id}: ${String(j.forumKontur).slice(0, 20)}.`);
   return {
     id: j.id,
     namn: j.namn.trim().slice(0, 80),
@@ -158,6 +193,8 @@ export function läsSymbolstil(json: unknown): Symbolstil {
     huki,
     hörnradie,
     skugga: j.skugga === undefined ? n.skugga : Boolean(j.skugga),
-    aktör,
+    ...(Object.keys(symboler).length ? { symboler } : {}),
+    ...(pilspets ? { pilspets } : {}),
+    ...(j.forumKontur ? { forumKontur: j.forumKontur } : {}),
   };
 }

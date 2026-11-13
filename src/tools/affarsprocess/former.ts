@@ -4,13 +4,17 @@
  * och scenen till portalen, så skärm, fil och portal aldrig glider isär
  * (invarianten "en regel, en plats").
  *
- * Geometrin står här. Färger, typsnitt, aktörssymbol, skugga och hörnradie är
- * installationens val och läses ur den aktiva symbolstilen (`symbolstil.ts`).
+ * Måtten, fästpunkterna och etiketterna står här. Symbolernas form, färger,
+ * typsnitt, skugga, hörnradie och pilspets är installationens val och läses ur
+ * den aktiva symbolstilen (`symbolstil.ts`); produktens egna symboler står i
+ * `standardsymboler.ts`.
  */
 
 import type { ApNode, ApNodeKind, ApRelation, ApRelationKind } from "@/core/affarsprocess";
 import { giltigHuki, type Huki } from "@/core/draft";
 import { esc, wrap } from "../flowchart/render/text-util";
+import { STANDARDPILSPETS, STANDARDSYMBOLER, type Symbolnyckel } from "./standardsymboler";
+import { ritaSymbol } from "./symbolform";
 import { symbolstil, type Formstil } from "./symbolstil";
 
 /** Formens färger i den aktiva stilen. */
@@ -127,9 +131,11 @@ export const apHörnradie = (): number => symbolstil().hörnradie;
  * lodräta strecken upp i aktiviteten syntes bara en flik i sidled.
  */
 export function apMarkerDefs(): string {
-  const fylld = (id: string, färg: string) =>
-    `<marker id="${esc(id)}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="${esc(färg)}"/></marker>`;
   const stil = symbolstil();
+  // Spetsens form kommer ur stilen (prövad i `läsSymbolstil`), annars produktens.
+  const spets = (stil.pilspets ?? STANDARDPILSPETS).join(" ");
+  const fylld = (id: string, färg: string) =>
+    `<marker id="${esc(id)}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="${spets}" fill="${esc(färg)}"/></marker>`;
   return [
     ...Object.entries(stil.relationer).map(([kind, färg]) => fylld(`ap-arrow-${kind}`, färg)),
     // Ansvarstyperna har var sin färg och därmed var sin pilspets.
@@ -367,6 +373,9 @@ export const forumKropp = (h: number) => h * (1 - FORUM_SVANS);
 export function apKontur(kind: ApNodeKind, w: number, h: number, dx: number): { topp: number; botten: number } {
   if (kind !== "forum") return { topp: 0, botten: h };
   const kropp = forumKropp(h);
+  // Produktens pratbubbla är kantig: kroppen är en ruta. En stil med rund
+  // forumsymbol säger det (`forumKontur`), och då följer pilarna ellipsen.
+  if (symbolstil().forumKontur !== "ellips") return { topp: 0, botten: kropp };
   const rx = w / 2 - 1;
   const ry = kropp / 2 - 1;
   const t = Math.min(1, Math.abs(dx - w / 2) / rx);
@@ -441,134 +450,25 @@ export function ikonEtikettMått(label: string): { w: number; h: number } {
  * Ikontyperna ritar sin ikon i den övre delen och lämnar resten åt texten.
  */
 export function apShapeSvg(kind: ApNodeKind, w: number, h: number, variant?: string): string {
+  if (kind === "textobjekt") return "";
   const stil = symbolstil();
   const s = stil.former[kind];
-  const sw = 1.6;
-  switch (kind) {
-    case "process": {
-      // Delprocessen: en pil åt höger. Rak vänsterkant, spets åt höger – den
-      // pekar dit flödet fortsätter.
-      const a = Math.min(24, w * 0.16);
-      return `<polygon points="0.8,0.8 ${w - a},0.8 ${w - 0.8},${h / 2} ${w - a},${h - 0.8} 0.8,${h - 0.8}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${sw}"/>`;
-    }
-    case "aktivitet":
-      // Tunn kontur och, om stilen vill, en mjuk skugga ner till höger.
-      // Skuggan är en förskjuten ruta, inte ett SVG-filter: scenen skickar
-      // formerna som fristående fragment och kan inte räkna med att
-      // mottagaren har våra `defs`.
-      return `${stil.skugga ? `<rect x="3" y="3" width="${w - 1}" height="${h - 1}" rx="8" fill="#e4e4e5"/>\n` : ""}<rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="8" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1"/>`;
-    case "vo": {
-      // Liten ruta i ikonzonen, namnet under.
-      const cx = w / 2;
-      const sida = 24;
-      const x0 = cx - sida / 2;
-      const y0 = 4;
-      if (variant === "dokument") {
-        // Dokument: ruta med vikt hörn uppe till höger.
-        const v = 7;
-        return `<path d="M${x0},${y0} h${sida - v} l${v},${v} v${sida - v} h${-sida} Z" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.4"/>
-<path d="M${x0 + sida - v},${y0} v${v} h${v}" fill="none" stroke="#ffffff" stroke-width="1.2"/>`;
-      }
-      if (variant === "meddelande") {
-        // Meddelande: kuvert – ruta med flik.
-        return `<rect x="${x0}" y="${y0 + 3}" width="${sida}" height="${sida - 6}" rx="2" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.4"/>
-<polyline points="${x0 + 1.5},${y0 + 4.5} ${cx},${y0 + 12} ${x0 + sida - 1.5},${y0 + 4.5}" fill="none" stroke="#ffffff" stroke-width="1.3"/>`;
-      }
-      return `<rect x="${x0}" y="${y0}" width="${sida}" height="${sida}" rx="2" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.4"/>`;
-    }
-    case "regel": {
-      // Liten romb i ikonzonen, frågan under.
-      const cx = w / 2;
-      const r = 13;
-      return `<polygon points="${cx},${16 - r} ${cx + r},16 ${cx},${16 + r} ${cx - r},16" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.4"/>`;
-    }
-    case "roll":
-    case "intressent": {
-      // Rollen och intressenten delar symbolen; det är relationens bokstav och
-      // namnet som skiljer dem åt, inte formen. Stilen väljer en person
-      // (huvud och axlar) eller en arbetsplats (skärm på ett bord).
-      const cx = w / 2;
-      if (stil.aktör === "person") {
-        return `<circle cx="${cx}" cy="10.5" r="5.8" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.2"/>
-<path d="M${cx - 11},27.5 C${cx - 11},20 ${cx - 6.5},17.5 ${cx},17.5 C${cx + 6.5},17.5 ${cx + 11},20 ${cx + 11},27.5 Z" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.2"/>`;
-      }
-      return `<rect x="${cx - 11}" y="6" width="22" height="13" rx="3" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.2"/>
-<rect x="${cx - 15}" y="19.5" width="30" height="4.5" rx="2" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.2"/>
-<rect x="${cx - 16}" y="26" width="32" height="2" rx="1" fill="#e2e2e3"/>`;
-    }
-    case "applikation": {
-      // Liten cylinder i ikonzonen, namnet under (IT-stödet).
-      const bw = 26;
-      const bh = 24;
-      const x0 = w / 2 - bw / 2;
-      const ry = 5;
-      // Locket är ljusare än mantelen – det är den skuggningen som gör
-      // cylindern rund i stället för platt.
-      return `<path d="M${x0},${5 + ry} a${bw / 2},${ry} 0 0 1 ${bw},0 v${bh - 2 * ry} a${bw / 2},${ry} 0 0 1 ${-bw},0 Z" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.3"/>
-<ellipse cx="${w / 2}" cy="${5 + ry}" rx="${bw / 2}" ry="${ry}" ${s.ljus ? `fill="${s.ljus}"` : `fill="${s.fill}" fill-opacity="0.6"`} stroke="${s.stroke}" stroke-width="1.1"/>`;
-    }
-    case "arkiv": {
-      // Liten arkivlåda i ikonzonen, namnet under.
-      const bw = 26;
-      const bh = 22;
-      const x0 = w / 2 - bw / 2;
-      return `<rect x="${x0}" y="5" width="${bw}" height="${bh}" rx="2" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.3"/>
-<line x1="${x0}" y1="${5 + bh * 0.34}" x2="${x0 + bw}" y2="${5 + bh * 0.34}" stroke="${s.stroke}" stroke-width="1.1"/>
-<rect x="${w / 2 - 5}" y="${5 + bh * 0.34 + 3}" width="10" height="4" rx="2" fill="none" stroke="${s.stroke}" stroke-width="1"/>`;
-    }
-    case "krav": {
-      const k = Math.min(16, w * 0.18);
-      return `<polygon points="${k},1 ${w - k},1 ${w - 1},${h / 2} ${w - k},${h - 1} ${k},${h - 1} 1,${h / 2}" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${sw}"/>`;
-    }
-    case "tid": {
-      const cx = w / 2;
-      return `<circle cx="${cx}" cy="15" r="12" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.6"/>
-<line x1="${cx}" y1="15" x2="${cx}" y2="8" stroke="${s.stroke}" stroke-width="1.4"/>
-<line x1="${cx}" y1="15" x2="${cx + 5}" y2="18" stroke="${s.stroke}" stroke-width="1.4"/>`;
-    }
-    case "forum": {
-      // Pratbubblan: en ELLIPS med svansen ur undersidan strax vänster om
-      // mitten, snett ned åt vänster. Ritad som EN kontur, så att ingen
-      // kantlinje syns mellan kropp och svans (bas 35–51 % av bredden, spets
-      // vid 29 %).
-      const kropp = forumKropp(h);
-      const cx = w / 2;
-      const cy = kropp / 2;
-      const rx = w / 2 - 1;
-      const ry = kropp / 2 - 1;
-      const påUndersidan = (x: number) => cy + ry * Math.sqrt(Math.max(0, 1 - ((x - cx) / rx) ** 2));
-      const v = w * 0.35;
-      const hö = w * 0.51;
-      const f = (n: number) => n.toFixed(1);
-      return `<path d="M${f(hö)},${f(påUndersidan(hö))} A${f(rx)},${f(ry)} 0 1,0 ${f(v)},${f(påUndersidan(v))} L${f(w * 0.29)},${f(h - 1)} Z" fill="${s.fill}" stroke="${s.stroke}" stroke-width="${sw}" stroke-linejoin="round"/>`;
-    }
-    case "plats": {
-      // Kartnål: droppe + cirkel.
-      const cx = w / 2;
-      return `<path d="M${cx},28 C${cx - 11},16 ${cx - 11},4 ${cx},4 C${cx + 11},4 ${cx + 11},16 ${cx},28 Z" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.4"/>
-<circle cx="${cx}" cy="12" r="4" fill="#ffffff"/>`;
-    }
-    case "problem": {
-      const cx = w / 2;
-      return `<circle cx="${cx}" cy="14" r="12" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.8"/>
-<text x="${cx}" y="19" text-anchor="middle" font-family="${FONT()}" font-size="15" font-weight="700" fill="${s.stroke}">!</text>`;
-    }
-    case "risk": {
-      const cx = w / 2;
-      return `<polygon points="${cx},2 ${cx + 13},24 ${cx - 13},24" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.6"/>
-<text x="${cx}" y="21" text-anchor="middle" font-family="${FONT()}" font-size="12" font-weight="700" fill="${s.stroke}">!</text>`;
-    }
-    case "mojlighet": {
-      const cx = w / 2;
-      return `<circle cx="${cx}" cy="14" r="12" fill="${s.fill}" stroke="${s.stroke}" stroke-width="1.8"/>
-<text x="${cx}" y="19" text-anchor="middle" font-family="${FONT()}" font-size="14" font-weight="700" fill="${s.stroke}">?</text>`;
-    }
-    case "textobjekt":
-      return "";
-  }
+  // Verksamhetsobjektets varianter (dokument, meddelande) är egna symboler;
+  // saknas varianten i stilen ritas stilens vanliga objekt, annars produktens.
+  const nycklar: Symbolnyckel[] = kind === "vo" && variant ? [`vo:${variant}` as Symbolnyckel, "vo"] : [kind];
+  const egen = nycklar.map((n) => stil.symboler?.[n]).find(Boolean);
+  if (egen) return ritaSymbol(egen, w, h, s, FONT());
+  const standard = nycklar.map((n) => STANDARDSYMBOLER[n]).find(Boolean)!;
+  // Skuggan är en förskjuten ruta, inte ett SVG-filter: scenen skickar
+  // formerna som fristående fragment och kan inte räkna med att mottagaren
+  // har våra `defs`.
+  const skugga =
+    kind === "aktivitet" && stil.skugga
+      ? `<rect x="3" y="3" width="${w - 1}" height="${h - 1}" rx="4" fill="#e4e4e5"/>\n`
+      : "";
+  return skugga + ritaSymbol(standard, w, h, s, FONT());
 }
 
-/** "i"-ikonen (beskrivning finns) respektive nedbruten-ikonen (delprocess). */
 function ikonSvg(x: number, y: number, typ: "info" | "ned" | "rutin"): string {
   const r = 6.5;
   const inner =
