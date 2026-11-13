@@ -2,7 +2,7 @@
   "name": "arkitekten",
   "private": true,
   "license": "EUPL-1.2",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "type": "module",
   "description": "Arkitekten – processritaren: affärsprocesser och systemprocesser, en modul i Arkitekturportalen.",
   "scripts": {
