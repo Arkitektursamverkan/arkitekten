@@ -435,7 +435,12 @@ AI-stödet har tre lägen: **api** (nyckel i miljön), **claude-code**
 (`ARK_UTVECKLARLAGE=1`, brevlådan nedan) och **av** (inget av dem – knapparna
 visas inte och `/request` svarar 503).
 
-**Med API-nyckel svarar servern själv.** Står `ANTHROPIC_API_KEY` (och vid
+**Med API-nyckel svarar servern själv.** Leverantören väljs av nyckeln
+(`aiLeverantör` i `server/brygga.ts`): `ANTHROPIC_API_KEY` (Claude,
+`ai/client.ts`) eller `BERGET_API_KEY` (Berget AI, OpenAI-formatet,
+`ai/berget.ts`); finns båda avgör `ARK_AI_LEVERANTOR`, förval Anthropic. En ny
+leverantör är en ny `Fråga` – `besvara.ts` ska aldrig veta vem som svarar.
+Står en nyckel (och vid
 behov `ANTHROPIC_WORKSPACE_ID`, `ARK_AI_MODELL`) i miljön besvarar servern
 varje begäran med `src/tools/flowchart/ai/besvara.ts` och
 skriver svaret i `response.json` i exakt den form som beskrivs nedan. Nyckeln

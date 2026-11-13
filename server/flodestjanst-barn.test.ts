@@ -36,6 +36,7 @@ describe("barnets miljö", () => {
         ARK_PORTALBANA: "Portalen",
         ARK_FLODESTJANST_NYCKEL: "nyckeln",
         ANTHROPIC_API_KEY: "hemlig",
+        BERGET_API_KEY: "hemlig",
         ENTRA_CLIENT_SECRET: "hemlig",
         EA_API_KEY: "hemlig",
         ARK_SESSION_SECRET: "hemlig",

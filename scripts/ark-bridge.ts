@@ -38,10 +38,13 @@ export function arkBridge(): Plugin {
         logg: { info: (r) => logger.info(r), warn: (r) => logger.warn(r) },
         laddaAi: async () => {
           const klient = await server.ssrLoadModule("/src/tools/flowchart/ai/client.ts");
+          const berget = await server.ssrLoadModule("/src/tools/flowchart/ai/berget.ts");
           const besvara = await server.ssrLoadModule("/src/tools/flowchart/ai/besvara.ts");
           return {
             anthropicFråga: klient.anthropicFråga,
             DEFAULT_MODEL: klient.DEFAULT_MODEL,
+            bergetFråga: berget.bergetFråga,
+            BERGET_MODELL: berget.BERGET_MODELL,
             besvara: besvara.besvara,
           } as AiModuler;
         },

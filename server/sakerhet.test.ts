@@ -49,6 +49,8 @@ const post = (body: unknown) => ({ method: "POST", body: JSON.stringify(body) })
 const låtsasAi: AiModuler = {
   anthropicFråga: (() => async () => ({ text: "" })) as unknown as AiModuler["anthropicFråga"],
   DEFAULT_MODEL: "låtsas",
+  bergetFråga: (() => async () => ({ text: "" })) as unknown as AiModuler["bergetFråga"],
+  BERGET_MODELL: "låtsas",
   besvara: (async (b: { rawText: string }, m: { läsUnderlag?: (s: string) => Promise<Uint8Array> }) => {
     if (b.rawText.startsWith("{")) {
       const fil = JSON.parse(b.rawText).fil as string;

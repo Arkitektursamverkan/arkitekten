@@ -7,7 +7,12 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
-- (inget än)
+- AI-stödet kan besvaras av **Berget AI** (öppna modeller, drift i Sverige) i
+  stället för Claude: lägg `BERGET_API_KEY` i tjänstens miljö. Stödet för
+  `ANTHROPIC_API_KEY` är oförändrat; finns båda nycklarna väljer
+  `ARK_AI_LEVERANTOR` (förval Anthropic). `ARK_AI_MODELL` gäller den leverantör
+  som svarar (Bergets förval: `moonshotai/Kimi-K3.1-Pro`). Med Berget AI kan en
+  PDF inte bifogas som underlag för en rutin – Word och text går.
 
 ## 0.12.0 – 2026-11-11
 
