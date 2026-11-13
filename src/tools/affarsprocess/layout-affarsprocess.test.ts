@@ -887,7 +887,7 @@ describe("layoutAp – forum i kedjan", () => {
    * rutan. Rollens pil slutade i svansens höjd bredvid bubblan, och stammen
    * gick upp rakt i svansen.
    */
-  it("REGRESSION: rollens pil möter ellipsens kontur, till höger om svansen", () => {
+  it("REGRESSION: rollens pil möter bubblans kontur, till höger om svansen", () => {
     const model = compileAp(
       draftMed([
         steg("a1", "activity", "Fatta beslut", {
@@ -902,7 +902,7 @@ describe("layoutAp – forum i kedjan", () => {
     // Svansen går ut ur undersidan vid 29–51 % av bredden.
     expect(p.to!.x).toBeGreaterThan(f.x + f.w * 0.51);
     // Pilen slutar på konturen – ovanför rutans underkant (svansens spets).
-    expect(p.to!.y).toBeLessThan(f.y + f.h * (1 - 0.18));
+    expect(p.to!.y).toBeLessThanOrEqual(f.y + f.h * (1 - 0.18));
     expect(p.to!.y).toBeGreaterThan(f.y + f.h * 0.5);
   });
 });

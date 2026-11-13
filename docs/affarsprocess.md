@@ -50,10 +50,10 @@ regelparsern och AI-mappningen använder.
 
 ## Utseendet – symbolstilar
 
-Formernas geometri står i `former.ts`. Färger, typsnitt, aktörssymbol (person
-eller arbetsplats), skugga och kopplingarnas hörnradie är en **symbolstil**
+Symbolernas mått och fästpunkter står i `former.ts`. Färger, typsnitt, skugga,
+kopplingarnas hörnradie, pilspetsen och symbolernas form är en **symbolstil**
 (`src/tools/affarsprocess/symbolstil.ts`). Produkten har en neutral
-standardstil. En installation lägger egna stilar som JSON i `STILAR_DIR`, och
+standardstil med egna symboler (`standardsymboler.ts`). En installation lägger egna stilar som JSON i `STILAR_DIR`, och
 en administratör väljer under **Inställningar**. Valet gäller appen, exporterna
 och portalens bilder.
 
@@ -68,10 +68,60 @@ En stil behöver bara ange det som skiljer från standardstilen:
   "former": { "aktivitet": { "fill": "#eef6ff", "stroke": "#1d4ed8", "text": "#0b1f44" } },
   "huki": { "H": "#b91c1c", "U": "#2563eb", "K": "#0f766e", "I": "#ca8a04" },
   "hörnradie": 6,
-  "skugga": false,
-  "aktör": "person"
+  "skugga": false
 }
 ```
 
 Färger anges som `#rgb`/`#rrggbb` (eller `none`). En stil som inte går att
 läsa visas som ett fel för administratören och används inte.
+
+### Egna symboler
+
+En stil kan också byta ut symbolerna själva – en sort i taget; de sorter som
+inte nämns ritas med produktens. En symbol är en lista **ritdelar**:
+
+```json
+{
+  "id": "var-stil",
+  "namn": "Vår stil",
+  "symboler": {
+    "regel": [
+      { "form": "polygon", "punkter": [[0, 0.5], 3, [13, 0.5], 16, [0, 0.5], 29, [-13, 0.5], 16], "linje": "linje", "bredd": 1.4 }
+    ],
+    "krav": [
+      { "form": "rektangel", "x": 1, "y": 1, "b": [-2, 1], "h": [-2, 0, 1], "r": 6, "linje": "linje", "bredd": 1.6 }
+    ]
+  },
+  "pilspets": ["M", 0, 0, "L", 10, 5, "L", 0, 10, "Z"],
+  "forumKontur": "ruta"
+}
+```
+
+- **Sorterna**: `process`, `aktivitet`, `vo` (samt `vo:dokument` och
+  `vo:meddelande`), `regel`, `roll`, `intressent`, `applikation`, `arkiv`,
+  `krav`, `tid`, `forum`, `plats`, `problem`, `risk`, `mojlighet`.
+- **Formerna**: `rektangel` (`x`, `y`, `b`, `h`, ev. `r`), `cirkel` (`x`, `y`,
+  `r`), `ellips` (`x`, `y`, `rx`, `ry`), `polygon` och `linjer` (`punkter`:
+  x, y, x, y …), `linje` (`x1`, `y1`, `x2`, `y2`), `bana` (`d`: SVG-banans
+  kommandon som strängar och talen som mått) och `tecken` (`x`, `y`, `tecken`,
+  `storlek`, ev. `fet`).
+- **Måtten** är tal, eller `[konstant, andel av bredden, andel av höjden]` –
+  `[0, 0.5]` är mitt i sidled, `[-8, 1]` åtta från högerkanten och
+  `[-1, 0, 1]` en från underkanten. `{ "min": [a, b] }` och `{ "max": [a, b] }`
+  väljer det minsta respektive största av två mått.
+- **Färgerna** (`fyll`, `linje`) är `"fyll"`, `"linje"`, `"text"` eller
+  `"ljus"` – sortens färger i stilen – `"ingen"`, eller en hexfärg. Utan `fyll`
+  fylls delen med sortens fyllning; utan `linje` får den ingen kontur.
+  `bredd` är linjens bredd, `täckning` fyllningens (0–1) och `rund` ger
+  rundade skarvar.
+- **Ytan**: ikonsorterna ritas i en yta på ca 28 × 28 överst i rutan, kring
+  mitten i sidled; namnet står under. `process`, `aktivitet`, `krav` och
+  `forum` fyller hela sin ruta och växer med texten. Forumets nedersta 18 %
+  är svansens plats, med spetsen vid 29 % av bredden.
+- **`pilspets`** är en bana i en ruta 10 × 10 med udden i (10, 5).
+  **`forumKontur`** säger om pilar ska möta forumets kropp som en `ruta`
+  (förval) eller som en `ellips`.
+
+Produktens egna symboler i `standardsymboler.ts` är skrivna i samma form och
+duger som exempel. Allt prövas när stilen läses: bara tal, kända kommandon och
+färger släpps igenom.

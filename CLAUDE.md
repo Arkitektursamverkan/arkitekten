@@ -164,12 +164,18 @@ parser, AI-brygga, historik och lagring. Plan och symbolkatalog:
   renderar exportens SVG-sträng rakt av. Relationer routas med samma
   `edge-router` som allt annat.
 - **Utseendet kommer ur en SYMBOLSTIL** (`tools/affarsprocess/symbolstil.ts`):
-  färger, teckensnitt, aktörssymbol, skugga och hörnradie. Produkten har en
+  färger, teckensnitt, skugga, hörnradie, pilspets och – om stilen vill –
+  egna symboler. Symbolerna är DATA (`symbolform.ts`: ritdelar med mått i
+  rutans bredd och höjd): produktens står i `standardsymboler.ts`, en stil
+  byter ut dem sort för sort (`symboler`), och EN ritare (`ritaSymbol`) ritar
+  båda. Skriv aldrig en symbols form som kod i `former.ts`, och släpp aldrig
+  igenom något ur ett paket som inte `läsSymbol` har byggt om fält för fält.
+  Produkten har en
   neutral standardstil (`NEUTRAL_STIL`); en installation lägger sina egna
   stilpaket i `STILAR_DIR` (`server/symbolstilar.ts`), en administratör väljer
   under Inställningar (`shell/Installningar.tsx`), inloggningsgrinden sätter
   stilen före första ritningen och flödestjänsten sätter den per scen.
-  GEOMETRIN bor i `former.ts`; FÄRGER bara via `symbolstil()`/`formstil()`/
+  MÅTT och fästpunkter bor i `former.ts`; FÄRGER bara via `symbolstil()`/`formstil()`/
   `hukiFärg()`/`relationsFärg()` – hårdkoda aldrig en färg i en komponent.
 - **Satellitsyntaxen** `[Roll: X U] [IT: Y] [Krav: Z] [In: …] [Ut: …]`
   tolkas av `flowchart/parser/affarsprocess-syntax.ts` och används av BÅDE
@@ -184,9 +190,9 @@ parser, AI-brygga, historik och lagring. Plan och symbolkatalog:
   UTAN kolon sätter `ap.iMötesform` och steget ritas som pratbubbla i kedjan,
   med roller, objekt och beskrivning som en aktivitet. `[Forum: X]` finns kvar
   som satellit – AI-instruktionen använder den inte, och panelen erbjuder den
-  bara för att kunna ta bort den. Bubblan (ellips med svans ned åt vänster)
+  bara för att kunna ta bort den. Bubblan (svans ned åt vänster)
   har en AKTIVITETS mått, svansen inräknad – en ballong runt texten blev
-  alldeles för stor; pilar möter ellipsens kontur (`apKontur`) och klustrets
+  alldeles för stor; pilar möter kroppens kontur (`apKontur`; en ruta, eller en ellips när stilen säger `forumKontur`) och klustrets
   stammar hänger till höger om svansen (`apStamMitt`).
 - **Layouten** (`tools/affarsprocess/layout-affarsprocess.ts`): vågrät kedja,
   grenar en rad ner, krav/tid i ett band över kedjan. Roller och IT-stöd bildar

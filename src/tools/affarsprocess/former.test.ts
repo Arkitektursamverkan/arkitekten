@@ -197,15 +197,16 @@ describe("apMarkerDefs", () => {
 
 describe("forumets pratbubbla", () => {
   /**
-   * REGRESSION: forumet var en rektangel. Det är en pratbubbla: en ELLIPS
-   * med svansen ned åt vänster, i stilens forumfärger.
+   * REGRESSION: forumet var en rektangel. Det är en pratbubbla: EN kontur
+   * med svansen ned åt vänster (spetsen vid 29 % av bredden, i rutans
+   * underkant), i stilens forumfärger.
    */
-  it("REGRESSION: stilens färger och en ellips, inte en rektangel", () => {
+  it("REGRESSION: stilens färger och en pratbubbla med svans, inte en rektangel", () => {
     const n = { id: "f", kind: "forum", label: "Enhetsmöte", sourceIndex: 0 } as ApNode;
     const svg = apNodeSvg(n, 0, 0, 120, 70);
     expect(svg).toContain(formstil("forum").fill);
     expect(svg).toContain(formstil("forum").stroke);
-    expect(svg).toMatch(/ A[\d.]+,[\d.]+ 0 1,0 /);
+    expect(svg).toContain(" L 34.8 69 ");
     expect(svg).not.toContain("<rect");
   });
 

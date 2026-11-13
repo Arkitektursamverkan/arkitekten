@@ -139,14 +139,14 @@ describe("symbolstilen", () => {
     expect((await (await fetch(`${bas}/__ark/symbolstil`)).json()).stil.id).toBe("neutral");
     const dir = path.join(tmp, "stilar");
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "egen.json"), JSON.stringify({ id: "egen", namn: "Egen", aktör: "arbetsplats" }));
+    fs.writeFileSync(path.join(dir, "egen.json"), JSON.stringify({ id: "egen", namn: "Egen", hörnradie: 11 }));
     fs.writeFileSync(path.join(dir, "trasig.json"), "{ inte json");
     const lista = await (await fetch(`${bas}/__ark/symbolstilar`)).json();
     expect(lista.stilar.map((s: { id: string }) => s.id)).toEqual(["neutral", "egen"]);
     expect(lista.fel.join(" ")).toContain("trasig.json");
     const val = await fetch(`${bas}/__ark/symbolstil`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: "egen" }) });
     expect(val.status).toBe(200);
-    expect((await (await fetch(`${bas}/__ark/symbolstil`)).json()).stil.aktör).toBe("arbetsplats");
+    expect((await (await fetch(`${bas}/__ark/symbolstil`)).json()).stil.hörnradie).toBe(11);
   });
 
   it("ett okänt id väljs aldrig", async () => {
