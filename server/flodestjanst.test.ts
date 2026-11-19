@@ -152,7 +152,10 @@ describe("flödestjänsten och publiceringen", () => {
         publiceradAt: "2026-10-08T10:00:00.000Z",
       },
     });
-    flöde("ap-opublicerad", "4.4.3 Granskning");
+    flöde("ap-opublicerad", "4.4.3 Granskning", {
+      // Inläst av en integration: ursprunget följer med ut, bara de kända fälten.
+      ursprung: { system: "Källsystemet", automatisk: true, flode: "flode-1", hemligt: "x" },
+    });
     // En Systemprocess publicerad på en APPLIKATION i portalen.
     const draft = textToDraft("Ny inköpsorder\nAnvändare → Fyller i formulär → System sparar inköpsordern");
     flöde("inkopsorder-ny", "Ny inköpsorder", {
@@ -191,6 +194,14 @@ describe("flödestjänsten och publiceringen", () => {
     const opub = d.flows.find((f: { id: string }) => f.id === "ap-opublicerad");
     expect(opub.publicering).toBeUndefined();
     expect(opub.prefix).toBe("4.4.3");
+  });
+
+  it("skickar med ursprunget för en process som en integration läser in", async () => {
+    const d = await (await fetch(`${adress}/api/flows`)).json();
+    const inläst = d.flows.find((f: { id: string }) => f.id === "ap-opublicerad");
+    expect(inläst.ursprung).toEqual({ system: "Källsystemet", automatisk: true, flode: "flode-1" });
+    const ritad = d.flows.find((f: { id: string }) => f.id === "ap-publicerad");
+    expect(ritad.ursprung).toBeUndefined();
   });
 
   it("ritar en scen också för en Systemprocess, och publiceringen följer med", async () => {

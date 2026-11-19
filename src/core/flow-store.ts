@@ -17,6 +17,7 @@ import type { Perspective } from "./model";
 import { normaliseraStatus, sammanfattaStatus, type FlowStatus } from "./status";
 import { skapadTid } from "./nyhet";
 import type { Publicering } from "./publicering";
+import type { Ursprung } from "./ursprung";
 import { DEMO_KATEGORI, type Yta, type Ägare } from "./behorighet";
 
 /** Vyinställningar som hör till arbetet, inte till processen. */
@@ -99,6 +100,12 @@ export interface SavedFlow {
    * uppgift som placeringen, och skrivs bara av `sättPublicering`.
    */
   publicering?: Publicering;
+  /**
+   * Källsystemet processen läses in från, om en integration håller den i
+   * takt med ett annat system (core/ursprung.ts). Skrivs bara av
+   * integrationen, i filen – aldrig av en sparning ur appen.
+   */
+  ursprung?: Ursprung;
   /**
    * Användaren vars EGNA katalog processen ligger i. Saknas = den gemensamma
    * katalogen (eller Demo) – ytan härleds i core/behorighet.ts. Skrivs BARA av

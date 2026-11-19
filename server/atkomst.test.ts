@@ -30,6 +30,26 @@ describe("sparning", () => {
     const öppen = prövaSparning(admin, "öppen", null, { category: "X", versions: [v("v1")] });
     expect(öppen.ok && öppen.värde.skapadAv).toBeUndefined();
   });
+  it("ursprunget skrivs bara av integrationen – en sparning kan varken sätta, ändra eller tappa det", () => {
+    const ursprung = { system: "Källsystemet", automatisk: true, flode: "flode-1" };
+    const befintlig = { category: "X", ursprung, versions: [v("v1")] };
+    const ändrad = prövaSparning(admin, "entra", befintlig, {
+      category: "X",
+      ursprung: { system: "Något annat" },
+      versions: [v("v1"), v("v2")],
+    });
+    expect(ändrad.ok && ändrad.värde.ursprung).toEqual(ursprung);
+    const tappad = prövaSparning(admin, "entra", befintlig, { category: "X", versions: [v("v1"), v("v2")] });
+    expect(tappad.ok && tappad.värde.ursprung).toEqual(ursprung);
+    const påhittad = prövaSparning(admin, "entra", { category: "X", versions: [v("v1")] }, {
+      category: "X",
+      ursprung,
+      versions: [v("v1"), v("v2")],
+    });
+    expect(påhittad.ok && påhittad.värde.ursprung).toBeUndefined();
+    const ny = prövaSparning(admin, "entra", null, { category: "X", ursprung, versions: [v("v1")] });
+    expect(ny.ok && ny.värde.ursprung).toBeUndefined();
+  });
   it("REGRESSION: skaparen står still – varken en sparning eller ett byte av yta skriver över den", () => {
     const befintlig = {
       ägare: { id: "test", namn: "Test Testsson" },

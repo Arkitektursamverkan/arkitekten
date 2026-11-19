@@ -40,7 +40,9 @@ allmänt `error` – detaljerna står i tjänstens logg.
 Sammanfattningen i listan: `id`, `name`, `familj` (`affarsprocess` eller
 `flodesschema`), `prefix` (processnumret ur namnet, om det finns),
 `publicering` (`eaNodId`, `ägare`, `beskrivning`, `publiceradAt` – var i
-portalen flödet är publicerat), `stepCount`, `versionCount`, `category`,
+portalen flödet är publicerat), `ursprung` (`system`, `automatisk`, `flode` – bara
+när en integration läser in processen från ett annat system, se
+`src/core/ursprung.ts`), `stepCount`, `versionCount`, `category`,
 `actor`, `status`, `beteckning`, `fastslagenBeteckning`, `savedAt`.
 
 **Versionen.** `kontrakt` är huvudversionen av listan och svaren; scenen har

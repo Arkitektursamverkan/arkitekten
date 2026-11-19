@@ -9,6 +9,10 @@ funktioner, en ny korrigering för rättelser.
 
 - (inget än)
 
+## 0.15.0 – 2026-11-19
+
+- **Ursprung på en process**: en process som en integration läser in från ett annat system kan bära `ursprung` – källsystemets namn, om bilden är framställd automatiskt och vilket flöde i Integrationsplattformen som hämtar underlaget. Uppgiften skrivs bara av integrationen, i flödesfilen; en sparning ur appen kan varken sätta, ändra eller tappa den. Den följer med ut genom flödestjänsten (nytt fält `ursprung` i listan, kontraktet oförändrat), så att EA-portalen kan visa det vid processbilden. I appen står det under sparraden när processen är öppen, med upplysningen att ändringar görs i källsystemet.
+
 ## 0.14.0 – 2026-11-13
 
 - **Ny standardstil för affärsprocesser**: symbolerna är omritade – aktiviteten har en markerad vänsterkant, verksamhetsobjektet är en lutad ruta, IT-stödet ett programfönster, arkivet en mapp, tiden ett kalenderblad, forumet en kantig pratbubbla – och pilspetsarna har ny form. Verksamhetsobjektet är ljust i stället för mörkt.
