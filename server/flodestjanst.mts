@@ -42,6 +42,7 @@ import { sättSymbolstil } from "@/tools/affarsprocess/symbolstil";
 import { valdStil } from "./symbolstilar";
 import { organisationUrMiljö, sättOrganisation } from "@/core/organisation";
 import { ytaFör } from "@/core/behorighet";
+import { läsUrsprung } from "@/core/ursprung";
 import { Användarfel } from "./fel";
 
 const FLOWS_DIR = process.env.FLOWS_DIR ?? "flows";
@@ -159,6 +160,9 @@ function listaFlöden(flowsDir: string) {
               },
             }
           : {}),
+        // Källsystemet processen läses in från, när en integration håller
+        // den i takt med ett annat system (core/ursprung.ts).
+        ...(läsUrsprung(flow.ursprung) ? { ursprung: läsUrsprung(flow.ursprung) } : {}),
         stepCount: steps.length,
         versionCount: Array.isArray(flow.versions) ? Math.max(1, flow.versions.length) : 1,
         // Kategorin i katalogen (användarens egen). Saknas = reglerna i

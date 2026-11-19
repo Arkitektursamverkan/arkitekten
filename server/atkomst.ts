@@ -10,6 +10,7 @@
  */
 
 import { läsPublicering } from "../src/core/publicering";
+import { läsUrsprung } from "../src/core/ursprung";
 import {
   DEMO_KATEGORI,
   kanByttaYta,
@@ -50,6 +51,9 @@ function personI(ä: unknown): Ägare | undefined {
  *   därefter det som står i filen. Ägaren byts när processen flyttas mellan
  *   ytor; skaparen står still för alltid. Flöden från före fältet har ingen. En klient som tappade fältet hade annars i tysthet
  *   flyttat en egen process till den gemensamma katalogen.
+ * - Ursprunget (`ursprung`, core/ursprung.ts) tas också ur filen: det skrivs
+ *   av integrationen som läser in processen, och en sparning ur appen kan
+ *   varken sätta det, ändra det eller tappa det.
  * - Publiceringen tas likaså ur filen, aldrig ur begäran: den skrivs bara av
  *   `prövaPublicering` (admin + gemensam katalog, samma regel som
  *   `kanPublicera`). REGRESSION: en vanlig PUT bar publiceringen, så den som
@@ -78,7 +82,13 @@ export function prövaSparning(
   ny: Flöde,
 ): Prövning<Flöde> {
   if (!Array.isArray(ny?.versions)) return nej(400, "Processen saknar versionshistorik (versions).");
-  const { ägare: _ignorerad, skapadAv: _ocksåIgnorerad, publicering: _serverns, ...kropp } = ny;
+  const {
+    ägare: _ignorerad,
+    skapadAv: _ocksåIgnorerad,
+    publicering: _serverns,
+    ursprung: _integrationens,
+    ...kropp
+  } = ny;
   if (!befintlig) {
     const ägare = ägareVidSkapande(u, läge, kropp);
     // I öppen drift finns bara den lokala användaren – ett namn som inte säger något.
@@ -99,7 +109,14 @@ export function prövaSparning(
 
   const ägare = personI(befintlig.ägare);
   const skapadAv = personI(befintlig.skapadAv);
-  const ut: Flöde = { ...kropp, ...(ägare ? { ägare } : {}), ...(skapadAv ? { skapadAv } : {}) };
+  // Ursprunget skrivs av integrationen, i filen. Det som står där står kvar.
+  const ursprung = läsUrsprung(befintlig.ursprung);
+  const ut: Flöde = {
+    ...kropp,
+    ...(ägare ? { ägare } : {}),
+    ...(skapadAv ? { skapadAv } : {}),
+    ...(ursprung ? { ursprung } : {}),
+  };
   const till = ytaFör(ut);
   if (till !== ytaFör(befintlig) && !kanByttaYta(u, befintlig, till))
     return nej(403, `Du kan inte flytta processen till ${till === "demo" ? "Demo" : "den ytan"}.`);

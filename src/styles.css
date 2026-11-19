@@ -949,6 +949,11 @@ select.ark-input { cursor: pointer; background: var(--panel); }
 
 /* ---- Versionshistorik ---- */
 .ark-label-input { margin-top: 6px; font-size: 12px; }
+/* Processen läses in av en integration – upplysning, inte ett fel. */
+.ark-ursprung {
+  margin: 10px 0 0; padding: 8px 10px; border: 1px solid var(--border); border-left: 3px solid #5b7fa6;
+  border-radius: 6px; background: #f3f6fa; font-size: 12.5px; line-height: 1.4;
+}
 .ark-versions { margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .ark-versions-toggle {
   width: 100%; text-align: left; border: 0; background: #fafbfc; padding: 7px 10px;

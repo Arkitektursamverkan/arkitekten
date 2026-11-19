@@ -9,6 +9,7 @@
  */
 
 import { kanTaBort } from "@/core/behorighet";
+import { ursprungstext } from "@/core/ursprung";
 import { useAnvändare, useInloggningsläge } from "@/shell/Inloggning";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
@@ -531,6 +532,9 @@ export const FlowLibrary = forwardRef<FlowLibraryHandle, FlowLibraryProps>(funct
       </div>
 
       {error && <p className="ark-error">{error}</p>}
+
+      {/* En process som en integration läser in: säg det, och var den ändras. */}
+      {openedFlow?.ursprung && <p className="ark-ursprung">{ursprungstext(openedFlow.ursprung)}</p>}
 
       {openedFlow && versions.length > 0 && (
         <div className="ark-versions">
