@@ -11,7 +11,7 @@ funktioner, en ny korrigering för rättelser.
 
 ## 0.17.0 – 2026-11-20
 
-- **Lager i systemskissen**: objekt och zoner kan läggas i lager, t.ex. ett per applikation. Raden *Lager* över ritytan visar ett eller flera lager för sig – med det de är kopplade till, om man vill – och det som inte ligger i något lager visas alltid. Gemensamma zoner dras ihop kring det som visas. Filtret sparas inte.
+- **Lager i systemskissen**: objekt och zoner kan läggas i lager, t.ex. ett per applikation. Raden *Lager* över ritytan skalar bort allt som inte har med de valda lagren att göra: kvar blir lagret, det som det är kopplat till i andra lager (integrationerna) och det gemensamma – utan lager – som hänger ihop med det. Gemensamma zoner dras ihop kring det som visas. Filtret sparas inte.
 - **Exporten följer filtret**: kopiera bild, PNG och SVG ger det som visas på ritytan.
 - **Systemskiss i Arkitekturportalen**: en administratör kan välja en server ur portalen för en skiss. Flödestjänsten lämnar då ut skissen (familjen `systemskiss`, en färdig bild per lager), och portalen (från 0.26.0) visar den under fliken *Systemskiss* på servern. Flödestjänsten behöver kunna läsa `SKISSER_DIR`. Kontraktet är oförändrat (nya fält och en ny familj).
 

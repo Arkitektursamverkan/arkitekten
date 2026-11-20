@@ -486,9 +486,9 @@ export function SkissVy() {
             </button>
           ))}
           {filter && (
-            <label className="ark-ramar-val" title="Visa också det som lagrens objekt är kopplade till">
+            <label className="ark-ramar-val" title="Visa också de objekt i andra lager som lagret är kopplat till – dess integrationer">
               <input type="checkbox" checked={medGrannar} onChange={(e) => setMedGrannar(e.target.checked)} />
-              Med det de är kopplade till
+              Med integrationerna
             </label>
           )}
         </div>
@@ -649,7 +649,7 @@ export function SkissVy() {
                 onChange={(e) => ändra(sättLager(skiss, valbara, e.target.value === "(inget)" ? undefined : e.target.value))}
               >
                 {gemensamtLager === null && <option value="">(olika)</option>}
-                <option value="(inget)">Inget – visas alltid</option>
+                <option value="(inget)">Inget – gemensamt</option>
                 {lager.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.namn || "(utan namn)"}
@@ -758,7 +758,8 @@ export function SkissVy() {
               </button>
               <p className="ark-hint">
                 Ett lager är en del av skissen man kan visa för sig, t.ex. en applikation. Markera objekt och zoner och välj lager i
-                panelen. Det som inte ligger i något lager visas alltid.
+                panelen. Välj sedan lagret i raden över bilden: allt som inte har med det att göra skalas bort. Det som inte
+                ligger i något lager är gemensamt och visas när det är kopplat till lagret.
               </p>
               <p className="ark-hint">
                 Lägg till objekt ur raden ovan och dra dem på plats. Markera ett objekt och dra i den blå pilen för att koppla det till

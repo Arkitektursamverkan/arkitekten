@@ -55,7 +55,8 @@ export type Linje = "hel" | "streckad";
 /**
  * Ett LAGER – en del av skissen man kan visa för sig, t.ex. en applikation.
  * Ett objekt eller en zon hör till HÖGST ett lager; det som inte hör till
- * något visas alltid. Se `filtreraSkiss`.
+ * något är GEMENSAMT och visas när det hänger ihop med det som är framme.
+ * Se `filtreraSkiss`.
  */
 export interface SkissLager {
   id: string;
@@ -449,28 +450,43 @@ export function taBortLager(skiss: Systemskiss, id: string): Systemskiss {
  * Skissen som den ser ut med BARA vissa lager framme – REGELN BOR HÄR, och
  * ritytan, exporten och det som lämnas ut till andra system frågar alla den.
  *
- * `aktiva` null = allt visas. Annars visas:
- *  - det som ligger i ett aktivt lager,
- *  - det som inte ligger i något lager (det gemensamma: servern, användarna),
- *  - med `grannar`: objekt i ANDRA lager som är direkt kopplade till ett
- *    objekt i ett aktivt lager. Det är de som gör bilden begriplig – en
- *    applikation för sig säger inget om vad den hänger ihop med.
+ * `aktiva` null = allt visas. Annars skalas allt bort som inte har med de
+ * aktiva lagren att göra. Kvar blir:
+ *  - det som ligger i ett aktivt lager (kärnan),
+ *  - med `grannar`: objekt i ANDRA lager som är direkt kopplade till kärnan –
+ *    lagrets integrationer,
+ *  - GEMENSAMMA objekt (utan lager) som hänger ihop med kärnan: direkt
+ *    kopplade, eller kopplade dit genom andra gemensamma objekt (användaren
+ *    bakom proxyn). Ett gemensamt objekt utan koppling till lagret DÖLJS –
+ *    "det som inte har med applikationen att göra" gäller också det
+ *    gemensamma (produktägarens besked 2026-11-20).
  *
- * En koppling visas när båda ändarna syns OCH den har med ett aktivt lager
- * att göra (eller går mellan två gemensamma objekt). En granne drar alltså
+ * En koppling visas när båda ändarna syns OCH den har med kärnan att göra
+ * (eller går mellan två gemensamma objekt som syns). En granne drar alltså
  * inte in sina egna kopplingar till annat.
  *
  * Lägena rörs inte: den filtrerade bilden är samma bild med färre saker i.
  * Undantaget är de GEMENSAMMA zonerna (utan lager – servern som allt står i):
- * de dras ihop kring det som är kvar i dem, annars blev en applikation för sig
- * en liten ruta i ett hörn av en stor tom ram.
+ * de dras ihop kring det som är kvar i dem, och en som blivit tom döljs.
  */
 export function filtreraSkiss(skiss: Systemskiss, aktiva: ReadonlySet<string> | null, grannar = true): Systemskiss {
   if (!aktiva) return skiss;
   const iAktivt = (v: { lager?: string }) => Boolean(v.lager && aktiva.has(v.lager));
   const kärna = new Set(skiss.objekt.filter(iAktivt).map((o) => o.id));
   const gemensamma = new Set(skiss.objekt.filter((o) => !o.lager).map((o) => o.id));
-  const synliga = new Set([...kärna, ...gemensamma]);
+  const synliga = new Set(kärna);
+  // Gemensamma objekt: de som når kärnan, direkt eller genom andra gemensamma.
+  let nya = [...kärna];
+  while (nya.length > 0) {
+    const från = new Set(nya);
+    nya = [];
+    for (const k of skiss.kopplingar)
+      for (const [a, b] of [[k.från, k.till], [k.till, k.från]])
+        if (från.has(a) && gemensamma.has(b) && !synliga.has(b)) {
+          synliga.add(b);
+          nya.push(b);
+        }
+  }
   if (grannar)
     for (const k of skiss.kopplingar) {
       if (kärna.has(k.från)) synliga.add(k.till);
@@ -478,12 +494,13 @@ export function filtreraSkiss(skiss: Systemskiss, aktiva: ReadonlySet<string> | 
     }
   const objekt = skiss.objekt.filter((o) => synliga.has(o.id));
   const lagerzoner = skiss.zoner.filter(iAktivt);
+  const innehåll = [...objekt, ...lagerzoner];
   return {
     ...skiss,
     objekt,
     zoner: skiss.zoner
-      .filter((z) => !z.lager || iAktivt(z))
-      .map((z) => (z.lager ? z : krympZon(z, [...objekt, ...lagerzoner]))),
+      .filter((z) => (z.lager ? iAktivt(z) : innehåll.some((v) => mittI(v, z))))
+      .map((z) => (z.lager ? z : krympZon(z, innehåll))),
     kopplingar: skiss.kopplingar.filter(
       (k) =>
         synliga.has(k.från) &&

@@ -135,7 +135,7 @@ it("ett lager visas för sig: klicket gömmer det andra lagret, 'Alla' tar tillb
         { id: "o-3", sort: "anvandare", namn: "Medarbetare", x: 0, y: 300, b: 170, h: 64 },
       ],
       zoner: [{ id: "z-1", namn: "iTid-zonen", färg: "bla", lager: "l-b", x: 380, y: -40, b: 220, h: 140 }],
-      kopplingar: [],
+      kopplingar: [{ id: "k-1", från: "o-3", till: "o-1", pil: "till", linje: "hel" }],
     }),
   );
   render(<SkissVy />);
@@ -144,7 +144,7 @@ it("ett lager visas för sig: klicket gömmer det andra lagret, 'Alla' tar tillb
 
   fireEvent.click(screen.getByRole("button", { name: "Portalen" }));
   const bild = () => document.querySelector(".ark-skiss-svg")!.textContent ?? "";
-  // Lagret och det gemensamma syns; det andra lagret – med sin zon – är borta.
+  // Lagret och det gemensamma som är kopplat till det syns; det andra lagret – med sin zon – är borta.
   expect(document.querySelectorAll("[data-skiss-objekt]")).toHaveLength(2);
   expect(bild()).toContain("Medarbetare");
   expect(bild()).not.toContain("iTid-appen");
