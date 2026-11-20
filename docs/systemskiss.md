@@ -29,6 +29,32 @@ menyn till vänster – den hör inte till processerna.
   vyn.
 - **Kopiera bild**, **PNG** och **SVG** ger samma bild som ritytan visar.
 
+## Lager
+
+Ett lager är en del av skissen som går att visa för sig – typiskt en
+applikation. Lagren skapas i panelen till höger när inget är markerat; markera
+sedan objekt och zoner och välj lager. Det som inte ligger i något lager (t.ex.
+servern som allt står i) visas alltid.
+
+Raden **Lager** över ritytan filtrerar: ett klick på ett lager visar bara det,
+fler klick lägger till eller tar bort lager, *Alla* visar hela skissen. Med
+*Med det de är kopplade till* visas också de objekt i andra lager som lagrets
+objekt har en koppling till – det är de som säger vad applikationen hänger
+ihop med. Gemensamma zoner dras ihop kring det som visas. Filtret är den
+tittandes eget och sparas inte.
+
+**Exporten följer filtret**: kopiera bild, PNG och SVG ger det som visas.
+
+## Visa skissen i Arkitekturportalen
+
+En administratör kan under *Visa i portalen, på servern* välja en server ur
+portalen. Skissen visas då under fliken **Systemskiss** på den servern, med
+lagren som val, för dem som får se servern i portalen – också när skissen är
+dold i Arkitekten. Vägen dit är den vanliga: flödestjänsten lämnar ut
+publicerade skisser i sin lista (familjen `systemskiss`, id med prefixet
+`sk-`), Integrationsplattformen speglar dem och portalen hämtar därifrån
+(`docs/gransnitt.md`). Flödestjänsten behöver därför kunna läsa `SKISSER_DIR`.
+
 ## Vem ser och ändrar
 
 | | Läsa | Ändra och ta bort |

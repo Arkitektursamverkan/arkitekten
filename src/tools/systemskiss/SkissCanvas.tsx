@@ -44,7 +44,13 @@ export interface SkissCanvasHandtag {
 }
 
 export interface SkissCanvasProps {
+  /** HELA skissen – den ändringarna görs i. */
   skiss: Systemskiss;
+  /**
+   * Det som VISAS: skissen filtrerad på lager (`filtreraSkiss`). Bild och
+   * träffytor räknas på den; ändringarna görs i hela skissen.
+   */
+  visad: Systemskiss;
   /** Låst = bara titta: panorera och zooma, inget går att flytta eller markera. */
   låst: boolean;
   markerade: string[];
@@ -77,7 +83,7 @@ const ACCENT = "#1f5c9e";
 let dragNr = 0;
 
 export const SkissCanvas = forwardRef<SkissCanvasHandtag, SkissCanvasProps>(function SkissCanvas(
-  { skiss, låst, markerade, onMarkera, onÄndra, kopplar, onKopplat },
+  { skiss, visad, låst, markerade, onMarkera, onÄndra, kopplar, onKopplat },
   ref,
 ) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -91,8 +97,8 @@ export const SkissCanvas = forwardRef<SkissCanvasHandtag, SkissCanvasProps>(func
   const [källa, setKälla] = useState<string | null>(null);
   const [panorerar, setPanorerar] = useState(false);
 
-  const geometri = useMemo(() => skissGeometri(skiss), [skiss]);
-  const bild = useMemo(() => säkerSvg(skissInnehåll(skiss, geometri), { fragment: true }), [skiss, geometri]);
+  const geometri = useMemo(() => skissGeometri(visad), [visad]);
+  const bild = useMemo(() => säkerSvg(skissInnehåll(visad, geometri), { fragment: true }), [visad, geometri]);
 
   const tillModell = useCallback((e: { clientX: number; clientY: number }): Point => {
     const r = svgRef.current?.getBoundingClientRect();
@@ -175,7 +181,7 @@ export const SkissCanvas = forwardRef<SkissCanvasHandtag, SkissCanvasProps>(func
     if (e.button !== 0) return; // bara vänsterknappen gör något annat
     e.currentTarget.setPointerCapture(e.pointerId);
     const p = tillModell(e);
-    const träff = låst ? null : träffISkiss(skiss, geometri, p, 6 / vy.k);
+    const träff = låst ? null : träffISkiss(visad, geometri, p, 6 / vy.k);
 
     if (kopplar && !låst) {
       if (träff?.typ !== "objekt") {
@@ -253,7 +259,7 @@ export const SkissCanvas = forwardRef<SkissCanvasHandtag, SkissCanvasProps>(func
     e.currentTarget.releasePointerCapture?.(e.pointerId);
     if (d?.typ === "koppla") {
       setGummiband(null);
-      const träff = träffISkiss(skiss, geometri, tillModell(e), 6 / vy.k);
+      const träff = träffISkiss(visad, geometri, tillModell(e), 6 / vy.k);
       if (träff?.typ === "objekt") {
         const { skiss: nästa, id } = läggTillKoppling(skiss, d.från, träff.id);
         if (id) {
@@ -269,7 +275,7 @@ export const SkissCanvas = forwardRef<SkissCanvasHandtag, SkissCanvasProps>(func
   const ruta = (id: string): Rect | null => {
     const o = geometri.objekt.get(id);
     if (o) return o.ruta;
-    const z = skiss.zoner.find((x) => x.id === id);
+    const z = visad.zoner.find((x) => x.id === id);
     return z ? { x: z.x, y: z.y, w: z.b, h: z.h } : null;
   };
   const ensam = !låst && markerade.length === 1 ? markerade[0] : null;

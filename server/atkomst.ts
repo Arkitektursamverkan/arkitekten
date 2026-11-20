@@ -260,19 +260,33 @@ export function prövaRamserie<T extends HarSkapare>(
  * Systemskissen som ska skrivas. Skaparen sätts vid skapandet och följer sedan
  * med, tiden är serverns, och SYNLIGHETEN (`dold`) tas bara ur begäran när en
  * administratör frågar – annars gäller det som står i filen (en ny skiss är
- * synlig). Kroppen ska redan vara byggd av `läsSkiss`.
+ * synlig). Samma sak med PUBLICERINGEN i portalen: bara en administratör
+ * sätter, byter eller tar bort den, och tidpunkten är serverns – den står
+ * still så länge servern den pekar på är densamma. Kroppen ska redan vara
+ * byggd av `läsSkiss`.
  */
-export function prövaSkiss<T extends HarSynlighet & { savedAt: string }>(
+type Skisspublicering = { eaNodId: string; servernamn?: string; publiceradAt: string };
+export function prövaSkiss<T extends HarSynlighet & { savedAt: string; publicering?: Skisspublicering }>(
   u: Användare,
-  befintlig: HarSynlighet | null,
+  befintlig: (HarSynlighet & { publicering?: Skisspublicering }) | null,
   ny: T,
 ): T {
-  const { skapadAv: _ignorerad, dold: begärd, ...kropp } = ny;
+  const { skapadAv: _ignorerad, dold: begärd, publicering: begärdPublicering, ...kropp } = ny;
+  const förra = befintlig?.publicering;
+  const publicering = !kanDöljaSkiss(u)
+    ? förra
+    : begärdPublicering
+      ? {
+          ...begärdPublicering,
+          publiceradAt: förra?.eaNodId === begärdPublicering.eaNodId ? förra.publiceradAt : new Date().toISOString(),
+        }
+      : undefined;
   const skapadAv = befintlig ? befintlig.skapadAv : { id: u.id, namn: u.namn };
   const dold = kanDöljaSkiss(u) ? begärd === true : befintlig?.dold === true;
   return {
     ...kropp,
     ...(dold ? { dold: true } : {}),
+    ...(publicering ? { publicering } : {}),
     savedAt: new Date().toISOString(),
     ...(skapadAv ? { skapadAv } : {}),
   } as T;

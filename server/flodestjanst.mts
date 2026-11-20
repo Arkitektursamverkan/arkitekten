@@ -28,6 +28,9 @@
  *   FLOWS_DIR=flows PORT=8200 npx tsx server/flodestjanst.mts
  */
 
+import { SKISS_TJÄNSTPREFIX, läsSkiss, type Systemskiss } from "../src/core/systemskiss";
+import { byggSkissScen } from "../src/tools/systemskiss/scen-systemskiss";
+import { skissSvg } from "../src/tools/systemskiss/skiss-svg";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -55,6 +58,8 @@ export const KONTRAKT = 1;
 const PORT = Number(process.env.PORT ?? 8200);
 /** Samma katalog som appen – portalens bilder får installationens symbolstil. */
 const STILAR_DIR = process.env.STILAR_DIR ?? "stilar";
+/** Systemskisserna – bara de som publicerats på en server i portalen lämnas ut. */
+const SKISSER_DIR = process.env.SKISSER_DIR ?? "skisser";
 /** Huvudet som bär nyckeln (kontraktet med Integrationsplattformen). */
 export const NYCKELHUVUD = "x-arkitekten-nyckel";
 /** Samma skydd mot path traversal som bryggan (server/brygga.ts). */
@@ -121,6 +126,43 @@ function prefixAvNamn(namn: unknown): string | undefined {
 }
 
 /** Sammanfattningarna i listan – samma form och samma källa som bryggan. */
+/**
+ * De PUBLICERADE systemskisserna (core/systemskiss.ts). En skiss lämnas bara
+ * ut när en administratör valt en server för den i portalen – då också när
+ * den är dold i Arkitekten, för publiceringen är ett eget beslut. Allt läses
+ * genom `läsSkiss`. I listan bär skissen prefixet `sk-`, så att ett id aldrig
+ * kan krocka med ett flödes.
+ */
+function publiceradeSkisser(skisserDir: string): Systemskiss[] {
+  if (!fs.existsSync(skisserDir)) return [];
+  const ut: Systemskiss[] = [];
+  for (const f of fs.readdirSync(skisserDir).filter((f) => f.endsWith(".json"))) {
+    try {
+      const skiss = läsSkiss(JSON.parse(fs.readFileSync(path.join(skisserDir, f), "utf8")));
+      if (skiss?.publicering?.eaNodId && SAFE_ID.test(SKISS_TJÄNSTPREFIX + skiss.id)) ut.push(skiss);
+    } catch {
+      // En trasig fil är ingen skiss.
+    }
+  }
+  return ut;
+}
+
+function listaSkisser(skisserDir: string) {
+  return publiceradeSkisser(skisserDir).map((s) => ({
+    id: SKISS_TJÄNSTPREFIX + s.id,
+    name: s.namn,
+    savedAt: s.savedAt,
+    familj: "systemskiss",
+    publicering: {
+      eaNodId: s.publicering!.eaNodId,
+      ...(s.beskrivning ? { beskrivning: s.beskrivning } : {}),
+      publiceradAt: s.publicering!.publiceradAt,
+    },
+    stepCount: s.objekt.length,
+    versionCount: 1,
+  }));
+}
+
 function listaFlöden(flowsDir: string) {
   if (!fs.existsSync(flowsDir)) return [];
   const ut = [];
@@ -200,6 +242,7 @@ export function skapaHanterare(
   flowsDir: string = FLOWS_DIR,
   stilarDir: string = STILAR_DIR,
   nyckel: string = process.env.ARK_FLODESTJANST_NYCKEL?.trim() ?? "",
+  skisserDir: string = SKISSER_DIR,
 ) {
   // Slutets reservbana är portalbanan – samma namn som i appen.
   sättOrganisation(organisationUrMiljö(process.env));
@@ -227,7 +270,24 @@ export function skapaHanterare(
       }
 
       if (väg === "/api/flows") {
-        return json(res, 200, { ok: true, kontrakt: KONTRAKT, flows: listaFlöden(flowsDir) });
+        return json(res, 200, { ok: true, kontrakt: KONTRAKT, flows: [...listaFlöden(flowsDir), ...listaSkisser(skisserDir)] });
+      }
+
+      // En publicerad systemskiss: samma vägar som ett flöde, under sitt prefix.
+      const sk = /^\/api\/flows\/sk-([^/]+)(?:\/(scen|svg))?$/.exec(väg);
+      if (sk) {
+        const skiss = publiceradeSkisser(skisserDir).find((s) => s.id === decodeURIComponent(sk[1]));
+        // Ingen sådan skiss: då kan det vara ett FLÖDE vars id råkar börja likadant.
+        if (skiss) {
+        if (!sk[2]) return json(res, 200, { ok: true, flow: { id: SKISS_TJÄNSTPREFIX + skiss.id, name: skiss.namn, savedAt: skiss.savedAt } });
+        if (sk[2] === "scen") return json(res, 200, { ok: true, scen: byggSkissScen(skiss) });
+        res.statusCode = 200;
+        res.setHeader("content-type", "image/svg+xml; charset=utf-8");
+        res.setHeader("x-content-type-options", "nosniff");
+        res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'");
+        res.end(skissSvg(skiss).svg);
+        return;
+        }
       }
 
       const m = /^\/api\/flows\/([^/]+)(?:\/(scen|svg))?$/.exec(väg);

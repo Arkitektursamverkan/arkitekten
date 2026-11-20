@@ -123,11 +123,24 @@ export interface ScenSida {
   h: number;
 }
 
+/**
+ * Ett LAGER i en systemskiss, som färdig bild: skissen med bara det lagret
+ * framme (och det lagret hänger ihop med). Mottagaren byter `bakgrund`,
+ * `bredd` och `höjd` mot lagrets – den filtrerar aldrig själv.
+ */
+export interface ScenLager {
+  id: string;
+  namn: string;
+  bakgrund: string;
+  bredd: number;
+  höjd: number;
+}
+
 export interface Scen {
   format: "ark-scen";
   formatVersion: 1;
   /** Vilken ritfamilj scenen kommer ur – styr vokabulären i `typ`. */
-  familj: "affarsprocess" | "flodesschema";
+  familj: "affarsprocess" | "flodesschema" | "systemskiss";
   flöde: {
     id: string;
     namn: string;
@@ -189,6 +202,8 @@ export interface Scen {
    * kanterna och före noderna – samma ordning som exporten.
    */
   artefakter?: string;
+  /** Systemskissens lager, som färdiga bilder. Bara familjen `systemskiss`. */
+  lager?: ScenLager[];
 
   /** Vem/när/vilken version bilden visar. Byggd av `export/revision.ts`. */
   revision: unknown;

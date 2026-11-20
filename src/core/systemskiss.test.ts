@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { kanDöljaSkiss, kanLäsaSkiss, kanTaBortSkiss, kanÄndraSkiss, type Användare } from "./behorighet";
 import {
   dupliceraISkiss,
+  filtreraSkiss,
   flyttaISkiss,
   läggTillKoppling,
+  läggTillLager,
   läggTillObjekt,
   läggTillZon,
   läsSkiss,
@@ -11,6 +13,8 @@ import {
   nySkiss,
   skissId,
   skissNyckel,
+  sättLager,
+  taBortLager,
   taBortUrSkiss,
   ändraStorlek,
   ändraZon,
@@ -161,5 +165,98 @@ describe("behörigheten för systemskisser", () => {
   it("bara en administratör kan dölja", () => {
     expect(kanDöljaSkiss(admin)).toBe(true);
     expect(kanDöljaSkiss(anna)).toBe(false);
+  });
+});
+
+describe("lager", () => {
+  function medLager() {
+    let s = nySkiss("Miljö");
+    const app = läggTillLager(s, "Appen");
+    const annan = läggTillLager(app.skiss, "Annan");
+    s = annan.skiss;
+    const web = läggTillObjekt(s, "tjanst", 0, 0, app.id);
+    const db = läggTillObjekt(web.skiss, "databas", 300, 0, app.id);
+    const hub = läggTillObjekt(db.skiss, "tjanst", 600, 0, annan.id);
+    const fjärran = läggTillObjekt(hub.skiss, "tjanst", 900, 0, annan.id);
+    const anv = läggTillObjekt(fjärran.skiss, "anvandare", -300, 0);
+    const zon = läggTillZon(anv.skiss, 0, 0, annan.id);
+    s = zon.skiss;
+    for (const [a, b] of [[web.id, db.id], [web.id, hub.id], [hub.id, fjärran.id], [anv.id, hub.id]]) s = läggTillKoppling(s, a, b).skiss;
+    return { s, app: app.id, annan: annan.id, web: web.id, db: db.id, hub: hub.id, fjärran: fjärran.id, anv: anv.id, zon: zon.id };
+  }
+  const idn = (v: { id: string }[]) => v.map((x) => x.id).sort();
+
+  it("utan filter är skissen orörd", () => {
+    const { s } = medLager();
+    expect(filtreraSkiss(s, null)).toBe(s);
+  });
+
+  it("ett lager visar sitt eget, det gemensamma och det lagret är kopplat till – men inte grannens egna kopplingar", () => {
+    const m = medLager();
+    const f = filtreraSkiss(m.s, new Set([m.app]));
+    expect(idn(f.objekt)).toEqual([m.web, m.db, m.hub, m.anv].sort());
+    // web→db och web→hub hör till lagret. hub→fjärran och användare→hub gör det inte.
+    expect(f.kopplingar.map((k) => `${k.från}>${k.till}`).sort()).toEqual([`${m.web}>${m.db}`, `${m.web}>${m.hub}`].sort());
+    // Det andra lagrets zon följer inte med grannen in.
+    expect(f.zoner).toEqual([]);
+  });
+
+  it("utan grannar visas bara lagret och det gemensamma", () => {
+    const m = medLager();
+    const f = filtreraSkiss(m.s, new Set([m.app]), false);
+    expect(idn(f.objekt)).toEqual([m.web, m.db, m.anv].sort());
+    expect(f.kopplingar).toHaveLength(1);
+  });
+
+  it("lägena rörs inte av filtret", () => {
+    const m = medLager();
+    const f = filtreraSkiss(m.s, new Set([m.app]));
+    expect(f.objekt.find((o) => o.id === m.db)).toBe(m.s.objekt.find((o) => o.id === m.db));
+  });
+
+  it("ett borttaget lager lämnar sitt innehåll kvar, utanför alla lager", () => {
+    const m = medLager();
+    const utan = taBortLager(m.s, m.annan);
+    expect(utan.lager!.map((l) => l.id)).toEqual([m.app]);
+    expect(utan.objekt.find((o) => o.id === m.hub)).not.toHaveProperty("lager");
+    expect(utan.zoner[0]).not.toHaveProperty("lager");
+    expect(utan.objekt).toHaveLength(m.s.objekt.length);
+  });
+
+  it("flyttar objekt mellan lager och ut ur dem", () => {
+    const m = medLager();
+    expect(sättLager(m.s, [m.web], m.annan).objekt.find((o) => o.id === m.web)!.lager).toBe(m.annan);
+    expect(sättLager(m.s, [m.web], undefined).objekt.find((o) => o.id === m.web)).not.toHaveProperty("lager");
+  });
+
+  it("läsSkiss behåller lagren och stryker en tillhörighet till ett lager som inte finns", () => {
+    const m = medLager();
+    expect(läsSkiss(JSON.parse(JSON.stringify(m.s)))).toEqual(m.s);
+    const trasig = { ...m.s, objekt: m.s.objekt.map((o) => (o.id === m.web ? { ...o, lager: "finns-inte" } : o)) };
+    expect(läsSkiss(trasig)!.objekt.find((o) => o.id === m.web)).not.toHaveProperty("lager");
+  });
+});
+
+describe("gemensamma zoner i en filtrerad bild", () => {
+  it("dras ihop kring det som är kvar – men växer aldrig, och rörs inte utan filter", () => {
+    let s = nySkiss("Miljö");
+    const lager = läggTillLager(s, "App");
+    const annat = läggTillLager(lager.skiss, "Annat");
+    const server = läggTillZon(annat.skiss, 1000, 1000);
+    s = ändraStorlek(server.skiss, server.id, 2000, 2000);
+    s = ändraZon(s, server.id, { x: 0, y: 0 });
+    const a = läggTillObjekt(s, "tjanst", 300, 300, lager.id);
+    const b = läggTillObjekt(a.skiss, "tjanst", 1700, 1700, annat.id);
+    s = b.skiss;
+    const f = filtreraSkiss(s, new Set([lager.id]));
+    const zon = f.zoner[0];
+    const obj = f.objekt[0];
+    expect(zon.b).toBeLessThan(400);
+    expect(zon.x).toBeLessThanOrEqual(obj.x - 30);
+    expect(zon.y).toBeLessThanOrEqual(obj.y - 50);
+    expect(zon.x + zon.b).toBeGreaterThanOrEqual(obj.x + obj.b + 30);
+    expect(zon.x).toBeGreaterThanOrEqual(0);
+    // Hela skissen är orörd.
+    expect(s.zoner[0].b).toBe(2000);
   });
 });
