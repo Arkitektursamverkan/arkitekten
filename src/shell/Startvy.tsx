@@ -5,7 +5,8 @@
  * panel full av inställningar. Det ser ut som att man redan börjat arbeta med
  * något, och den som ville leta efter en befintlig process fick själv lista ut
  * att menyn var vägen dit. Startvyn ställer i stället frågan rakt ut och har
- * bara två svar.
+ * bara två svar. (Systemskissen, som inte är en process, har ett eget kort
+ * under dem.)
  *
  * Under valen ligger det man höll på med sist – i praktiken den vanligaste
  * avsikten av alla, och den ska inte kosta en resa genom katalogen.
@@ -19,10 +20,12 @@ export interface StartvyProps {
   senaste: SenastPost[];
   onNy: () => void;
   onKatalog: () => void;
+  /** Systemskiss – en egen vy, nådd härifrån och inte ur menyn. */
+  onSkiss: () => void;
   onÖppna: (id: string) => void;
 }
 
-export function Startvy({ antal, senaste, onNy, onKatalog, onÖppna }: StartvyProps) {
+export function Startvy({ antal, senaste, onNy, onKatalog, onSkiss, onÖppna }: StartvyProps) {
   return (
     <div className="ark-start">
       <div className="ark-start-inner">
@@ -59,6 +62,21 @@ export function Startvy({ antal, senaste, onNy, onKatalog, onÖppna }: StartvyPr
                 ? `${antal} ${antal === 1 ? "process" : "processer"} i katalogen →`
                 : "Katalogen är tom än →"}
             </span>
+          </button>
+
+          {/* Systemskissen är ingen process och står därför inte i menyn –
+              det här kortet är vägen dit (beslut 2026-11-20). */}
+          <button className="ark-start-kort ark-start-kort--bred" onClick={onSkiss}>
+            <span className="ark-start-ikon" aria-hidden>
+              ⌗
+            </span>
+            <span className="ark-start-kortkropp">
+              <span className="ark-start-korttitel">Systemskiss</span>
+              <span className="ark-start-korttext">
+                Skissa en systemmiljö – servrar, tjänster, databaser och nät – och hur delarna hänger ihop.
+              </span>
+            </span>
+            <span className="ark-start-kortfot">Öppna →</span>
           </button>
         </div>
 

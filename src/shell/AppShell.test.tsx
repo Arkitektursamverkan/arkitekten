@@ -353,3 +353,19 @@ it("bakåt i webbläsaren går tillbaka till processen man tittade på nyss", as
   await waitFor(() => expect(rubrikNamn()).toContain("kommentera ärendet"));
   expect(location.hash).toBe("#/process/verksamhetsforslag-kommentera-handlaggare");
 });
+
+/**
+ * Systemskissen är ingen process. Den nås från startsidan – och står
+ * uttryckligen INTE i menyn till vänster (beslut 2026-11-20).
+ */
+it("Systemskiss är ett val på startsidan men inte i menyn", async () => {
+  render(<AppShell />);
+
+  expect(within(meny()).queryByText(/Systemskiss/)).toBeNull();
+  const start = within(document.querySelector(".ark-start") as HTMLElement);
+  fireEvent.click(start.getByRole("button", { name: /Systemskiss/ }));
+
+  expect(await screen.findByRole("heading", { name: "Systemskiss" })).toBeTruthy();
+  expect(screen.getByText("Ny systemskiss")).toBeTruthy();
+  expect(within(meny()).queryByText(/Systemskiss/)).toBeNull();
+});

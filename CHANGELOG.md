@@ -9,6 +9,12 @@ funktioner, en ny korrigering för rättelser.
 
 - (inget än)
 
+## 0.16.0 – 2026-11-20
+
+- **Systemskiss**: en ny sorts bild, för systemmiljöer i stället för processer. Kortet *Systemskiss* på startsidan öppnar en fri rityta där man ställer ut servrar, tjänster, databaser, containrar, lagring, klienter, användare, nät, brandväggar, externa tjänster och anteckningar, ramar in dem i zoner (en miljö, ett nät, en värd) och drar kopplingar med etikett mellan dem. Bilden kopieras eller laddas ner som PNG och SVG. Systemskissen står inte i menyn till vänster och inte i processkatalogen. Se `docs/systemskiss.md`.
+- **Dold för andra än administratörer**: en administratör kan dölja en systemskiss, när den skapas eller senare. En dold skiss syns bara för administratörer. Övriga skisser läser alla inloggade; den som skapade skissen och administratörer ändrar den.
+- Skisserna sparas i en egen katalog, `SKISSER_DIR` (i avbilden `/data/skisser`). En installation som monterar innehållets kataloger var för sig behöver montera även den.
+
 ## 0.15.0 – 2026-11-19
 
 - **Ursprung på en process**: en process som en integration läser in från ett annat system kan bära `ursprung` – källsystemets namn, om bilden är framställd automatiskt och vilket flöde i Integrationsplattformen som hämtar underlaget. Uppgiften skrivs bara av integrationen, i flödesfilen; en sparning ur appen kan varken sätta, ändra eller tappa den. Den följer med ut genom flödestjänsten (nytt fält `ursprung` i listan, kontraktet oförändrat), så att EA-portalen kan visa det vid processbilden. I appen står det under sparraden när processen är öppen, med upplysningen att ändringar görs i källsystemet.

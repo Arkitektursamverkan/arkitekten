@@ -109,7 +109,7 @@ bara genom plattformen (`docs/gransnitt.md`). För ALL kod gäller:
    historiken, så en bevarad historik är också det som gör versionsnumren
    riktiga.)
 
-12. **Innehållet ligger ALDRIG i git eller på GitHub.** `flows/`, `ramar/`,
+12. **Innehållet ligger ALDRIG i git eller på GitHub.** `flows/`, `ramar/`, `skisser/`,
    `Input/` och `Rita flödesschema/Input/` är verksamhetens processer och
    underlag och får inte spridas utanför (beslut 2026-10-07) – de står i
    `.gitignore`, och historiken på GitHub är rensad från dem. Committa aldrig
@@ -346,6 +346,34 @@ parser, AI-brygga, historik och lagring. Plan och symbolkatalog:
   form (satellit i ap-blocket, ut/in-VO, kedjesteg). Kedja ALDRIG in ett
   placerat objekt automatiskt – det ritar om flödet och ser ut som att objekt
   försvinner (produktägarens uttryckliga krav).
+
+## Systemskiss (src/tools/systemskiss/)
+
+En fri skiss över en systemmiljö (servrar, tjänster, nät) – uttryckligen INTE
+en process och INTE ett verktyg i `shell/tools.tsx`: en egen vy i skalet
+(`vy === "skiss"`), nådd från startsidans kort och ALDRIG ur menyn till
+vänster (produktägarens beslut 2026-11-20). Användardokumentation:
+`docs/systemskiss.md`.
+
+- **Egen modell och egen lagring** (`core/systemskiss.ts`,
+  `core/skiss-store.ts`, `/__ark/skisser`, `SKISSER_DIR`): objekt, zoner och
+  kopplingar – inget mellanlager, ingen historik, ingenting i `flows/`.
+  Id:n är slumpade (invariant 2). Hjälparna sprider skissen; det som kommer
+  UTIFRÅN (fil, begäran) byggs däremot alltid om fält för fält av `läsSkiss` –
+  bilden är SVG-markup och får aldrig bära något oprövat.
+- **En ritare** (`skiss-svg.ts`): geometri (`skissGeometri`), markup
+  (`skissInnehåll`/`skissSvg`) och träffytor (`träffISkiss`) på EN plats.
+  Ritytan lägger ritarens markup på skärmen och frågar aldrig DOM:en var
+  något ligger. Kopplingarna routas med `edge-router` som allt annat.
+  Rutans höjd växer med texten (`objektLayout`) – räkna aldrig på `o.h` direkt.
+- **Zonens tillhörighet är geometrisk** (`medföljande`): det som står i zonen
+  när draget börjar följer med. En zon träffas bara i rubriken och kanten.
+- **Behörigheten** (invariant 13): alla läser, skaparen och admin ändrar, och
+  en skiss med `dold` finns BARA för administratörer (404 för övriga).
+  `dold`, `skapadAv` och `savedAt` skrivs bara av bryggan (`prövaSkiss`);
+  bara en administratör kan dölja (`kanDöljaSkiss`).
+- **Tangenterna lyssnar på fönstret** men svarar bara när vyn syns – vyn ligger
+  kvar monterad (osparat arbete överlever en titt i katalogen).
 
 ## BMT-export (.bmt)
 

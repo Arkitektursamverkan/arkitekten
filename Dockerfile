@@ -3,7 +3,7 @@
 #   flödestjänsten:      tsx server/flodestjanst.mts, PORT=8200
 #                        – eller i samma container: ARK_FLODESTJANST_PORT=8200
 #                          (där två tjänster inte kan dela disk, t.ex. Render)
-# Innehållet (processer, visualiseringar, AI-brevlådan) ligger i volymen /data.
+# Innehållet (processer, visualiseringar, systemskisser, AI-brevlådan) ligger i volymen /data.
 # Inga nycklar byggs in: allt kommer ur miljön när containern startar.
 
 # ── Bygge ──────────────────────────────────────────────────────────────────────
@@ -28,6 +28,7 @@ ENV NODE_ENV=production \
     PORT=5173 \
     FLOWS_DIR=/data/flows \
     RAMAR_DIR=/data/ramar \
+    SKISSER_DIR=/data/skisser \
     STILAR_DIR=/data/stilar \
     ARK_KONTON=/data/konton.json \
     ARK_DIR=/data/ark

@@ -54,6 +54,7 @@ Rollerna är två: **administratör** och **användare**.
 | **Demo** | Kategorin `Demo`. Offentlig. | alla | alla | admin |
 | **Mina processer** | Flöden med `ägare`. Varje användare har sin egen, med egna kategorier. | ägaren + admin | ägaren + admin | ägaren + admin |
 | **Visualisering** | Ramserierna. Alla skapar nya. | som processen serien visar | skaparen + admin | skaparen + admin |
+| **Systemskiss** | Skisser över systemmiljöer ([systemskiss.md](systemskiss.md)). Alla skapar nya. | alla – en **dold** bara admin | skaparen + admin | skaparen + admin |
 
 - Med inloggning börjar en **ny process** i *Mina processer*, eller i *Demo* om
   man väljer det i "Ny process".

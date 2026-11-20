@@ -14,6 +14,7 @@ import { läsUrsprung } from "../src/core/ursprung";
 import {
   DEMO_KATEGORI,
   kanByttaYta,
+  kanDöljaSkiss,
   kanPublicera,
   kanRedigera,
   kanSkapa,
@@ -21,6 +22,7 @@ import {
   ägareVidSkapande,
   type Användare,
   type HarSkapare,
+  type HarSynlighet,
   type HarYta,
   type Inloggningsläge,
   type Yta,
@@ -252,4 +254,26 @@ export function prövaRamserie<T extends HarSkapare>(
   const { skapadAv: _ignorerad, ...kropp } = ny;
   const skapadAv = befintlig ? befintlig.skapadAv : { id: u.id, namn: u.namn };
   return (skapadAv ? { ...kropp, skapadAv } : kropp) as T;
+}
+
+/**
+ * Systemskissen som ska skrivas. Skaparen sätts vid skapandet och följer sedan
+ * med, tiden är serverns, och SYNLIGHETEN (`dold`) tas bara ur begäran när en
+ * administratör frågar – annars gäller det som står i filen (en ny skiss är
+ * synlig). Kroppen ska redan vara byggd av `läsSkiss`.
+ */
+export function prövaSkiss<T extends HarSynlighet & { savedAt: string }>(
+  u: Användare,
+  befintlig: HarSynlighet | null,
+  ny: T,
+): T {
+  const { skapadAv: _ignorerad, dold: begärd, ...kropp } = ny;
+  const skapadAv = befintlig ? befintlig.skapadAv : { id: u.id, namn: u.namn };
+  const dold = kanDöljaSkiss(u) ? begärd === true : befintlig?.dold === true;
+  return {
+    ...kropp,
+    ...(dold ? { dold: true } : {}),
+    savedAt: new Date().toISOString(),
+    ...(skapadAv ? { skapadAv } : {}),
+  } as T;
 }

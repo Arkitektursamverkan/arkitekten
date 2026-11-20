@@ -22,6 +22,8 @@ export interface Installningar {
   port: number;
   flowsDir: string;
   ramarDir: string;
+  /** Systemskisserna (src/core/systemskiss.ts). */
+  skisserDir: string;
   /** Symbolstilarna (server/symbolstilar.ts). */
   stilarDir: string;
   /** AI-brevlådan och uppladdade underlag. */
@@ -55,6 +57,7 @@ export function installningarUrMiljö(root: string, env: NodeJS.ProcessEnv = pro
     port: Number(env.PORT?.trim() || 5173),
     flowsDir: katalog(env.FLOWS_DIR, "flows"),
     ramarDir: katalog(env.RAMAR_DIR, "ramar"),
+    skisserDir: katalog(env.SKISSER_DIR, "skisser"),
     stilarDir: katalog(env.STILAR_DIR, "stilar"),
     arkDir: katalog(env.ARK_DIR, ".ark"),
     kontonFil: katalog(env.ARK_KONTON, "konton.json"),

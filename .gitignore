@@ -28,6 +28,7 @@ Rita flödesschema/Input/*.docx
 # över i en klon där mapparna saknas.
 /flows/
 /ramar/
+/skisser/
 /stilar/
 # De lokala kontona (lösenordshashar) – aldrig i git.
 /konton.json
