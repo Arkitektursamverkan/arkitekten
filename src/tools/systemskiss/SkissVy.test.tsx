@@ -117,3 +117,44 @@ it("någon annans skiss går att titta på men inte ändra", async () => {
   // Exporten finns kvar för den som bara tittar.
   expect(screen.getByRole("button", { name: "SVG" })).toBeTruthy();
 });
+
+it("ett lager visas för sig: klicket gömmer det andra lagret, 'Alla' tar tillbaka det", async () => {
+  localStorage.setItem(
+    "ark.skiss.lager",
+    JSON.stringify({
+      id: "lager",
+      namn: "Med lager",
+      savedAt: "2026-11-20T10:00:00.000Z",
+      lager: [
+        { id: "l-a", namn: "Portalen" },
+        { id: "l-b", namn: "iTid" },
+      ],
+      objekt: [
+        { id: "o-1", sort: "tjanst", namn: "Portal", lager: "l-a", x: 0, y: 0, b: 170, h: 64 },
+        { id: "o-2", sort: "tjanst", namn: "iTid-appen", lager: "l-b", x: 400, y: 0, b: 170, h: 64 },
+        { id: "o-3", sort: "anvandare", namn: "Medarbetare", x: 0, y: 300, b: 170, h: 64 },
+      ],
+      zoner: [{ id: "z-1", namn: "iTid-zonen", färg: "bla", lager: "l-b", x: 380, y: -40, b: 220, h: 140 }],
+      kopplingar: [],
+    }),
+  );
+  render(<SkissVy />);
+  fireEvent.click(await screen.findByText("Med lager"));
+  await waitFor(() => expect(document.querySelectorAll("[data-skiss-objekt]")).toHaveLength(3));
+
+  fireEvent.click(screen.getByRole("button", { name: "Portalen" }));
+  const bild = () => document.querySelector(".ark-skiss-svg")!.textContent ?? "";
+  // Lagret och det gemensamma syns; det andra lagret – med sin zon – är borta.
+  expect(document.querySelectorAll("[data-skiss-objekt]")).toHaveLength(2);
+  expect(bild()).toContain("Medarbetare");
+  expect(bild()).not.toContain("iTid-appen");
+  expect(document.querySelectorAll("[data-skiss-zon]")).toHaveLength(0);
+
+  // Ett nytt objekt hamnar i lagret man tittar på – och syns därför.
+  fireEvent.click(screen.getByTitle("Lägg till: Databas"));
+  expect(document.querySelectorAll("[data-skiss-objekt]")).toHaveLength(3);
+
+  fireEvent.click(screen.getByRole("button", { name: "Alla" }));
+  expect(document.querySelectorAll("[data-skiss-objekt]")).toHaveLength(4);
+  expect(document.querySelectorAll("[data-skiss-zon]")).toHaveLength(1);
+});

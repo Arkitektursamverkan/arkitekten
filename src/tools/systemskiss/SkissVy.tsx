@@ -19,25 +19,33 @@ import {
   SKISS_SORTER,
   ZON_FÄRGER,
   dupliceraISkiss,
+  döpOmLager,
+  filtreraSkiss,
+  läggTillLager,
   läggTillObjekt,
   läggTillZon,
   nySkiss,
   skissNyckel,
   sortNamn,
+  sättLager,
+  taBortLager,
   taBortUrSkiss,
   ändraKoppling,
   ändraObjekt,
   ändraZon,
   type Pil,
+  type SkissLager,
   type SkissSammanfattning,
   type SkissSort,
   type Systemskiss,
 } from "@/core/systemskiss";
 import { useAnvändare } from "@/shell/Inloggning";
 import { copySvgAsPng, svgToPngBlob } from "@/tools/flowchart/export/clipboard";
-import { flowId } from "@/core/flow-store";
+import { bridgeJson, flowId } from "@/core/flow-store";
 import { SkissCanvas, type SkissCanvasHandtag } from "./SkissCanvas";
 import { ZON_STIL, skissSvg, sortIkonSvg } from "./skiss-svg";
+
+const INGA_LAGER: SkissLager[] = [];
 
 /** Hur många steg ångra minns. */
 const ÅNGRA_TAK = 100;
@@ -59,9 +67,28 @@ export function SkissVy() {
   const [sparadSom, setSparadSom] = useState("");
   const [markerade, setMarkerade] = useState<string[]>([]);
   const [kopplar, setKopplar] = useState(false);
+  /**
+   * Lagren som är FRAMME. null = allt. Filtret hör till den som tittar, inte
+   * till skissen – det sparas inte, och två personer kan se olika lager.
+   */
+  const [aktivaLager, setAktivaLager] = useState<string[] | null>(null);
+  /** Visa också det som är kopplat till lagren (se `filtreraSkiss`). */
+  const [medGrannar, setMedGrannar] = useState(true);
   const [fel, setFel] = useState<string | null>(null);
   const [kvitto, setKvitto] = useState<string | null>(null);
   const [sparar, setSparar] = useState(false);
+  /**
+   * Portalens servrar – målet när skissen ska visas där. null = går inte att
+   * välja (ingen portal kopplad, eller man är inte administratör).
+   */
+  const [servrar, setServrar] = useState<{ id: string; namn: string }[] | null>(null);
+  const fårPublicera = kanDöljaSkiss(användare) && store?.kind === "disk";
+  useEffect(() => {
+    if (!fårPublicera) return;
+    bridgeJson("/__ark/ea/servrar")
+      .then((svar) => setServrar(Array.isArray(svar.servrar) ? svar.servrar : null))
+      .catch(() => setServrar(null));
+  }, [fårPublicera]);
   const canvas = useRef<SkissCanvasHandtag>(null);
   const namnfält = useRef<HTMLInputElement>(null);
 
@@ -137,6 +164,7 @@ export function SkissVy() {
     setMarkerade([]);
     setKopplar(false);
     setKvitto(null);
+    setAktivaLager(null);
   }, []);
 
   const öppna = async (id: string) => {
@@ -165,6 +193,26 @@ export function SkissVy() {
   const osparad = Boolean(skiss) && skissNyckel(skiss!) !== sparadSom;
   const fårÄndra = Boolean(skiss) && kanÄndraSkiss(användare, skiss!);
   const fårDölja = kanDöljaSkiss(användare);
+
+  const lager = skiss?.lager ?? INGA_LAGER;
+  /** Lager som tagits bort (ångra, en annan skiss) får inte ligga kvar i filtret. */
+  const filter = useMemo(() => {
+    if (!aktivaLager) return null;
+    const kvar = aktivaLager.filter((id) => lager.some((l) => l.id === id));
+    return kvar.length ? new Set(kvar) : null;
+  }, [aktivaLager, lager]);
+  const visad = useMemo(() => (skiss ? filtreraSkiss(skiss, filter, medGrannar) : null), [skiss, filter, medGrannar]);
+  // Det markerade kan ha hamnat utanför det som visas.
+  useEffect(() => setMarkerade([]), [aktivaLager]);
+  /** Ett klick på ett lager: första klicket visar BARA det, nästa lägger till eller tar bort. */
+  const växlaLager = (id: string) =>
+    setAktivaLager((nu) => {
+      if (!nu) return [id];
+      const nästa = nu.includes(id) ? nu.filter((x) => x !== id) : [...nu, id];
+      return nästa.length ? nästa : null;
+    });
+  /** Nya objekt hamnar i lagret man tittar på – annars försvann de ur bild i samma stund. */
+  const nyttILager = filter?.size === 1 ? [...filter][0] : undefined;
 
   const spara = useCallback(async () => {
     if (!store || !skiss || sparar) return;
@@ -213,7 +261,9 @@ export function SkissVy() {
     // Flera nya i rad hamnar inte exakt på varandra.
     const n = (skiss.objekt.length + skiss.zoner.length) % 6;
     const { skiss: nästa, id } =
-      sort === "zon" ? läggTillZon(skiss, m.x + n * 20, m.y + n * 20) : läggTillObjekt(skiss, sort, m.x + n * 20, m.y + n * 20);
+      sort === "zon"
+        ? läggTillZon(skiss, m.x + n * 20, m.y + n * 20, nyttILager)
+        : läggTillObjekt(skiss, sort, m.x + n * 20, m.y + n * 20, nyttILager);
     ändra(nästa);
     setMarkerade([id]);
     setKopplar(false);
@@ -237,11 +287,13 @@ export function SkissVy() {
 
   /* ---- Export ---- */
 
-  const filnamn = skiss ? flowId(skiss.namn) : "skiss";
+  const lagernamn = filter ? lager.filter((l) => filter.has(l.id)).map((l) => l.namn).join(" ") : "";
+  const filnamn = skiss ? flowId(`${skiss.namn} ${lagernamn}`) : "skiss";
   const exportera = async (form: "svg" | "png" | "urklipp") => {
     if (!skiss) return;
     try {
-      const { svg, bredd, höjd } = skissSvg(skiss);
+      // Exporten är det man SER: med lager framme blir det bara de lagren.
+      const { svg, bredd, höjd } = skissSvg(visad ?? skiss);
       if (form === "svg") laddaNer(new Blob([svg], { type: "image/svg+xml" }), `${filnamn}.svg`);
       else if (form === "png") laddaNer(await svgToPngBlob(svg, bredd, höjd), `${filnamn}.png`);
       else {
@@ -310,6 +362,18 @@ export function SkissVy() {
     const koppling = skiss.kopplingar.find((k) => k.id === id);
     return koppling ? { typ: "koppling" as const, koppling } : null;
   }, [skiss, markerade]);
+
+  /** Det markerade som kan ligga i ett lager (objekt och zoner – inte kopplingar). */
+  const valbara = useMemo(
+    () => (skiss ? [...skiss.objekt, ...skiss.zoner].filter((v) => markerade.includes(v.id)) : []).map((v) => v.id),
+    [skiss, markerade],
+  );
+  /** Lagret alla markerade delar: ett id, "(inget)" – eller null när de ligger i olika. */
+  const gemensamtLager = useMemo(() => {
+    if (!skiss || valbara.length === 0) return "(inget)";
+    const alla = [...skiss.objekt, ...skiss.zoner].filter((v) => valbara.includes(v.id)).map((v) => v.lager ?? "(inget)");
+    return alla.every((l) => l === alla[0]) ? alla[0] : null;
+  }, [skiss, valbara]);
 
   if (!skiss) {
     return (
@@ -404,10 +468,37 @@ export function SkissVy() {
         </div>
       )}
 
+      {lager.length > 0 && (
+        <div className="ark-skiss-lagerrad" role="group" aria-label="Lager">
+          <span className="ark-skiss-lagertitel">Lager</span>
+          <button className={`ark-skiss-lager ${filter ? "" : "vald"}`} onClick={() => setAktivaLager(null)} aria-pressed={!filter}>
+            Alla
+          </button>
+          {lager.map((l) => (
+            <button
+              key={l.id}
+              className={`ark-skiss-lager ${filter?.has(l.id) ? "vald" : ""}`}
+              onClick={() => växlaLager(l.id)}
+              aria-pressed={Boolean(filter?.has(l.id))}
+              title={filter ? "Klicka för att lägga till eller ta bort lagret" : "Visa bara det här lagret"}
+            >
+              {l.namn || "(utan namn)"}
+            </button>
+          ))}
+          {filter && (
+            <label className="ark-ramar-val" title="Visa också det som lagrens objekt är kopplade till">
+              <input type="checkbox" checked={medGrannar} onChange={(e) => setMedGrannar(e.target.checked)} />
+              Med det de är kopplade till
+            </label>
+          )}
+        </div>
+      )}
+
       <div className="ark-ramar-kropp">
         <SkissCanvas
           ref={canvas}
           skiss={skiss}
+          visad={visad ?? skiss}
           låst={!fårÄndra}
           markerade={markerade}
           onMarkera={setMarkerade}
@@ -549,6 +640,25 @@ export function SkissVy() {
             </>
           )}
 
+          {fårÄndra && valbara.length > 0 && lager.length > 0 && (
+            <label className="ark-skiss-falt">
+              Lager
+              <select
+                className="ark-input"
+                value={gemensamtLager ?? ""}
+                onChange={(e) => ändra(sättLager(skiss, valbara, e.target.value === "(inget)" ? undefined : e.target.value))}
+              >
+                {gemensamtLager === null && <option value="">(olika)</option>}
+                <option value="(inget)">Inget – visas alltid</option>
+                {lager.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.namn || "(utan namn)"}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
           {fårÄndra && markerade.length > 0 && (
             <div className="ark-skiss-knappar">
               {valt?.typ !== "koppling" && (
@@ -588,6 +698,68 @@ export function SkissVy() {
                   </p>
                 </>
               )}
+              {fårPublicera && (servrar || skiss.publicering) && (
+                <>
+                  <label className="ark-skiss-falt">
+                    Visa i portalen, på servern
+                    <select
+                      className="ark-input"
+                      value={skiss.publicering?.eaNodId ?? ""}
+                      onChange={(e) => {
+                        const server = servrar?.find((s) => s.id === e.target.value);
+                        const { publicering: _förra, ...utan } = skiss;
+                        ändra(
+                          server
+                            ? { ...utan, publicering: { eaNodId: server.id, servernamn: server.namn, publiceradAt: new Date().toISOString() } }
+                            : utan,
+                        );
+                      }}
+                    >
+                      <option value="">Visas inte i portalen</option>
+                      {skiss.publicering && !servrar?.some((s) => s.id === skiss.publicering!.eaNodId) && (
+                        <option value={skiss.publicering.eaNodId}>{skiss.publicering.servernamn ?? "(vald server)"}</option>
+                      )}
+                      {(servrar ?? []).map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.namn}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {skiss.publicering && (
+                    <p className="ark-hint">
+                      Skissen visas under fliken Systemskiss på servern, för dem som får se servern i portalen
+                      {skiss.dold ? " – också fast den är dold här" : ""}. Gäller när du har sparat och portalen hämtat nästa gång.
+                    </p>
+                  )}
+                </>
+              )}
+              <div className="ark-section-title">Lager</div>
+              {lager.map((l) => (
+                <div key={l.id} className="ark-skiss-lagerpost">
+                  <input
+                    className="ark-input"
+                    value={l.namn}
+                    onChange={(e) => ändra(döpOmLager(skiss, l.id, e.target.value), `lager-${l.id}`)}
+                    aria-label="Lagrets namn"
+                  />
+                  <button
+                    className="ark-btn ark-btn--icon"
+                    onClick={() => ändra(taBortLager(skiss, l.id))}
+                    title="Ta bort lagret – det som ligger i det finns kvar"
+                    aria-label={`Ta bort lagret ${l.namn}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button className="ark-btn" onClick={() => ändra(läggTillLager(skiss, `Lager ${lager.length + 1}`).skiss)}>
+                ✚ Nytt lager
+              </button>
+              <p className="ark-hint">
+                Ett lager är en del av skissen man kan visa för sig, t.ex. en applikation. Markera objekt och zoner och välj lager i
+                panelen. Det som inte ligger i något lager visas alltid.
+              </p>
               <p className="ark-hint">
                 Lägg till objekt ur raden ovan och dra dem på plats. Markera ett objekt och dra i den blå pilen för att koppla det till
                 ett annat. <kbd>Ctrl</kbd>-klick markerar flera, hjulet zoomar, och ett drag på tom yta flyttar vyn.

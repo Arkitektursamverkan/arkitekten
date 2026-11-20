@@ -113,6 +113,12 @@ export async function listaApplikationer(k: EaKonfig): Promise<EaApplikation[]> 
   });
 }
 
+/** Servrarna, utan arkiverade. Målet när en systemskiss visas i portalen. */
+export async function listaServrar(k: EaKonfig): Promise<{ id: string; namn: string }[]> {
+  const noder = (await anrop(k, "/nodes?node_type=Server&archived=false&limit=10000")) as NodeRead[];
+  return noder.map((n) => ({ id: String(n.id), namn: n.name })).sort((a, b) => a.namn.localeCompare(b.namn, "sv"));
+}
+
 export interface NyProcess {
   förälderId: string;
   namn: string;

@@ -52,10 +52,22 @@ export type ZonFärg = (typeof ZON_FÄRGER)[number];
 export type Pil = "till" | "båda" | "ingen";
 export type Linje = "hel" | "streckad";
 
+/**
+ * Ett LAGER – en del av skissen man kan visa för sig, t.ex. en applikation.
+ * Ett objekt eller en zon hör till HÖGST ett lager; det som inte hör till
+ * något visas alltid. Se `filtreraSkiss`.
+ */
+export interface SkissLager {
+  id: string;
+  namn: string;
+}
+
 export interface SkissObjekt {
   id: string;
   sort: SkissSort;
   namn: string;
+  /** Lagrets id. Saknas = hör inte till något lager och visas alltid. */
+  lager?: string;
   /** Det som står under namnet: operativsystem, storlek, adress … Radbrytningar behålls. */
   text?: string;
   x: number;
@@ -70,6 +82,8 @@ export interface SkissZon {
   id: string;
   namn: string;
   färg: ZonFärg;
+  /** Lagrets id, som för objekten. */
+  lager?: string;
   x: number;
   y: number;
   b: number;
@@ -87,10 +101,26 @@ export interface SkissKoppling {
   linje: Linje;
 }
 
+/**
+ * Var i Arkitekturportalen skissen VISAS: på en server, under fliken
+ * Systemskiss. Skrivs BARA av bryggan på en administratörs begäran
+ * (server/atkomst.ts) – som `dold`. En publicerad skiss lämnas ut av
+ * flödestjänsten och syns i portalen för dem som får se servern där, också
+ * när den är dold i Arkitekten: att publicera är ett eget beslut.
+ */
+export interface SkissPublicering {
+  /** Serverns nod-id i portalen. */
+  eaNodId: string;
+  /** Serverns namn när den valdes – bara för visning här. */
+  servernamn?: string;
+  publiceradAt: string;
+}
+
 export interface Systemskiss {
   id: string;
   namn: string;
   beskrivning?: string;
+  publicering?: SkissPublicering;
   /**
    * Dold = bara administratörer ser skissen (core/behorighet.ts). Skrivs BARA
    * av bryggan på en administratörs begäran (server/atkomst.ts).
@@ -99,6 +129,8 @@ export interface Systemskiss {
   savedAt: string;
   /** Den som skapade skissen. Skrivs bara av bryggan, vid skapandet. */
   skapadAv?: Ägare;
+  /** Lagren, i den ordning de visas. Saknas = skissen har inga lager. */
+  lager?: SkissLager[];
   objekt: SkissObjekt[];
   zoner: SkissZon[];
   kopplingar: SkissKoppling[];
@@ -137,9 +169,14 @@ export const SKISS_RUTNÄT = 10;
 export const OBJEKT_MÅTT = { b: 170, h: 64, minB: 90, minH: 44, maxB: 600, maxH: 600 } as const;
 export const ZON_MÅTT = { b: 420, h: 260, minB: 120, minH: 80, maxB: 6000, maxH: 6000 } as const;
 
-const MAX = { objekt: 400, zoner: 100, kopplingar: 800, namn: 120, text: 600, beskrivning: 2000, koordinat: 50_000 } as const;
+const MAX = { lager: 60, objekt: 400, zoner: 100, kopplingar: 800, namn: 120, text: 600, beskrivning: 2000, koordinat: 50_000 } as const;
 
 const ID = /^[a-z0-9-]{1,64}$/;
+/** Ett nod-id i portalen: bokstäver, siffror och bindestreck (ett UUID). */
+const NOD_ID = /^[A-Za-z0-9-]{1,64}$/;
+
+/** Prefixet en skiss bär hos flödestjänsten, där den delar lista med flödena. */
+export const SKISS_TJÄNSTPREFIX = "sk-";
 
 export function fäst(v: number): number {
   return Math.round(v / SKISS_RUTNÄT) * SKISS_RUTNÄT;
@@ -156,8 +193,8 @@ function slump(längd: number): string {
   return Array.from(b, (v) => tecken[v % tecken.length]).join("");
 }
 
-/** Ett nytt, slumpat id för ett objekt ("o"), en zon ("z") eller en koppling ("k"). */
-export function nyttSkissId(prefix: "o" | "z" | "k"): string {
+/** Ett nytt, slumpat id för ett objekt ("o"), en zon ("z"), en koppling ("k") eller ett lager ("l"). */
+export function nyttSkissId(prefix: "o" | "z" | "k" | "l"): string {
   return `${prefix}-${slump(8)}`;
 }
 
@@ -204,6 +241,7 @@ export function läggTillObjekt(
   sort: SkissSort,
   x: number,
   y: number,
+  lager?: string,
 ): { skiss: Systemskiss; id: string } {
   const id = nyttSkissId("o");
   const b = sort === "anteckning" ? 200 : OBJEKT_MÅTT.b;
@@ -212,6 +250,7 @@ export function läggTillObjekt(
     id,
     sort,
     namn: sort === "anteckning" ? "Anteckning" : sortNamn(sort),
+    ...(lager ? { lager } : {}),
     x: fäst(x - b / 2),
     y: fäst(y - h / 2),
     b,
@@ -220,11 +259,12 @@ export function läggTillObjekt(
   return { skiss: { ...skiss, objekt: [...skiss.objekt, objekt] }, id };
 }
 
-export function läggTillZon(skiss: Systemskiss, x: number, y: number): { skiss: Systemskiss; id: string } {
+export function läggTillZon(skiss: Systemskiss, x: number, y: number, lager?: string): { skiss: Systemskiss; id: string } {
   const id = nyttSkissId("z");
   const zon: SkissZon = {
     id,
     namn: "Zon",
+    ...(lager ? { lager } : {}),
     färg: ZON_FÄRGER[skiss.zoner.length % ZON_FÄRGER.length],
     x: fäst(x - ZON_MÅTT.b / 2),
     y: fäst(y - ZON_MÅTT.h / 2),
@@ -361,6 +401,99 @@ export function dupliceraISkiss(skiss: Systemskiss, ids: ReadonlySet<string>): {
 }
 
 /* ------------------------------------------------------------------ */
+/* Lager                                                               */
+/* ------------------------------------------------------------------ */
+
+export function läggTillLager(skiss: Systemskiss, namn: string): { skiss: Systemskiss; id: string } {
+  const id = nyttSkissId("l");
+  return { skiss: { ...skiss, lager: [...(skiss.lager ?? []), { id, namn: namn.trim() || "Lager" }] }, id };
+}
+
+export function döpOmLager(skiss: Systemskiss, id: string, namn: string): Systemskiss {
+  return { ...skiss, lager: (skiss.lager ?? []).map((l) => (l.id === id ? { ...l, namn } : l)) };
+}
+
+/** Lägger objekt och zoner i ett lager – eller utanför alla (`lager` undefined). */
+export function sättLager(skiss: Systemskiss, ids: Iterable<string>, lager: string | undefined): Systemskiss {
+  const mål = new Set(ids);
+  const byt = <T extends { id: string; lager?: string }>(v: T): T => {
+    if (!mål.has(v.id)) return v;
+    const { lager: _gammalt, ...resten } = v;
+    return (lager ? { ...resten, lager } : resten) as T;
+  };
+  return { ...skiss, objekt: skiss.objekt.map(byt), zoner: skiss.zoner.map(byt) };
+}
+
+/** Luften mellan en hopdragen zon och det som står i den; rubriken behöver mer upptill. */
+const ZONLUFT = { sida: 30, över: 50, under: 30 } as const;
+
+/** Zonen hopdragen kring det av `innehåll` som har sin mitt i den. Tom zon = oförändrad. */
+function krympZon(zon: SkissZon, innehåll: { x: number; y: number; b: number; h: number }[]): SkissZon {
+  const i = innehåll.filter((v) => mittI(v, zon));
+  if (i.length === 0) return zon;
+  const x1 = Math.max(zon.x, Math.min(...i.map((v) => v.x)) - ZONLUFT.sida);
+  const y1 = Math.max(zon.y, Math.min(...i.map((v) => v.y)) - ZONLUFT.över);
+  const x2 = Math.min(zon.x + zon.b, Math.max(...i.map((v) => v.x + v.b)) + ZONLUFT.sida);
+  const y2 = Math.min(zon.y + zon.h, Math.max(...i.map((v) => v.y + v.h)) + ZONLUFT.under);
+  return { ...zon, x: x1, y: y1, b: Math.max(ZON_MÅTT.minB, x2 - x1), h: Math.max(ZON_MÅTT.minH, y2 - y1) };
+}
+
+/** Tar bort ett lager. Det som låg i det finns kvar, utanför alla lager. */
+export function taBortLager(skiss: Systemskiss, id: string): Systemskiss {
+  const iLagret = [...skiss.objekt, ...skiss.zoner].filter((v) => v.lager === id).map((v) => v.id);
+  const utan = sättLager(skiss, iLagret, undefined);
+  return { ...utan, lager: (skiss.lager ?? []).filter((l) => l.id !== id) };
+}
+
+/**
+ * Skissen som den ser ut med BARA vissa lager framme – REGELN BOR HÄR, och
+ * ritytan, exporten och det som lämnas ut till andra system frågar alla den.
+ *
+ * `aktiva` null = allt visas. Annars visas:
+ *  - det som ligger i ett aktivt lager,
+ *  - det som inte ligger i något lager (det gemensamma: servern, användarna),
+ *  - med `grannar`: objekt i ANDRA lager som är direkt kopplade till ett
+ *    objekt i ett aktivt lager. Det är de som gör bilden begriplig – en
+ *    applikation för sig säger inget om vad den hänger ihop med.
+ *
+ * En koppling visas när båda ändarna syns OCH den har med ett aktivt lager
+ * att göra (eller går mellan två gemensamma objekt). En granne drar alltså
+ * inte in sina egna kopplingar till annat.
+ *
+ * Lägena rörs inte: den filtrerade bilden är samma bild med färre saker i.
+ * Undantaget är de GEMENSAMMA zonerna (utan lager – servern som allt står i):
+ * de dras ihop kring det som är kvar i dem, annars blev en applikation för sig
+ * en liten ruta i ett hörn av en stor tom ram.
+ */
+export function filtreraSkiss(skiss: Systemskiss, aktiva: ReadonlySet<string> | null, grannar = true): Systemskiss {
+  if (!aktiva) return skiss;
+  const iAktivt = (v: { lager?: string }) => Boolean(v.lager && aktiva.has(v.lager));
+  const kärna = new Set(skiss.objekt.filter(iAktivt).map((o) => o.id));
+  const gemensamma = new Set(skiss.objekt.filter((o) => !o.lager).map((o) => o.id));
+  const synliga = new Set([...kärna, ...gemensamma]);
+  if (grannar)
+    for (const k of skiss.kopplingar) {
+      if (kärna.has(k.från)) synliga.add(k.till);
+      if (kärna.has(k.till)) synliga.add(k.från);
+    }
+  const objekt = skiss.objekt.filter((o) => synliga.has(o.id));
+  const lagerzoner = skiss.zoner.filter(iAktivt);
+  return {
+    ...skiss,
+    objekt,
+    zoner: skiss.zoner
+      .filter((z) => !z.lager || iAktivt(z))
+      .map((z) => (z.lager ? z : krympZon(z, [...objekt, ...lagerzoner]))),
+    kopplingar: skiss.kopplingar.filter(
+      (k) =>
+        synliga.has(k.från) &&
+        synliga.has(k.till) &&
+        (kärna.has(k.från) || kärna.has(k.till) || (gemensamma.has(k.från) && gemensamma.has(k.till))),
+    ),
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Läsningen utifrån – fält för fält                                   */
 /* ------------------------------------------------------------------ */
 
@@ -397,6 +530,14 @@ export function läsSkiss(rå: unknown): Systemskiss | null {
   };
   const K = MAX.koordinat;
 
+  const lager: SkissLager[] = [];
+  for (const l of lista(r.lager, MAX.lager)) {
+    if (!nytt(l.id)) continue;
+    lager.push({ id: l.id as string, namn: sträng(l.namn, MAX.namn) });
+  }
+  const lagerId = new Set(lager.map((l) => l.id));
+  const iLager = (v: unknown) => (typeof v === "string" && lagerId.has(v) ? { lager: v } : {});
+
   const objekt: SkissObjekt[] = [];
   for (const o of lista(r.objekt, MAX.objekt)) {
     if (!nytt(o.id)) continue;
@@ -406,6 +547,7 @@ export function läsSkiss(rå: unknown): Systemskiss | null {
       id: o.id as string,
       sort,
       namn: sträng(o.namn, MAX.namn),
+      ...iLager(o.lager),
       ...(text.trim() ? { text } : {}),
       x: tal(o.x, -K, K, 0),
       y: tal(o.y, -K, K, 0),
@@ -422,6 +564,7 @@ export function läsSkiss(rå: unknown): Systemskiss | null {
       id: z.id as string,
       namn: sträng(z.namn, MAX.namn),
       färg: ZON_FÄRGER.find((f) => f === z.färg) ?? "gra",
+      ...iLager(z.lager),
       x: tal(z.x, -K, K, 0),
       y: tal(z.y, -K, K, 0),
       b: tal(z.b, ZON_MÅTT.minB, ZON_MÅTT.maxB, ZON_MÅTT.b),
@@ -451,6 +594,17 @@ export function läsSkiss(rå: unknown): Systemskiss | null {
     s && typeof s === "object" && typeof s.id === "string" && s.id
       ? { id: s.id.slice(0, 200), namn: sträng(s.namn, 200) }
       : undefined;
+  const p = r.publicering as Record<string, unknown> | undefined;
+  const eaNodId = p && typeof p === "object" && typeof p.eaNodId === "string" && NOD_ID.test(p.eaNodId) ? p.eaNodId : "";
+  const servernamn = eaNodId ? sträng(p!.servernamn, MAX.namn).trim() : "";
+  const publicering: SkissPublicering | undefined = eaNodId
+    ? {
+        eaNodId,
+        ...(servernamn ? { servernamn } : {}),
+        publiceradAt:
+          typeof p!.publiceradAt === "string" && !Number.isNaN(Date.parse(p!.publiceradAt)) ? p!.publiceradAt : new Date(0).toISOString(),
+      }
+    : undefined;
   const savedAt = typeof r.savedAt === "string" && !Number.isNaN(Date.parse(r.savedAt)) ? r.savedAt : new Date(0).toISOString();
 
   return {
@@ -458,8 +612,10 @@ export function läsSkiss(rå: unknown): Systemskiss | null {
     namn,
     ...(beskrivning ? { beskrivning } : {}),
     ...(r.dold === true ? { dold: true } : {}),
+    ...(publicering ? { publicering } : {}),
     savedAt,
     ...(skapadAv ? { skapadAv } : {}),
+    ...(lager.length ? { lager } : {}),
     objekt,
     zoner,
     kopplingar,
@@ -469,5 +625,7 @@ export function läsSkiss(rå: unknown): Systemskiss | null {
 /** Innehållet som avgör om skissen har osparade ändringar – tidsstämpel och skapare räknas inte. */
 export function skissNyckel(s: Systemskiss): string {
   const { savedAt: _t, skapadAv: _s, ...innehåll } = s;
+  // Tidpunkten för publiceringen är serverns; servern den pekar på är innehåll.
+  if (innehåll.publicering) innehåll.publicering = { ...innehåll.publicering, publiceradAt: "" };
   return JSON.stringify(innehåll);
 }

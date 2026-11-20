@@ -149,3 +149,25 @@ describe("systemskisser i bryggan", () => {
     expect(fs.existsSync(path.join(tmp, "skisser", "annas-nya.json"))).toBe(false);
   });
 });
+
+describe("publicering på en server i portalen", () => {
+  const pub = { eaNodId: "11111111-2222-3333-4444-555555555555", servernamn: "Servern", publiceradAt: "2001-01-01T00:00:00.000Z" };
+
+  it("bara en administratör publicerar – en användares begäran ändrar ingenting", async () => {
+    expect((await anna("/__ark/skisser/annas", put(skiss("annas", { publicering: pub })))).status).toBe(200);
+    expect(fil("annas").publicering).toBeUndefined();
+    expect((await admin("/__ark/skisser/annas", put(skiss("annas", { publicering: pub })))).status).toBe(200);
+    expect(fil("annas").publicering.eaNodId).toBe(pub.eaNodId);
+    // Tidpunkten är serverns, och står still när samma server sparas igen.
+    const t = fil("annas").publicering.publiceradAt;
+    expect(t).not.toBe(pub.publiceradAt);
+    expect((await admin("/__ark/skisser/annas", put(skiss("annas", { publicering: pub })))).status).toBe(200);
+    expect(fil("annas").publicering.publiceradAt).toBe(t);
+    // Skaparen sparar om utan fältet: publiceringen står kvar.
+    expect((await anna("/__ark/skisser/annas", put(skiss("annas")))).status).toBe(200);
+    expect(fil("annas").publicering.eaNodId).toBe(pub.eaNodId);
+    // Administratören tar bort den.
+    expect((await admin("/__ark/skisser/annas", put(skiss("annas")))).status).toBe(200);
+    expect(fil("annas").publicering).toBeUndefined();
+  });
+});

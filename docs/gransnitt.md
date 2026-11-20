@@ -37,13 +37,20 @@ allmänt `error` – detaljerna står i tjänstens logg.
 | `GET /api/flows/{id}/scen?version=fastslagen\|aktuell\|<index>` | `{ ok, scen }` – färdigruttad bild, se `src/core/scen.ts` |
 | `GET /api/flows/{id}/svg?version=…` | SVG |
 
-Sammanfattningen i listan: `id`, `name`, `familj` (`affarsprocess` eller
-`flodesschema`), `prefix` (processnumret ur namnet, om det finns),
+Sammanfattningen i listan: `id`, `name`, `familj` (`affarsprocess`,
+`flodesschema` eller `systemskiss`), `prefix` (processnumret ur namnet, om det finns),
 `publicering` (`eaNodId`, `ägare`, `beskrivning`, `publiceradAt` – var i
 portalen flödet är publicerat), `ursprung` (`system`, `automatisk`, `flode` – bara
 när en integration läser in processen från ett annat system, se
 `src/core/ursprung.ts`), `stepCount`, `versionCount`, `category`,
 `actor`, `status`, `beteckning`, `fastslagenBeteckning`, `savedAt`.
+
+**Systemskisser.** En systemskiss som en administratör publicerat på en
+server i portalen står i samma lista, med `familj: "systemskiss"`, id med
+prefixet `sk-` och `publicering.eaNodId` = serverns nod. Scenen bär hela bilden
+färdigritad i `bakgrund` (inga noder eller kanter) och en färdig bild per lager
+i `lager` (`id`, `namn`, `bakgrund`, `bredd`, `höjd`). Opublicerade skisser
+lämnas aldrig ut. Se `docs/systemskiss.md`.
 
 **Versionen.** `kontrakt` är huvudversionen av listan och svaren; scenen har
 dessutom sin egen `formatVersion` (`src/core/scen.ts`). En version höjs bara när

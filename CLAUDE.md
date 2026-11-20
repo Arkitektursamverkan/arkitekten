@@ -372,6 +372,16 @@ vänster (produktägarens beslut 2026-11-20). Användardokumentation:
   en skiss med `dold` finns BARA för administratörer (404 för övriga).
   `dold`, `skapadAv` och `savedAt` skrivs bara av bryggan (`prövaSkiss`);
   bara en administratör kan dölja (`kanDöljaSkiss`).
+- **Lager** (`lager` på skissen, `lager?: id` på objekt och zoner – högst ett):
+  REGELN för vad som syns bor i `filtreraSkiss` (core) och gäller ritytan,
+  exporten och scenen till portalen. Filtret är vyns tillstånd, aldrig sparat.
+  Ritytan får HELA skissen (ändringar) och den filtrerade (`visad`: bild och
+  träffytor).
+- **Publicering på en server** (`publicering.eaNodId`): skrivs bara av bryggan
+  för en administratör (`prövaSkiss`), som `dold`. Flödestjänsten lämnar ut
+  publicerade skisser i flödeslistan (`sk-`-prefix, familj `systemskiss`) och
+  scenen byggs av `scen-systemskiss.ts` ur ritarens markup – ingen egen
+  ritregel där. Portalen visar den på servern.
 - **Tangenterna lyssnar på fönstret** men svarar bara när vyn syns – vyn ligger
   kvar monterad (osparat arbete överlever en titt i katalogen).
 

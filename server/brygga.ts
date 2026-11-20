@@ -50,6 +50,7 @@ import {
   arkiveraEgenProcess,
   eaKonfigUrMiljö,
   listaApplikationer,
+  listaServrar,
   listaProcesser,
   skapaProcess,
   synkaFlödesscheman,
@@ -1131,7 +1132,12 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             // och rutan är administratörens (kanPublicera i core/behorighet.ts) –
             // därför samma roll här. REGRESSION: vilken inloggad som helst kunde
             // läsa portalen med adminnyckeln.
-            if ((url === "/ea/processer" || url === "/ea/applikationer") && req.method === "GET" && baraAdmin()) return;
+            if ((url === "/ea/processer" || url === "/ea/applikationer" || url === "/ea/servrar") && req.method === "GET" && baraAdmin()) return;
+            // Målet för en systemskiss. Bara läsning, som applikationerna.
+            if (url === "/ea/servrar" && req.method === "GET") {
+              json(res, 200, { ok: true, servrar: await listaServrar(ea) });
+              return;
+            }
             if (url === "/ea/processer" && req.method === "GET") {
               json(res, 200, { ok: true, processer: await listaProcesser(ea) });
               return;
