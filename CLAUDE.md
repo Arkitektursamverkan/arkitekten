@@ -373,7 +373,8 @@ vänster (produktägarens beslut 2026-11-20). Användardokumentation:
   `dold`, `skapadAv` och `savedAt` skrivs bara av bryggan (`prövaSkiss`);
   bara en administratör kan dölja (`kanDöljaSkiss`).
 - **Lager** (`lager` på skissen, `lager?: id` på objekt och zoner – högst ett):
-  REGELN för vad som syns bor i `filtreraSkiss` (core) och gäller ritytan,
+  REGELN för vad som syns bor i `filtreraSkiss` (core: lagret, dess grannar
+  och det gemensamma som HÄNGER IHOP med lagret – aldrig allt gemensamt) och gäller ritytan,
   exporten och scenen till portalen. Filtret är vyns tillstånd, aldrig sparat.
   Ritytan får HELA skissen (ändringar) och den filtrerade (`visad`: bild och
   träffytor).

@@ -33,15 +33,17 @@ menyn till vänster – den hör inte till processerna.
 
 Ett lager är en del av skissen som går att visa för sig – typiskt en
 applikation. Lagren skapas i panelen till höger när inget är markerat; markera
-sedan objekt och zoner och välj lager. Det som inte ligger i något lager (t.ex.
-servern som allt står i) visas alltid.
+sedan objekt och zoner och välj lager. Det som inte ligger i något lager är
+*gemensamt* (t.ex. servern som allt står i, eller proxyn framför).
 
-Raden **Lager** över ritytan filtrerar: ett klick på ett lager visar bara det,
-fler klick lägger till eller tar bort lager, *Alla* visar hela skissen. Med
-*Med det de är kopplade till* visas också de objekt i andra lager som lagrets
-objekt har en koppling till – det är de som säger vad applikationen hänger
-ihop med. Gemensamma zoner dras ihop kring det som visas. Filtret är den
-tittandes eget och sparas inte.
+Raden **Lager** över ritytan filtrerar: ett klick på ett lager skalar bort
+allt som inte har med det att göra, fler klick lägger till eller tar bort
+lager, *Alla* visar hela skissen. Kvar blir lagret, de objekt i andra lager
+som det är kopplat till (*Med integrationerna* – går att slå av) och det
+gemensamma som hänger ihop med lagret: direkt, eller genom annat gemensamt,
+som användaren bakom proxyn. Gemensamt utan koppling till lagret döljs.
+Gemensamma zoner dras ihop kring det som visas. Filtret är den tittandes eget
+och sparas inte.
 
 **Exporten följer filtret**: kopiera bild, PNG och SVG ger det som visas.
 

@@ -191,21 +191,51 @@ describe("lager", () => {
     expect(filtreraSkiss(s, null)).toBe(s);
   });
 
-  it("ett lager visar sitt eget, det gemensamma och det lagret är kopplat till – men inte grannens egna kopplingar", () => {
+  it("ett lager visar sitt eget och det lagret är kopplat till – men inte grannens egna kopplingar", () => {
     const m = medLager();
     const f = filtreraSkiss(m.s, new Set([m.app]));
-    expect(idn(f.objekt)).toEqual([m.web, m.db, m.hub, m.anv].sort());
-    // web→db och web→hub hör till lagret. hub→fjärran och användare→hub gör det inte.
+    // Användaren är gemensam men kopplad till hubben (ett annat lager), inte till appen: borta.
+    expect(idn(f.objekt)).toEqual([m.web, m.db, m.hub].sort());
     expect(f.kopplingar.map((k) => `${k.från}>${k.till}`).sort()).toEqual([`${m.web}>${m.db}`, `${m.web}>${m.hub}`].sort());
-    // Det andra lagrets zon följer inte med grannen in.
     expect(f.zoner).toEqual([]);
   });
 
-  it("utan grannar visas bara lagret och det gemensamma", () => {
+  it("REGRESSION: det gemensamma visades alltid – nu bara när det hänger ihop med lagret, direkt eller genom annat gemensamt", () => {
+    let s = nySkiss("Miljö");
+    const app = läggTillLager(s, "Appen");
+    const annan = läggTillLager(app.skiss, "Annan");
+    const web = läggTillObjekt(annan.skiss, "tjanst", 600, 0, app.id);
+    const proxy = läggTillObjekt(web.skiss, "tjanst", 300, 0);
+    const anv = läggTillObjekt(proxy.skiss, "anvandare", 0, 0);
+    const lös = läggTillObjekt(anv.skiss, "anteckning", 0, 600);
+    const andras = läggTillObjekt(lös.skiss, "tjanst", 600, 600, annan.id);
+    s = andras.skiss;
+    for (const [a, b] of [[anv.id, proxy.id], [proxy.id, web.id], [proxy.id, andras.id]]) s = läggTillKoppling(s, a, b).skiss;
+
+    const f = filtreraSkiss(s, new Set([app.id]));
+    // Proxyn (kopplad till appen) och användaren bakom den syns; den lösa anteckningen
+    // och den andra applikationen – som bara delar proxy med appen – gör det inte.
+    expect(idn(f.objekt)).toEqual([web.id, proxy.id, anv.id].sort());
+    expect(f.kopplingar).toHaveLength(2);
+
+    // Den andra applikationens bild har samma proxy och användare, men inte appen.
+    expect(idn(filtreraSkiss(s, new Set([annan.id])).objekt)).toEqual([andras.id, proxy.id, anv.id].sort());
+    // Också utan grannar följer det gemensamma som hör till lagret med.
+    expect(idn(filtreraSkiss(s, new Set([app.id]), false).objekt)).toEqual([web.id, proxy.id, anv.id].sort());
+  });
+
+  it("utan grannar visas bara lagret", () => {
     const m = medLager();
     const f = filtreraSkiss(m.s, new Set([m.app]), false);
-    expect(idn(f.objekt)).toEqual([m.web, m.db, m.anv].sort());
+    expect(idn(f.objekt)).toEqual([m.web, m.db].sort());
     expect(f.kopplingar).toHaveLength(1);
+  });
+
+  it("en gemensam zon som blivit tom döljs", () => {
+    const m = medLager();
+    const zon = läggTillZon(m.s, 900, 0); // runt "fjärran", som inte hör till appens bild
+    expect(filtreraSkiss(zon.skiss, new Set([m.app])).zoner).toEqual([]);
+    expect(filtreraSkiss(zon.skiss, new Set([m.annan])).zoner.map((z) => z.id)).toContain(zon.id);
   });
 
   it("lägena rörs inte av filtret", () => {
