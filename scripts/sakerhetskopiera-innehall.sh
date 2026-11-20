@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Versionerar Arkitektens INNEHÅLL lokalt på servern – aldrig på GitHub.
 #
-# Processerna (flows/), ramserierna (ramar/) och underlagen (Input/) är
+# Processerna (flows/), ramserierna (ramar/), systemskisserna (skisser/) och underlagen (Input/) är
 # verksamhetens och får inte spridas utanför (beslut 2026-10-07). De ligger
 # därför i .gitignore i kodrepot och kopieras i stället hit, till ett eget
 # git-repo UTAN FJÄRR, där varje körning blir en commit om något ändrats.
@@ -20,6 +20,7 @@ abs() { case "$1" in /*) echo "$1" ;; *) echo "$ROT/$1" ;; esac; }
 declare -A MAPPAR=(
   [flows]="$(abs "${FLOWS_DIR:-flows}")"
   [ramar]="$(abs "${RAMAR_DIR:-ramar}")"
+  [skisser]="$(abs "${SKISSER_DIR:-skisser}")"
   [stilar]="$(abs "${STILAR_DIR:-stilar}")"
   [Input]="$ROT/Input"
   ["Rita flödesschema/Input"]="$ROT/Rita flödesschema/Input"

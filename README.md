@@ -61,7 +61,7 @@ docker run -p 8200:8200 -e PORT=8200 -v ark-data:/data arkitekten \
   node_modules/.bin/tsx server/flodestjanst.mts
 ```
 
-Innehållet (processer, visualiseringar, AI-brevlådan) ligger i volymen
+Innehållet (processer, visualiseringar, systemskisser, AI-brevlådan) ligger i volymen
 `/data`. Inga nycklar finns i avbilden; varje installation skapar sina egna.
 
 Inloggningen väljs i miljön – Entra ID eller lokala konton
@@ -178,6 +178,14 @@ sekvensflöde kan inte korsa en poolgräns. Mottagare blir **svart-låda-pooler*
   saknar det, och `formatVersion` höjs bara när något tas bort eller byter
   betydelse.
 
+## Systemskiss
+
+Kortet **Systemskiss** på startsidan öppnar en fri rityta för systemmiljöer:
+servrar, tjänster, databaser och nät, inramade i zoner och ihopkopplade. En
+skiss är ingen process – den står inte i menyn eller katalogen – och en
+administratör kan dölja den för andra än administratörer. Se
+[docs/systemskiss.md](docs/systemskiss.md).
+
 ## Katalogen: var processerna ligger
 
 `category`/`subcategory` säger var en process ligger i katalogen – inte vad den
@@ -199,7 +207,9 @@ src/
     model.ts                    mellanmodellen (kontraktet allt delar)
     draft.ts                    MELLANLAGRET + compileDraft (draft -> modell)
     flow-store.ts               spara/öppna/versionera flöden
+    systemskiss.ts              systemskissens modell (skiss-store.ts lagrar)
   shell/                        plattformsskal + verktygsregister
+  tools/systemskiss/            systemskissen: ritare (skiss-svg.ts), rityta, vy
   tools/flowchart/
     parser/  {rules,toDraft,parse,validate}.ts
     ai/      {schema,prompt,client,bridge}.ts

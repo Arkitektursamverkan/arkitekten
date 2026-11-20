@@ -195,6 +195,41 @@ export function kanTaBortRamserie(u: Användare | null | undefined, serie: HarSk
 }
 
 /* ------------------------------------------------------------------ */
+/* Systemskisser – alla läser, skaparen ändrar, en DOLD ser bara admin */
+/* ------------------------------------------------------------------ */
+
+export interface HarSynlighet extends HarSkapare {
+  /** Dold = bara administratörer ser skissen. */
+  dold?: boolean;
+}
+
+/**
+ * Läsa en systemskiss: alla inloggade – utom en DOLD, som bara
+ * administratörer ser. Också skaparen: bara en administratör kan dölja
+ * (`kanDöljaSkiss`), så ingen kan gömma undan sitt eget arbete för sig själv.
+ */
+export function kanLäsaSkiss(u: Användare | null | undefined, skiss: HarSynlighet): boolean {
+  if (!u) return false;
+  return !skiss.dold || ärAdmin(u);
+}
+
+/** Ändra en skiss: den som skapade den, eller en administratör. Aldrig en man inte får se. */
+export function kanÄndraSkiss(u: Användare | null | undefined, skiss: HarSynlighet): boolean {
+  if (!u || !kanLäsaSkiss(u, skiss)) return false;
+  return ärAdmin(u) || skiss.skapadAv?.id === u.id;
+}
+
+/** Samma regel som att ändra. */
+export function kanTaBortSkiss(u: Användare | null | undefined, skiss: HarSynlighet): boolean {
+  return kanÄndraSkiss(u, skiss);
+}
+
+/** Dölja en skiss för andra än administratörer – och visa den igen. */
+export function kanDöljaSkiss(u: Användare | null | undefined): boolean {
+  return ärAdmin(u);
+}
+
+/* ------------------------------------------------------------------ */
 /* Inloggningen                                                         */
 /* ------------------------------------------------------------------ */
 

@@ -63,6 +63,7 @@ import { kategoriTitlar, underkategoriTitlar } from "@/core/flow-tree";
 import { läsSenaste, minnsFlöde, type SenastPost } from "./senaste";
 import { läsProcessLänk, processLänk } from "./lank";
 import { RamVy } from "@/tools/ramar/RamVy";
+import { SkissVy } from "@/tools/systemskiss/SkissVy";
 import { RAMAR_CHANGED, getRamStore } from "@/core/ram-store";
 import type { RamserieSammanfattning } from "@/core/ram";
 import type { Yta } from "@/core/behorighet";
@@ -76,7 +77,7 @@ const MAX_BREDD = 400;
 const STANDARD_BREDD = 248;
 
 /** Vilken av huvudytans vyer som visas. `verktyg` = arbetsytan, utan överlägg. */
-type Vy = "start" | "ny" | "katalog" | "ramar" | "verktyg";
+type Vy = "start" | "ny" | "katalog" | "ramar" | "skiss" | "verktyg";
 
 export function AppShell() {
   const användare = useAnvändare();
@@ -122,6 +123,15 @@ export function AppShell() {
   }, []);
   useEffect(() => {
     if (vy === "ramar") setRamarMonterade(true);
+  }, [vy]);
+  /**
+   * Systemskissen: en egen vy, nådd från startsidan och INTE ur menyn – en
+   * skiss är ingen process. Monteras först när man går dit och ligger sedan
+   * kvar, så att en osparad skiss överlever en titt i katalogen.
+   */
+  const [skissMonterad, setSkissMonterad] = useState(false);
+  useEffect(() => {
+    if (vy === "skiss") setSkissMonterad(true);
   }, [vy]);
   /**
    * Visualiseringarnas lista – verktygen behöver den för knappen "Öppna i
@@ -487,6 +497,7 @@ export function AppShell() {
               senaste={senaste.map((p) => ({ ...p, namn: namnFörId.get(p.id) ?? p.namn }))}
               onNy={() => setVy("ny")}
               onKatalog={() => setVy("katalog")}
+              onSkiss={() => setVy("skiss")}
               onÖppna={öppnaFlöde}
             />
           </div>
@@ -528,6 +539,15 @@ export function AppShell() {
             aria-hidden={vy !== "ramar"}
           >
             <RamVy flöden={flöden} öppnaSerie={ramserie} />
+          </div>
+        )}
+
+        {skissMonterad && (
+          <div
+            className={`ark-vy-overlay ${vy === "skiss" ? "" : "dold"}`}
+            aria-hidden={vy !== "skiss"}
+          >
+            <SkissVy />
           </div>
         )}
       </section>

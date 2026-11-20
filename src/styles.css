@@ -238,6 +238,12 @@ body { background: var(--bg); color: var(--text); }
 .ark-start-korttext { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
 .ark-start-kortfot { font-size: 12px; color: var(--accent); font-weight: 600; margin-top: 6px; }
 
+/* Systemskissens kort: liggande, under de två processvalen. */
+.ark-start-kort--bred { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 14px; padding: 16px 22px; }
+.ark-start-kort--bred .ark-start-ikon { margin-bottom: 0; flex-shrink: 0; }
+.ark-start-kort--bred .ark-start-kortfot { margin: 0 0 0 auto; white-space: nowrap; }
+.ark-start-kortkropp { display: flex; flex-direction: column; gap: 3px; }
+
 .ark-start-senaste { margin-top: 32px; }
 .ark-start-senastetitel {
   font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted);
@@ -1857,3 +1863,44 @@ select.ark-input { cursor: pointer; background: var(--panel); }
   opacity: 0.35; transition: opacity 0.2s;
 }
 .ark-helskarm-avsluta:hover, .ark-helskarm-avsluta:focus-visible { opacity: 1; }
+
+/* ---- Systemskiss ---- */
+.ark-skiss-fel { margin: 8px 12px 0; }
+.ark-skiss-dold {
+  font-size: 11.5px; font-weight: 600; color: #93370d; background: #fffaeb;
+  border: 1px solid #fedf89; border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+}
+.ark-skiss-kvitto { font-size: 11.5px; color: var(--muted); }
+.ark-skiss-sort { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; }
+.ark-skiss-sort span { display: inline-flex; }
+.ark-skiss-yta { position: relative; flex: 1; min-width: 0; min-height: 0; background: #fff; }
+.ark-skiss-svg { width: 100%; height: 100%; display: block; outline: none; cursor: default; touch-action: none; user-select: none; }
+.ark-skiss-yta.panorerar .ark-skiss-svg { cursor: grabbing; }
+.ark-skiss-yta.kopplar .ark-skiss-svg { cursor: crosshair; }
+.ark-skiss-svg text { user-select: none; }
+.ark-skiss-grepp.storlek { cursor: nwse-resize; }
+.ark-skiss-grepp.koppla { cursor: crosshair; }
+.ark-skiss-zoom {
+  position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 6px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 5px 7px;
+  box-shadow: var(--skugga-1);
+}
+.ark-skiss-zoomtal { font-size: 11.5px; color: var(--muted); min-width: 42px; text-align: center; }
+.ark-skiss-besked {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-size: 12.5px;
+  background: var(--accent); color: #fff; border-radius: 999px; padding: 6px 14px; box-shadow: var(--skugga-2);
+  pointer-events: none; white-space: nowrap;
+}
+.ark-skiss-panel {
+  width: 270px; flex-shrink: 0; border-left: 1px solid var(--border); background: var(--panel);
+  padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+}
+.ark-skiss-panel .ark-hint { margin: 0; }
+.ark-skiss-falt { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.ark-skiss-falt .ark-input, .ark-skiss-falt .ark-textarea { font-weight: 400; }
+.ark-skiss-farger { display: flex; gap: 8px; padding: 2px 0; }
+.ark-skiss-vag { font-size: 12.5px; margin: 0; color: var(--text-2); }
+.ark-skiss-knappar { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
+.ark-skiss-fot { margin-top: auto !important; padding-top: 10px; border-top: 1px solid var(--border); }
+.ark-skiss-nyrad { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; max-width: 900px; }
+.ark-skiss-nyrad .ark-input { flex: 1 1 280px; }

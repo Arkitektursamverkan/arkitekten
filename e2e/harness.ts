@@ -97,7 +97,7 @@ export interface Rigg {
   /** Fel som webbläsaren rapporterat sedan sidan laddades. */
   fel: string[];
   /** Riggens egna kataloger – en kopia av exempelinstallationen (e2e/testdata.ts). */
-  data: { flowsDir: string; ramarDir: string };
+  data: { flowsDir: string; ramarDir: string; skisserDir: string };
   /**
    * Flödenas fingeravtryck när riggen lämnade över sidan (efter att en ny
    * process skapats – den sparas direkt). Testerna klickar aldrig Spara, så
@@ -119,9 +119,10 @@ function egenInstallation(): Rigg["data"] {
   if (!rot) throw new Error("ARK_E2E_ROT saknas – kör testerna med npm run test:browser");
   const dir = mkdtempSync(join(rot, "rigg-"));
   cpSync(mallkatalog(rot), dir, { recursive: true });
-  const data = { flowsDir: join(dir, "flows"), ramarDir: join(dir, "ramar") };
+  const data = { flowsDir: join(dir, "flows"), ramarDir: join(dir, "ramar"), skisserDir: join(dir, "skisser") };
   process.env.FLOWS_DIR = data.flowsDir;
   process.env.RAMAR_DIR = data.ramarDir;
+  process.env.SKISSER_DIR = data.skisserDir;
   process.env.STILAR_DIR = join(dir, "stilar");
   process.env.ARK_DIR = join(dir, ".ark");
   process.env.ARK_KONTON = join(dir, "konton.json");

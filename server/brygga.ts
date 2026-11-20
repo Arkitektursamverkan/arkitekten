@@ -72,7 +72,8 @@ import {
   utloggningsUrl,
   öppenAnvändare,
 } from "./auth";
-import { bytYta, prövaPublicering, prövaRamserie, prövaSparning } from "./atkomst";
+import { bytYta, prövaPublicering, prövaRamserie, prövaSkiss, prövaSparning } from "./atkomst";
+import { läsSkiss, sammanfattaSkiss } from "../src/core/systemskiss";
 import { läsStilar, valdStil, väljStil } from "./symbolstilar";
 import { Inloggningsspärr, Kontofel, Kontolager, sessionsversion, somAnvändare, spärrnycklar, utåt } from "./konton";
 import { ALLMÄNT_FEL, Användarfel, Kroppsfel } from "./fel";
@@ -86,6 +87,9 @@ import {
   kanLäsa,
   kanTaBort,
   kanLäsaRamserie,
+  kanLäsaSkiss,
+  kanTaBortSkiss,
+  kanÄndraSkiss,
   kanTaBortRamserie,
   kanÄndraRamserie,
   type Användare,
@@ -148,6 +152,8 @@ export interface BryggOptioner {
   root: string;
   flowsDir: string;
   ramarDir: string;
+  /** Systemskisserna (src/core/systemskiss.ts). */
+  skisserDir: string;
   /** Symbolstilarna (server/symbolstilar.ts). */
   stilarDir: string;
   /** Brevlådan och underlagen. */
@@ -403,7 +409,7 @@ function svaraMedFel(req: IncomingMessage, res: ServerResponse, err: unknown, lo
 export function skapaBrygga(o: BryggOptioner): Hanterare {
       // Organisationens namn (portalbanan) gäller också serverns egna tolkningar.
       sättOrganisation(organisationUrMiljö(process.env));
-      const { root, flowsDir, ramarDir, logg: log, utvecklarläge } = o;
+      const { root, flowsDir, ramarDir, skisserDir, logg: log, utvecklarläge } = o;
       const utseende = o.utseende ?? skapaUtseende(process.env, eaKonfigUrMiljö());
       const dir = o.arkDir;
       const portalWebb = o.portalWebb ?? skapaPortalWebb(process.env, eaKonfigUrMiljö(), dir);
@@ -1514,6 +1520,79 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               }
               fs.rmSync(file, { force: true });
               log.info(`  [ark] Tog bort ramserie: ${RAMAR}/${id}.json`);
+              json(res, 200, { ok: true });
+              return;
+            }
+          }
+
+          // --- Systemskisserna: en egen katalog, som ramserierna – en skiss
+          // är ingen process (src/core/systemskiss.ts). Alla inloggade läser
+          // och skapar; skaparen eller en administratör ändrar; en DOLD skiss
+          // finns bara för administratörer (core/behorighet.ts). Allt som
+          // läses ur en fil eller en begäran byggs om av `läsSkiss`.
+          if (url === "/skisser" && req.method === "GET") {
+            const skisser = fs.existsSync(skisserDir)
+              ? fs
+                  .readdirSync(skisserDir)
+                  .filter((f) => f.endsWith(".json"))
+                  .map((f) => {
+                    const s = läsSkiss(läsJson(path.join(skisserDir, f)));
+                    if (!s) log.warn(`  [ark] Hoppar över trasig skiss: ${path.basename(skisserDir)}/${f}`);
+                    return s && kanLäsaSkiss(användare, s) ? sammanfattaSkiss(s) : null;
+                  })
+                  .filter((s) => s !== null)
+                  .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+              : [];
+            json(res, 200, { ok: true, skisser });
+            return;
+          }
+
+          if (url.startsWith("/skisser/")) {
+            const id = decodeURIComponent(url.slice("/skisser/".length));
+            if (!SAFE_ID.test(id)) {
+              json(res, 400, { ok: false, error: "Ogiltigt id för skissen." });
+              return;
+            }
+            const file = path.join(skisserDir, `${id}.json`);
+            const befintlig = läsSkiss(läsJson(file));
+            // En dold skiss FINNS INTE för den som inte får se den – samma
+            // svar som för ett id som inte används.
+            if (befintlig && !kanLäsaSkiss(användare, befintlig)) {
+              json(res, 404, { ok: false, error: "Skissen finns inte." });
+              return;
+            }
+            if (req.method === "GET") {
+              if (!befintlig) {
+                json(res, 404, { ok: false, error: "Skissen finns inte." });
+                return;
+              }
+              json(res, 200, { ok: true, skiss: befintlig });
+              return;
+            }
+            if (req.method === "PUT") {
+              if (befintlig && !kanÄndraSkiss(användare, befintlig)) {
+                json(res, 403, { ok: false, error: "Bara den som skapade skissen, eller en administratör, kan ändra den." });
+                return;
+              }
+              const kropp = läsSkiss(JSON.parse((await readBody(req, 2_000_000)) || "{}"));
+              if (!kropp || kropp.id !== id) {
+                json(res, 400, { ok: false, error: "Skissen saknar namn, eller dess id stämmer inte med adressen." });
+                return;
+              }
+              const skiss = prövaSkiss(användare, befintlig, kropp);
+              fs.mkdirSync(skisserDir, { recursive: true });
+              fs.writeFileSync(file, JSON.stringify(skiss, null, 2), "utf8");
+              log.info(`  [ark] Sparade skiss: ${path.basename(skisserDir)}/${id}.json`);
+              json(res, 200, { ok: true, skiss });
+              return;
+            }
+            if (req.method === "DELETE") {
+              if (befintlig && !kanTaBortSkiss(användare, befintlig)) {
+                json(res, 403, { ok: false, error: "Bara den som skapade skissen, eller en administratör, kan ta bort den." });
+                return;
+              }
+              fs.rmSync(file, { force: true });
+              log.info(`  [ark] Tog bort skiss: ${path.basename(skisserDir)}/${id}.json`);
               json(res, 200, { ok: true });
               return;
             }
