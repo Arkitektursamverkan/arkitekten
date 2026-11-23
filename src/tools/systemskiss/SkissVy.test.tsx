@@ -158,3 +158,17 @@ it("ett lager visas för sig: klicket gömmer det andra lagret, 'Alla' tar tillb
   expect(document.querySelectorAll("[data-skiss-objekt]")).toHaveLength(4);
   expect(document.querySelectorAll("[data-skiss-zon]")).toHaveLength(1);
 });
+
+it("Skriv ut öppnar en dialog som visar bladen och textstorleken på pappret", async () => {
+  render(<SkissVy />);
+  await skapa("Utskrift");
+  fireEvent.click(screen.getByTitle("Lägg till: Server"));
+  fireEvent.click(screen.getByRole("button", { name: "🖨 Skriv ut" }));
+  const dialog = await screen.findByRole("dialog", { name: "Skriv ut" });
+  expect(dialog.textContent).toContain("1 blad");
+  expect(dialog.textContent).toMatch(/\d+,\d pt/);
+  fireEvent.click(screen.getByLabelText("A4"));
+  expect(JSON.parse(localStorage.getItem("ark.skiss.utskrift")!).papper).toBe("A4");
+  fireEvent.click(screen.getByRole("button", { name: "Avbryt" }));
+  expect(screen.queryByRole("dialog", { name: "Skriv ut" })).toBeNull();
+});

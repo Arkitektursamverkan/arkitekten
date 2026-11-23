@@ -66,6 +66,8 @@ const ANTECKNING = { fyll: "#fff8db", kant: "#e3cd7c" };
 const BAND = 36;
 const NAMN = { storlek: 13, radhöjd: 17, tecken: 7.1 };
 const UNDER = { storlek: 11.5, radhöjd: 15, tecken: 6.1 };
+/** Rutornas brödtext – den minsta text som bär innehåll. Utskriften mäter läsbarheten på den. */
+export const SKISS_BRÖDTEXT = UNDER.storlek;
 const LUFT = { över: 11, under: 11, mellan: 3, sida: 10 };
 /** Zonens rubrikremsa – där man tar tag i zonen. */
 export const ZON_RUBRIK = 28;

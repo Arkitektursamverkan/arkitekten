@@ -397,6 +397,10 @@ vänster (produktägarens beslut 2026-11-20). Användardokumentation:
   publicering och klassning är ingen ny version. Portalen får senaste
   fastslagna (`publiceradVersionsindex`). Exporten stämplas med
   `skissRevision` (samma revisionsruta som processerna).
+- **Utskriften** (`utskrift.ts`, `Utskriftsdialog.tsx`) skalar EXPORTENS bild
+  (`skissSvg`) till A4/A3 – ingen egen ritregel. Ett blad per lager använder
+  `filtreraSkiss`; en delad bild är samma markup med ett annat viewBox.
+  Läsbarheten mäts på `SKISS_BRÖDTEXT` (6 pt gräns, 7 pt vid delning, högst 12 pt).
 - **Tangenterna lyssnar på fönstret** men svarar bara när vyn syns – vyn ligger
   kvar monterad (osparat arbete överlever en titt i katalogen).
 
