@@ -748,6 +748,11 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               läge: auth.läge,
               // Med klareringen (core/behorighet.ts): appen gömmer det servern ändå vägrar.
               användare: inloggad ? medKlarering(inloggad, läsKlassningsinställningFil(o.stilarDir)) : null,
+              // Gemensam inloggning (server/installation.ts): appen skickar en
+              // utloggad besökare direkt vidare till Microsoft.
+              ...(!inloggad && auth.läge === "entra" && !saknas.length && (await portalWebb.gemensamInloggning())
+                ? { gemensamInloggning: true }
+                : {}),
               // Lokala konton utan ett enda konto: första besöket skapar administratören.
               ...(auth.läge === "lokal" && !konton.finnsNågot()
                 ? { förstaKonto: true, kodKrävs: förstaKontoKod().krävs }

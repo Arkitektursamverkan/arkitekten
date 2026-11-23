@@ -175,3 +175,18 @@ describe("klassningen skär av", () => {
     expect(fårSeKlassning(anna, { nivå: "niva-3" })).toBe(true);
   });
 });
+
+describe("skyddsklass via Entra-grupp", () => {
+  const GRUPP = "11111111-2222-3333-4444-555555555555";
+  const inst = läsKlassningsinställning({
+    på: true,
+    skyddsklasser: [{ namn: "Känsliga", nivåer: ["niva-3"], behöriga: [GRUPP.toUpperCase()] }],
+  });
+  it("den som är med i gruppen har klassen; den som inte är det har den inte", () => {
+    const med = medKlarering({ id: "x", namn: "X", roller: ["user"], grupper: [GRUPP] }, inst);
+    const utan = medKlarering({ id: "y", namn: "Y", roller: ["user"], grupper: ["99999999-2222-3333-4444-555555555555"] }, inst);
+    expect(kanLäsa(med, { klassning: { nivå: "niva-3" } })).toBe(true);
+    expect(kanLäsa(utan, { klassning: { nivå: "niva-3" } })).toBe(false);
+    expect(minaSkyddsklasser(med, inst)).toEqual(["kansliga"]);
+  });
+});

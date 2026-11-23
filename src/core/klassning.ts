@@ -55,8 +55,9 @@ export interface Skyddsklass {
   /** Nivåerna (id i modellen) som kräver klassen. En nivå hör till högst en klass. */
   nivåer: string[];
   /**
-   * Vilka som har klassen i Arkitekten: e-postadress eller Entra-kontots
-   * objekt-id, med gemener. Bara administratören ser listan.
+   * Vilka som har klassen i Arkitekten: e-postadress, Entra-kontots
+   * objekt-id eller en Entra-grupps objekt-id (då har alla i gruppen den),
+   * med gemener. Bara administratören ser listan.
    */
   behöriga: string[];
 }

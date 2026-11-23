@@ -386,7 +386,25 @@ export function användareUrIdToken(
     namn: c.name?.trim() || epost || "Okänd",
     epost: epost || undefined,
     roller: rollerFör(k, c.roles ?? [], [c.oid, epost], c.groups ?? []),
+    ...entraGrupper(c.groups),
   };
+}
+
+/**
+ * Entra-grupperna (objekt-id) ur gruppanspråket – de ger skyddsklasser
+ * (core/behorighet.ts, `medKlarering`). De följer med i sessionskakan, som
+ * har en gräns: fler än MAX_GRUPPER skärs av, och en installation med många
+ * grupper väljer "Groups assigned to the application" i app-registreringen.
+ * Ändras medlemskapet i Entra gäller det från nästa inloggning.
+ */
+export const MAX_GRUPPER = 40;
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export function entraGrupper(rå: unknown): { grupper?: string[] } {
+  if (!Array.isArray(rå)) return {};
+  const grupper = [...new Set(rå.filter((g): g is string => typeof g === "string").map((g) => g.trim().toLowerCase()))]
+    .filter((g) => GUID.test(g))
+    .slice(0, MAX_GRUPPER);
+  return grupper.length ? { grupper } : {};
 }
 
 /**

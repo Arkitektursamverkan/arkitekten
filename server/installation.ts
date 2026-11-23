@@ -15,6 +15,11 @@
  *      med `entra: null` betyder egna konton.
  *   3. WEBBADRESSEN: `EA_WEBB_URL`, annars portalens `portal_url`, som sparas
  *      en stund (`TTL_MS`) som utseendet (server/utseende.ts).
+ *   4. GEMENSAM INLOGGNING: `ARK_GEMENSAM_INLOGGNING` (1/0), annars portalens
+ *      `shared_login` (Administration → Organisation), läst som webbadressen.
+ *      På: en utloggad besökare skickas direkt vidare till Microsoft
+ *      (src/shell/Inloggning.tsx) – med en Microsoft-session i webbläsaren
+ *      utan att behöva klicka.
  *
  * MILJÖN VINNER ALLTID: portalens värden fyller bara det som är tomt. Uppgifterna
  * läses vid start – byts Entra i portalen måste Arkitekten startas om.
@@ -39,6 +44,8 @@ export interface Installationssvar {
   portal_url: string | null;
   arkitekten_url: string | null;
   entra: PortalensEntra | null;
+  /** Gemensam inloggning i installationen (portalens organisationsinställning). */
+  shared_login?: boolean;
 }
 
 export interface Logg {
@@ -82,7 +89,12 @@ export function tolkaSvar(rå: unknown): Installationssvar {
             : [],
         }
       : null;
-  return { portal_url: adress(o.portal_url), arkitekten_url: adress(o.arkitekten_url), entra };
+  return {
+    portal_url: adress(o.portal_url),
+    arkitekten_url: adress(o.arkitekten_url),
+    entra,
+    ...(o.shared_login === true ? { shared_login: true } : {}),
+  };
 }
 
 /** Ett fel som inte blir bättre av ett nytt försök (fel nyckel, äldre portal utan vägen). */
@@ -319,6 +331,8 @@ export async function förberedInstallation(o: StartOptioner): Promise<Startresu
 export interface PortalWebb {
   /** EA_WEBB_URL, annars portalens portal_url – tom sträng när ingen är känd. */
   webb(): Promise<string>;
+  /** ARK_GEMENSAM_INLOGGNING, annars portalens shared_login – av när inget är känt. */
+  gemensamInloggning(): Promise<boolean>;
 }
 
 /**
@@ -333,25 +347,35 @@ export function skapaPortalWebb(
   nu: () => number = Date.now,
 ): PortalWebb {
   const egen = (env.EA_WEBB_URL?.trim() ?? "").replace(/\/+$/, "");
-  let senast: string | null = null;
+  const egenGemensam = env.ARK_GEMENSAM_INLOGGNING?.trim() ?? "";
+  let senast: Installationssvar | null = null;
   let läst: number | null = null;
-  let pågår: Promise<string | null> | null = null;
-  const reserv = () => senast ?? läsCache(arkDir)?.portal_url ?? null;
-  return {
-    async webb() {
-      if (egen || !portal) return egen;
-      if (läst !== null && nu() - läst < TTL_MS) return reserv() ?? "";
+  let pågår: Promise<void> | null = null;
+  /** Portalens svar, läst högst en gång per TTL_MS; annars förra svaret eller cachefilen. */
+  const svar = async (): Promise<Installationssvar | null> => {
+    if (!portal) return null;
+    if (läst === null || nu() - läst >= TTL_MS) {
       pågår ??= hämtaInstallation(portal)
         .then((s) => {
-          senast = s.portal_url ?? senast;
-          return reserv();
+          senast = { ...s, portal_url: s.portal_url ?? senast?.portal_url ?? null };
         })
-        .catch(() => reserv())
+        .catch(() => {})
         .finally(() => {
           läst = nu();
           pågår = null;
         });
-      return (await pågår) ?? "";
+      await pågår;
+    }
+    return senast ?? läsCache(arkDir);
+  };
+  return {
+    async webb() {
+      if (egen || !portal) return egen;
+      return (await svar())?.portal_url ?? "";
+    },
+    async gemensamInloggning() {
+      if (egenGemensam) return /^(1|true|ja|on)$/i.test(egenGemensam);
+      return (await svar())?.shared_login === true;
     },
   };
 }

@@ -312,6 +312,24 @@ describe("portalens webbadress", () => {
     expect(await skapaPortalWebb({}, k(f), arkDir).webb()).toBe("https://portal.example.org");
   });
 
+  it("gemensam inloggning: miljön vinner, annars portalens shared_login, annars av", async () => {
+    const { f, anrop } = portal(() => ({ ...SVAR, shared_login: true }));
+    expect(await skapaPortalWebb({}, k(f), nyKatalog()).gemensamInloggning()).toBe(true);
+    expect(await skapaPortalWebb({ ARK_GEMENSAM_INLOGGNING: "0" }, k(f), nyKatalog()).gemensamInloggning()).toBe(false);
+    const före = anrop.length;
+    expect(await skapaPortalWebb({ ARK_GEMENSAM_INLOGGNING: "1" }, null, nyKatalog()).gemensamInloggning()).toBe(true);
+    expect(anrop).toHaveLength(före);
+    expect(await skapaPortalWebb({}, null, nyKatalog()).gemensamInloggning()).toBe(false);
+    // En äldre portal utan fältet: av.
+    expect(await skapaPortalWebb({}, k(portal(() => SVAR).f), nyKatalog()).gemensamInloggning()).toBe(false);
+    // Samma läsning som webbadressen – portalen frågas en gång.
+    const { f: f2, anrop: a2 } = portal(() => ({ ...SVAR, shared_login: true }));
+    const w = skapaPortalWebb({}, k(f2), nyKatalog());
+    await w.webb();
+    await w.gemensamInloggning();
+    expect(a2).toHaveLength(1);
+  });
+
   it("utan portalkoppling är adressen EA_WEBB_URL eller tom", async () => {
     expect(await skapaPortalWebb({}, null, nyKatalog()).webb()).toBe("");
   });

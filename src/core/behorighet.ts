@@ -34,6 +34,8 @@ export interface Användare {
   namn: string;
   epost?: string;
   roller: Roll[];
+  /** Entra-grupperna (objekt-id) från inloggningen – kan ge skyddsklasser. */
+  grupper?: string[];
   /**
    * Klassningsnivåerna (id) användaren får se – satt av bryggan för varje
    * begäran (`medKlarering`), aldrig sparad i sessionen: en ändrad
@@ -112,13 +114,19 @@ export function fårSeKlassning(u: Användare | null | undefined, k: HarKlassnin
 
 /**
  * Användaren med sin klarering: de nivåer i modellen som inte kräver någon
- * skyddsklass, och de vars klass användaren har (via e-post eller objekt-id).
+ * skyddsklass, och de vars klass användaren har (via e-post, kontots
+ * objekt-id eller en Entra-grupp hen är med i).
  * Administratören och avstängd klassning: ingen begränsning.
  */
+/** Det en skyddsklass kan nämna användaren med: konto-id, e-post och Entra-grupper. */
+function identiteter(u: Användare): string[] {
+  return [u.id, u.epost, ...(u.grupper ?? [])].filter((x): x is string => Boolean(x)).map((x) => x.trim().toLowerCase());
+}
+
 export function medKlarering(u: Användare, inst: Klassningsinställning): Användare {
   const { klarering: _gammal, ...utan } = u;
   if (!inst.på || ärAdmin(u)) return utan;
-  const nycklar = [u.id, u.epost].filter((x): x is string => Boolean(x)).map((x) => x.trim().toLowerCase());
+  const nycklar = identiteter(u);
   const klarering = inst.modell.nivåer
     .filter((n) => {
       const klass = skyddsklassFör(inst, n.id);
@@ -132,7 +140,7 @@ export function medKlarering(u: Användare, inst: Klassningsinställning): Anvä
 export function minaSkyddsklasser(u: Användare | null | undefined, inst: Klassningsinställning): string[] {
   if (!u || !inst.på) return [];
   if (ärAdmin(u)) return inst.skyddsklasser.map((k) => k.id);
-  const nycklar = [u.id, u.epost].filter((x): x is string => Boolean(x)).map((x) => x.trim().toLowerCase());
+  const nycklar = identiteter(u);
   return inst.skyddsklasser.filter((k) => k.behöriga.some((b) => nycklar.includes(b))).map((k) => k.id);
 }
 

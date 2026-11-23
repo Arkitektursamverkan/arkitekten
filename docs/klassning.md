@@ -44,8 +44,11 @@ En nivå kan kräva en **skyddsklass**. Administratören lägger upp dem under
 ("Känsliga personuppgifter"), nivåerna som kräver klassen och vilka som har
 den. En nivå hör till högst en klass; en nivå utan klass kräver inget extra.
 
-- **I Arkitekten** har man klassen om ens e-postadress eller Entra-kontots
-  objekt-id står i klassens lista. En process eller systemskiss med en nivå
+- **I Arkitekten** har man klassen om ens e-postadress, Entra-kontots
+  objekt-id eller objekt-id för en Entra-grupp man är med i står i klassens
+  lista. Grupperna kommer ur inloggningens gruppanspråk (app-registreringen:
+  Token configuration → groups claim; välj gärna "Groups assigned to the
+  application") och gäller från nästa inloggning. En process eller systemskiss med en nivå
   som kräver en klass man inte har **finns inte** för en: den syns inte i
   katalogen, går inte att öppna (404), ändra, flytta eller ta bort, och dess
   ramserier syns inte heller. Ytan och rollen avgör resten, som förut.
