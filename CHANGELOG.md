@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+## 0.21.0 – 2026-11-23
+
 - **Skriv ut systemskissen på A4 eller A3.** Knappen *🖨 Skriv ut* ger ett blad med det som visas eller ett blad per lager, i den riktning som ger störst bild. Rutan visar textstorleken på pappret för varje blad och varnar under 6 pt. Bilden beskärs till det som valts och står mitt på bladet – ETT blad som förval, hur liten texten än blir. Vill man kan en bild med text under 5 pt delas på flera blad som överlappar 1 cm. Utskriften går genom webbläsarens dialog, så den kan också sparas som PDF. Se `docs/systemskiss.md`.
 
 ## 0.20.0 – 2026-11-23
