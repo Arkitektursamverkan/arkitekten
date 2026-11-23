@@ -18,6 +18,7 @@ import { normaliseraStatus, sammanfattaStatus, type FlowStatus } from "./status"
 import { skapadTid } from "./nyhet";
 import type { Publicering } from "./publicering";
 import type { Ursprung } from "./ursprung";
+import type { Klassning } from "./klassning";
 import { DEMO_KATEGORI, type Yta, type Ägare } from "./behorighet";
 
 /** Vyinställningar som hör till arbetet, inte till processen. */
@@ -106,6 +107,11 @@ export interface SavedFlow {
    * integrationen, i filen – aldrig av en sparning ur appen.
    */
   ursprung?: Ursprung;
+  /**
+   * Informationsklassningen (core/klassning.ts). Sitter på FLÖDET, som
+   * publiceringen, och skrivs bara av `sättKlassning` – ingen ny version.
+   */
+  klassning?: Klassning;
   /**
    * Användaren vars EGNA katalog processen ligger i. Saknas = den gemensamma
    * katalogen (eller Demo) – ytan härleds i core/behorighet.ts. Skrivs BARA av
@@ -539,6 +545,35 @@ export async function taBortPublicering(store: FlowStore, id: string): Promise<S
   const { publicering: _borttagen, ...resten } = await store.load(id);
   await store.save(resten);
   return resten;
+}
+
+/**
+ * Sätter (eller tar bort, `null`) processens informationsklassning.
+ *
+ * Som publiceringen: ingen ny version, ingen ny `savedAt`, posten SPRIDS. Mot
+ * disk prövar BRYGGAN nivån mot installationens modell och stämplar tid och
+ * person (`/__ark/flows/:id/klassning`).
+ */
+export async function sättKlassning(
+  store: FlowStore,
+  id: string,
+  nivå: { nivå: string; namn: string } | null,
+): Promise<SavedFlow> {
+  if (store.kind === "disk") {
+    return normalizeFlow(
+      (
+        await bridgeJson(`/__ark/flows/${encodeURIComponent(id)}/klassning`, {
+          method: nivå ? "PUT" : "DELETE",
+          headers: { "content-type": "application/json" },
+          ...(nivå ? { body: JSON.stringify({ klassning: { nivå: nivå.nivå } }) } : {}),
+        })
+      ).flow,
+    );
+  }
+  const { klassning: _förra, ...flow } = await store.load(id);
+  const nästa: SavedFlow = nivå ? { ...flow, klassning: { ...nivå, satt: new Date().toISOString() } } : flow;
+  await store.save(nästa);
+  return nästa;
 }
 
 /**

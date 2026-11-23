@@ -171,3 +171,107 @@ describe("publicering på en server i portalen", () => {
     expect(fil("annas").publicering).toBeUndefined();
   });
 });
+
+describe("versionerna", () => {
+  it("varje ändring blir en version, historiken byggs ur FILEN och en äldre version skrivs aldrig om", async () => {
+    expect((await anna("/__ark/skisser/vers", put(skiss("vers")))).status).toBe(200);
+    expect(fil("vers").versioner).toHaveLength(1);
+    expect(fil("vers").versioner[0]).toMatchObject({ id: "v1", status: "utkast", savedBy: "anna" });
+    // Samma innehåll igen: ingen ny version.
+    expect((await anna("/__ark/skisser/vers", put(skiss("vers")))).status).toBe(200);
+    expect(fil("vers").versioner).toHaveLength(1);
+    // REGRESSION-skydd: en begäran som bär en egen, förfalskad historik ändrar ingenting i den.
+    const förfalskad = [{ id: "v1", savedAt: "2001-01-01T00:00:00.000Z", status: "fastslagen", innehåll: { namn: "Fejk", objekt: [], zoner: [], kopplingar: [] } }];
+    expect((await anna("/__ark/skisser/vers", put(skiss("vers", { namn: "Andra", versioner: förfalskad })))).status).toBe(200);
+    const v = fil("vers").versioner;
+    expect(v).toHaveLength(2);
+    expect(v[0]).toMatchObject({ status: "utkast", innehåll: { namn: "vers" } });
+    expect(v[1].innehåll.namn).toBe("Andra");
+  });
+
+  it("fastslå utan ändring ger en ny huvudversion med kommentar; listan bär beteckningen", async () => {
+    expect((await anna("/__ark/skisser/vers", put({ ...skiss("vers", { namn: "Andra" }), sparval: { status: "fastslagen", label: "Granskad" } }))).status).toBe(200);
+    const v = fil("vers").versioner;
+    expect(v).toHaveLength(3);
+    expect(v[2]).toMatchObject({ status: "fastslagen", label: "Granskad" });
+    const rad = (await anna("/__ark/skisser")).kropp.skisser.find((s: any) => s.id === "vers");
+    expect(rad).toMatchObject({ status: "fastslagen", beteckning: "1.0" });
+  });
+
+  it("en skiss från före versionerna behåller sitt innehåll som v1 när den sparas", async () => {
+    fs.writeFileSync(path.join(tmp, "skisser", "gammal.json"), JSON.stringify({ ...skiss("gammal"), skapadAv: { id: "x", namn: "anna" } }));
+    const före = (await admin("/__ark/skisser/gammal")).kropp.skiss;
+    expect(före.versioner).toBeUndefined();
+    expect((await admin("/__ark/skisser/gammal", put(skiss("gammal", { namn: "Ny" })))).status).toBe(200);
+    const v = fil("gammal").versioner;
+    expect(v.map((x: any) => x.innehåll.namn)).toEqual(["gammal", "Ny"]);
+    expect(v[0].savedAt).toBe("2020-01-01T00:00:00.000Z");
+    expect(v[0].savedBy).toBeUndefined();
+  });
+});
+
+describe("informationsklassning", () => {
+  const stilar = () => path.join(tmp, "stilar");
+  const eget = {
+    på: true,
+    modell: { id: "egen", namn: "Vår modell", nivåer: [{ namn: "Öppen", djup: 0 }, { namn: "Skyddad", djup: 0 }, { namn: "Skyddad A", djup: 1 }] },
+    visaIExport: true,
+    visaIVyn: false,
+  };
+
+  it("är av som förval; bara en administratör ändrar inställningen", async () => {
+    expect((await anna("/__ark/klassning")).kropp.klassning.på).toBe(false);
+    expect((await anna("/__ark/klassning", put(eget))).status).toBe(403);
+    const svar = await admin("/__ark/klassning", put(eget));
+    expect(svar.status).toBe(200);
+    expect(svar.kropp.klassning.modell.nivåer.map((n: any) => [n.id, n.djup])).toEqual([["oppen", 0], ["skyddad", 0], ["skyddad-a", 1]]);
+    expect((await anna("/__ark/klassning")).kropp.klassning).toMatchObject({ på: true, visaIVyn: false });
+    // Filen är ingen symbolstil.
+    expect((await admin("/__ark/symbolstilar")).kropp.fel).toEqual([]);
+    expect(fs.existsSync(path.join(stilar(), "klassning.json"))).toBe(true);
+  });
+
+  it("skissens nivå prövas mot modellen och stämplas av servern – ingen ny version", async () => {
+    const före = fil("vers").versioner.length;
+    expect((await anna("/__ark/skisser/vers", put(skiss("vers", { namn: "Andra", klassning: { nivå: "finns-inte", namn: "X" } })))).status).toBe(400);
+    const svar = await anna("/__ark/skisser/vers", put(skiss("vers", { namn: "Andra", klassning: { nivå: "skyddad-a", namn: "fel namn", sattAv: "Någon annan" } })));
+    expect(svar.status).toBe(200);
+    expect(fil("vers").klassning).toMatchObject({ nivå: "skyddad-a", namn: "Skyddad A", sattAv: "anna" });
+    expect(fil("vers").versioner.length).toBe(före);
+    expect((await anna("/__ark/skisser")).kropp.skisser.find((s: any) => s.id === "vers").klassning.nivå).toBe("skyddad-a");
+  });
+
+  it("en process klassas via sin egen väg; en vanlig sparning kan varken sätta eller tappa nivån", async () => {
+    const flöde = {
+      id: "ap-klassad",
+      name: "Klassad",
+      savedAt: "2020-01-01T00:00:00.000Z",
+      rawText: "a",
+      draft: { title: "Klassad", lanes: [], steps: [] },
+      versions: [{ id: "v1", savedAt: "2020-01-01T00:00:00.000Z", rawText: "a", draft: { title: "Klassad", lanes: [], steps: [] } }],
+    };
+    expect((await admin("/__ark/flows/ap-klassad", put(flöde))).status).toBe(200);
+    // Anna får inte ändra processen (den ligger inte i hennes katalog): 403 eller 404.
+    expect((await anna("/__ark/flows/ap-klassad/klassning", put({ klassning: { nivå: "oppen" } }))).status).toBeGreaterThanOrEqual(403);
+    const svar = await admin("/__ark/flows/ap-klassad/klassning", put({ klassning: { nivå: "skyddad" } }));
+    expect(svar.status).toBe(200);
+    expect(svar.kropp.flow.klassning).toMatchObject({ nivå: "skyddad", namn: "Skyddad", sattAv: "Admin" });
+    const lagrad = () => JSON.parse(fs.readFileSync(path.join(tmp, "flows", "ap-klassad.json"), "utf8"));
+    expect(lagrad().versions).toHaveLength(1);
+    // En vanlig sparning utan fältet – eller med ett annat – rör inte klassningen.
+    expect((await admin("/__ark/flows/ap-klassad", put({ ...lagrad(), klassning: { nivå: "oppen", namn: "Öppen" } }))).status).toBe(200);
+    expect(lagrad().klassning.nivå).toBe("skyddad");
+    const { klassning: _k, ...utan } = lagrad();
+    expect((await admin("/__ark/flows/ap-klassad", put(utan))).status).toBe(200);
+    expect(lagrad().klassning.nivå).toBe("skyddad");
+    expect((await admin("/__ark/flows/ap-klassad/klassning", { method: "DELETE" })).status).toBe(200);
+    expect(lagrad().klassning).toBeUndefined();
+  });
+
+  it("avstängd klassning: det som står i filen står kvar, och processvägen svarar 409", async () => {
+    expect((await admin("/__ark/klassning", put({ ...eget, på: false }))).status).toBe(200);
+    expect((await anna("/__ark/skisser/vers", put(skiss("vers", { namn: "Andra" })))).status).toBe(200);
+    expect(fil("vers").klassning.nivå).toBe("skyddad-a");
+    expect((await admin("/__ark/flows/ap-klassad/klassning", put({ klassning: { nivå: "skyddad" } }))).status).toBe(409);
+  });
+});

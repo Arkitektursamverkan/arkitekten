@@ -51,6 +51,9 @@ import { revisionAvVersion } from "./export/revision";
 import type { NyProcessBegäran, VerktygsProps } from "@/shell/tools";
 import { ärNyBegäran } from "@/shell/begaran";
 import { FlowHeader } from "@/shell/FlowHeader";
+import { KlassningsVal, useKlassningsinställning } from "@/shell/Klassning";
+import { klassningIExport } from "@/core/klassning";
+import { sättKlassning } from "@/core/flow-store";
 import { FlyttaKnapp } from "@/shell/FlyttaKnapp";
 import type { EdgeSide, NodeType, Perspective, ProcessModel, TextPlacement } from "@/core/model";
 import { TYPE_LABEL, type ColorMode } from "./theme";
@@ -826,13 +829,19 @@ export function FlowchartTool({
    * versionen – då är den aldrig "ändrad sedan dess", hur mycket som än ligger
    * ouppsparat i editorn. Exporterar man det man ser gäller `dirty`.
    */
-  const revision = useMemo(
+  const revisionUtanKlassning = useMemo(
     () =>
       exporterarFastslagen
         ? revisionAvVersion(sparatFlöde, fastslagen!.index, false)
         : revisionAvVersion(sparatFlöde, -1, dirty),
     [exporterarFastslagen, sparatFlöde, fastslagen, dirty],
   );
+  /** Klassningen följer med i revisionsrutan – när installationen vill (core/klassning.ts). */
+  const klassningsInst = useKlassningsinställning();
+  const revision = useMemo(() => {
+    const klassning = klassningIExport(klassningsInst, sparatFlöde?.klassning);
+    return klassning ? { ...revisionUtanKlassning, klassning } : revisionUtanKlassning;
+  }, [klassningsInst, sparatFlöde, revisionUtanKlassning]);
 
   const slug = (exportModel.title || "flodesschema").replace(/\s+/g, "_").toLowerCase();
 
@@ -927,6 +936,22 @@ export function FlowchartTool({
           status={nuStatus}
           fastslagenVersion={fastslagen?.beteckning}
           yta={behörighet.yta}
+          klassning={
+            // Informationsklassningen – bara för en sparad process (core/klassning.ts).
+            flowId && sparatFlöde?.id === flowId && (
+              <KlassningsVal
+                inst={klassningsInst}
+                klassning={sparatFlöde.klassning}
+                fårÄndra={behörighet.fårRedigera}
+                onVälj={(nivå) =>
+                  void getFlowStore()
+                    .then((st) => sättKlassning(st, flowId, nivå))
+                    .then(setSparatFlöde)
+                    .catch((e) => window.alert(`Klassningen gick inte att spara: ${e instanceof Error ? e.message : e}`))
+                }
+              />
+            )
+          }
           steg={draft.steps.length}
           åtgärder={
             <>

@@ -17,6 +17,8 @@ import { Användarfel } from "./fel";
 import { NEUTRAL_STIL, läsSymbolstil, type Symbolstil } from "../src/tools/affarsprocess/symbolstil";
 
 const VALD = "vald.json";
+/** Andra inställningsfiler i katalogen – inga stilar (server/klassning.ts). */
+const INTE_STILAR = new Set([VALD, "klassning.json"]);
 
 export interface Stilkatalog {
   stilar: Symbolstil[];
@@ -29,7 +31,7 @@ export function läsStilar(dir: string): Stilkatalog {
   const stilar: Symbolstil[] = [NEUTRAL_STIL];
   const fel: string[] = [];
   if (!fs.existsSync(dir)) return { stilar, fel };
-  for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".json") && f !== VALD).sort()) {
+  for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".json") && !INTE_STILAR.has(f)).sort()) {
     try {
       const stil = läsSymbolstil(JSON.parse(fs.readFileSync(path.join(dir, f), "utf8")));
       if (stilar.some((s) => s.id === stil.id)) throw new Error(`id:t ${stil.id} finns redan`);

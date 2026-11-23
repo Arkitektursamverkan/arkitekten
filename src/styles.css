@@ -629,11 +629,14 @@ body { background: var(--bg); color: var(--text); }
 .ark-flow-header-verktyg { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 .ark-flow-header-pil { color: var(--border-strong); }
 .ark-flow-header-namn {
-  font-size: 14px; font-weight: 700; color: var(--text); min-width: 0;
+  /* Namnet får aldrig tryckas bort helt av knapparna till höger. */
+  font-size: 14px; font-weight: 700; color: var(--text); min-width: 7em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ark-flow-header-steg { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .ark-flow-header-status {
+  /* Krymper först när raden är trång – tidsstämpeln är minst viktig. */
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; flex-shrink: 3;
   margin-left: auto; font-size: 11px; padding: 3px 9px; border-radius: 999px;
   white-space: nowrap; border: 1px solid transparent;
 }
@@ -1918,3 +1921,37 @@ select.ark-input { cursor: pointer; background: var(--panel); }
 .ark-skiss-lagerrad .ark-ramar-val { margin-left: 8px; font-size: 12px; color: var(--text-2); }
 .ark-skiss-lagerpost { display: flex; gap: 6px; align-items: center; }
 .ark-skiss-lagerpost .ark-input { flex: 1; min-width: 0; }
+
+/* Informationsklassningen (shell/Klassning.tsx) – i processens rubrik och skissens topp. */
+.ark-klassning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid #c9b8e8;
+  background: #f6f2fc;
+  color: #3f2a6b;
+  white-space: nowrap;
+}
+.ark-klassning--val { padding: 0 0 0 8px; }
+.ark-klassning--val select {
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  padding: 2px 4px;
+  min-width: 150px;
+  max-width: 280px;
+  color: inherit;
+}
+/* Skissens version i toppraden och listan över versioner i panelen. */
+.ark-skiss-version { display: inline-flex; gap: 6px; align-items: center; }
+.ark-skiss-versioner { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow: auto; }
+.ark-skiss-versioner li { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 12px; padding: 4px 6px; border-radius: 6px; border: 1px solid transparent; }
+.ark-skiss-versioner li.vald { border-color: var(--border); background: #f7f8fa; }
+.ark-skiss-gammal { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 12px; background: #fff7e6; border-bottom: 1px solid #f1d39a; font-size: 13px; }
+/* I processens rubrik är det trångt: väljaren krymper, hela namnet står i hovertexten. */
+.ark-flow-header-klassning { min-width: 9em; flex-shrink: 0.2; display: flex; }
+.ark-flow-header .ark-klassning { min-width: 0; max-width: 100%; }
+.ark-flow-header .ark-klassning--val select { min-width: 0; max-width: 200px; width: 100%; }

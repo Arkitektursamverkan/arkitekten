@@ -46,6 +46,11 @@ export interface FlowHeaderProps {
    * ser och ändrar den. Saknas = osparad, eller öppen drift utan ytor.
    */
   yta?: { id: string; titel: string; beskrivning: string };
+  /**
+   * Informationsklassningen (shell/Klassning.tsx) – står bredvid statusen,
+   * för den säger också något om vad diagrammet ÄR. Får krympa när raden är trång.
+   */
+  klassning?: ReactNode;
   /** Antal steg i mellanlagret – en snabb storlekskänsla. */
   steg: number;
   /**
@@ -72,6 +77,7 @@ export function FlowHeader({
   steg,
   åtgärder,
   yta,
+  klassning,
 }: FlowHeaderProps) {
   const def = status ? statusDef(status) : null;
   return (
@@ -102,6 +108,7 @@ export function FlowHeader({
           {!def.huvudversion && fastslagenVersion && ` · fastslagen ${fastslagenVersion}`}
         </span>
       )}
+      {klassning && <span className="ark-flow-header-klassning">{klassning}</span>}
       <span
         className={`ark-flow-header-status ${osparat ? "osparat" : sparat ? "sparat" : "nytt"}`}
         title={

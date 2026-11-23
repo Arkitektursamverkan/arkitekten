@@ -5,6 +5,11 @@ import {
   filtreraSkiss,
   flyttaISkiss,
   läggTillKoppling,
+  läggTillSkissversion,
+  publiceradVersionsindex,
+  sammanfattaSkiss,
+  skissVersioner,
+  skissVidVersion,
   läggTillLager,
   läggTillObjekt,
   läggTillZon,
@@ -288,5 +293,56 @@ describe("gemensamma zoner i en filtrerad bild", () => {
     expect(zon.x).toBeGreaterThanOrEqual(0);
     // Hela skissen är orörd.
     expect(s.zoner[0].b).toBe(2000);
+  });
+});
+
+describe("versionerna", () => {
+  const bas = () => läggTillObjekt(nySkiss("Miljön"), "server", 0, 0).skiss;
+
+  it("en skiss utan historik läses som EN version, 0.1", () => {
+    const s = bas();
+    expect(skissVersioner(s)).toHaveLength(1);
+    expect(sammanfattaSkiss(s)).toMatchObject({ beteckning: "0.1", status: "utkast" });
+  });
+
+  it("nytt innehåll, en kommentar eller en ny status ger en ny version – annars ingen", () => {
+    const v1 = läggTillSkissversion(null, bas(), { nu: "2026-01-01T00:00:00.000Z" });
+    expect(v1.versioner).toHaveLength(1);
+    expect(läggTillSkissversion(v1, v1).versioner).toHaveLength(1);
+    expect(läggTillSkissversion(v1, { ...v1, namn: "Nytt" }).versioner).toHaveLength(2);
+    expect(läggTillSkissversion(v1, v1, { label: "Granskad" }).versioner).toHaveLength(2);
+    const fast = läggTillSkissversion(v1, v1, { status: "fastslagen" });
+    expect(sammanfattaSkiss(fast)).toMatchObject({ beteckning: "1.0", status: "fastslagen" });
+    // Synlighet och klassning är ingen ny version.
+    expect(läggTillSkissversion(v1, { ...v1, dold: true }).versioner).toHaveLength(1);
+  });
+
+  it("historiken tas ur den BEFINTLIGA skissen, aldrig ur den nya", () => {
+    const v1 = läggTillSkissversion(null, bas());
+    const fejk = { ...v1, namn: "Nytt", versioner: [] };
+    const ut = läggTillSkissversion(v1, fejk);
+    expect(ut.versioner!.map((v) => v.innehåll.namn)).toEqual(["Miljön", "Nytt"]);
+  });
+
+  it("en äldre version går att ta fram, och portalen visar senaste fastslagna", () => {
+    let s = läggTillSkissversion(null, bas());
+    s = läggTillSkissversion(s, s, { status: "fastslagen" });
+    s = läggTillSkissversion(s, taBortUrSkiss({ ...s, namn: "Utkast" }, [s.objekt[0].id]));
+    expect(skissVidVersion(s, 0).objekt).toHaveLength(1);
+    expect(skissVidVersion(s, 0).namn).toBe("Miljön");
+    expect(publiceradVersionsindex(s)).toBe(1);
+    expect(sammanfattaSkiss(s)).toMatchObject({ beteckning: "1.1", fastslagenBeteckning: "1.0" });
+  });
+
+  it("läsSkiss prövar varje versions innehåll med skissens egna regler", () => {
+    const s = läggTillSkissversion(null, bas());
+    const rå = JSON.parse(JSON.stringify(s));
+    rå.versioner[0].innehåll.objekt[0].x = "<script>";
+    rå.versioner[0].status = "påhittad";
+    rå.versioner.push({ id: "v9", innehåll: "inte ett objekt" });
+    const läst = läsSkiss(rå)!;
+    expect(läst.versioner).toHaveLength(1);
+    expect(läst.versioner![0].innehåll.objekt[0].x).toBe(0);
+    expect(läst.versioner![0].status).toBe("utkast");
   });
 });

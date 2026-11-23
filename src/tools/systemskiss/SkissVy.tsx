@@ -14,7 +14,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { kanDöljaSkiss, kanTaBortSkiss, kanÄndraSkiss } from "@/core/behorighet";
-import { getSkissStore, type SkissStore } from "@/core/skiss-store";
+import { getSkissStore, type Sparval, type SkissStore } from "@/core/skiss-store";
+import { klassningIExport, klassningsText, type Klassningsinställning } from "@/core/klassning";
+import { sammanfattaStatus, statusDef, versionsBeteckningar } from "@/core/status";
+import { KlassningsVal, useKlassningsinställning } from "@/shell/Klassning";
 import {
   SKISS_SORTER,
   ZON_FÄRGER,
@@ -25,7 +28,10 @@ import {
   läggTillObjekt,
   läggTillZon,
   nySkiss,
+  skaparNySkissversion,
   skissNyckel,
+  skissVersioner,
+  skissVidVersion,
   sortNamn,
   sättLager,
   taBortLager,
@@ -43,7 +49,7 @@ import { useAnvändare } from "@/shell/Inloggning";
 import { copySvgAsPng, svgToPngBlob } from "@/tools/flowchart/export/clipboard";
 import { bridgeJson, flowId } from "@/core/flow-store";
 import { SkissCanvas, type SkissCanvasHandtag } from "./SkissCanvas";
-import { ZON_STIL, skissSvg, sortIkonSvg } from "./skiss-svg";
+import { ZON_STIL, skissRevision, skissSvg, sortIkonSvg } from "./skiss-svg";
 
 const INGA_LAGER: SkissLager[] = [];
 
@@ -77,6 +83,13 @@ export function SkissVy() {
   const [fel, setFel] = useState<string | null>(null);
   const [kvitto, setKvitto] = useState<string | null>(null);
   const [sparar, setSparar] = useState(false);
+  /**
+   * En ÄLDRE version man tittar på (index i historiken), eller null = den
+   * senaste. En äldre version är låst: man går tillbaka, eller återställer den
+   * – då blir den nästa version när man sparar (invariant 11).
+   */
+  const [visadVersion, setVisadVersion] = useState<number | null>(null);
+  const klassningsInst = useKlassningsinställning();
   /**
    * Portalens servrar – målet när skissen ska visas där. null = går inte att
    * välja (ingen portal kopplad, eller man är inte administratör).
@@ -165,6 +178,7 @@ export function SkissVy() {
     setKopplar(false);
     setKvitto(null);
     setAktivaLager(null);
+    setVisadVersion(null);
   }, []);
 
   const öppna = async (id: string) => {
@@ -191,7 +205,17 @@ export function SkissVy() {
   };
 
   const osparad = Boolean(skiss) && skissNyckel(skiss!) !== sparadSom;
-  const fårÄndra = Boolean(skiss) && kanÄndraSkiss(användare, skiss!);
+  const fårÄndraSkissen = Boolean(skiss) && kanÄndraSkiss(användare, skiss!);
+  /** En äldre version går inte att ändra i – bara att titta på, exportera och återställa. */
+  const fårÄndra = fårÄndraSkissen && visadVersion === null;
+  const versioner = useMemo(() => (skiss ? skissVersioner(skiss) : []), [skiss]);
+  const beteckningar = useMemo(() => versionsBeteckningar(versioner), [versioner]);
+  const versionsläge = sammanfattaStatus(versioner);
+  /** Det som ritas: den senaste – eller den äldre version man valt. */
+  const bild = useMemo(
+    () => (skiss && visadVersion !== null ? skissVidVersion(skiss, visadVersion) : skiss),
+    [skiss, visadVersion],
+  );
   const fårDölja = kanDöljaSkiss(användare);
 
   const lager = skiss?.lager ?? INGA_LAGER;
@@ -201,7 +225,7 @@ export function SkissVy() {
     const kvar = aktivaLager.filter((id) => lager.some((l) => l.id === id));
     return kvar.length ? new Set(kvar) : null;
   }, [aktivaLager, lager]);
-  const visad = useMemo(() => (skiss ? filtreraSkiss(skiss, filter, medGrannar) : null), [skiss, filter, medGrannar]);
+  const visad = useMemo(() => (bild ? filtreraSkiss(bild, filter, medGrannar) : null), [bild, filter, medGrannar]);
   // Det markerade kan ha hamnat utanför det som visas.
   useEffect(() => setMarkerade([]), [aktivaLager]);
   /** Ett klick på ett lager: första klicket visar BARA det, nästa lägger till eller tar bort. */
@@ -214,7 +238,7 @@ export function SkissVy() {
   /** Nya objekt hamnar i lagret man tittar på – annars försvann de ur bild i samma stund. */
   const nyttILager = filter?.size === 1 ? [...filter][0] : undefined;
 
-  const spara = useCallback(async () => {
+  const spara = useCallback(async (val?: Sparval) => {
     if (!store || !skiss || sparar) return;
     if (!skiss.namn.trim()) {
       setFel("Skissen behöver ett namn.");
@@ -222,11 +246,12 @@ export function SkissVy() {
     }
     setSparar(true);
     try {
-      const sparad = await store.save(skiss);
+      const sparad = await store.save(skiss, val);
       setSkiss(sparad);
       setSparadSom(skissNyckel(sparad));
       setFel(null);
-      setKvitto("Sparad");
+      const nu = sammanfattaStatus(skissVersioner(sparad));
+      setKvitto(`Sparad · ${statusDef(nu.status).etikett} ${nu.beteckning}`);
       void läsLista(store);
     } catch (e) {
       setFel(e instanceof Error ? e.message : String(e));
@@ -234,6 +259,18 @@ export function SkissVy() {
       setSparar(false);
     }
   }, [store, skiss, sparar, läsLista]);
+
+  /** Fastslå: det som gäller – en ny huvudversion (1.0, 2.0 …), med en frivillig kommentar. */
+  const kanFastslå = Boolean(skiss) && skaparNySkissversion(skiss, skiss!, { status: "fastslagen" });
+  const fastslå = () => {
+    if (!skiss) return;
+    const kommentar = window.prompt(
+      "Fastslå skissen: det du ser blir det som gäller, som en ny huvudversion.\n\nKommentar till versionen (frivillig):",
+      "",
+    );
+    if (kommentar === null) return;
+    void spara({ status: "fastslagen", label: kommentar });
+  };
 
   const tillListan = () => {
     if (osparad && !window.confirm("Skissen har ändringar som inte är sparade. Lämna den ändå?")) return;
@@ -288,12 +325,20 @@ export function SkissVy() {
   /* ---- Export ---- */
 
   const lagernamn = filter ? lager.filter((l) => filter.has(l.id)).map((l) => l.namn).join(" ") : "";
-  const filnamn = skiss ? flowId(`${skiss.namn} ${lagernamn}`) : "skiss";
+  const filnamn = skiss
+    ? flowId(`${skiss.namn} ${lagernamn} v${beteckningar[visadVersion ?? beteckningar.length - 1] ?? ""}`)
+    : "skiss";
   const exportera = async (form: "svg" | "png" | "urklipp") => {
     if (!skiss) return;
     try {
       // Exporten är det man SER: med lager framme blir det bara de lagren.
-      const { svg, bredd, höjd } = skissSvg(visad ?? skiss);
+      const revision = skissRevision(
+        skiss,
+        visadVersion ?? -1,
+        visadVersion === null && osparad,
+        klassningIExport(klassningsInst, skiss.klassning),
+      );
+      const { svg, bredd, höjd } = skissSvg(visad ?? skiss, revision);
       if (form === "svg") laddaNer(new Blob([svg], { type: "image/svg+xml" }), `${filnamn}.svg`);
       else if (form === "png") laddaNer(await svgToPngBlob(svg, bredd, höjd), `${filnamn}.png`);
       else {
@@ -384,6 +429,7 @@ export function SkissVy() {
         fårDölja={fårDölja}
         onÖppna={(id) => void öppna(id)}
         onSkapa={(namn, dold) => void skapa(namn, dold)}
+        klassning={klassningsInst.visaIVyn ? klassningsInst : undefined}
       />
     );
   }
@@ -408,6 +454,31 @@ export function SkissVy() {
             🔒 Dold
           </span>
         )}
+        {(() => {
+          const i = visadVersion ?? versioner.length - 1;
+          const def = statusDef(versioner[i]?.status);
+          return (
+            <span
+              className={`ark-status-pill ${def.id}`}
+              title={`${def.beskrivning}${versionsläge.fastslagenBeteckning && !def.huvudversion ? ` Senast fastslagen: ${versionsläge.fastslagenBeteckning}.` : ""}`}
+            >
+              {def.etikett} {beteckningar[i]}
+              {visadVersion === null && !def.huvudversion && versionsläge.fastslagenBeteckning
+                ? ` · fastslagen ${versionsläge.fastslagenBeteckning}`
+                : ""}
+              {visadVersion !== null ? " · äldre version" : ""}
+            </span>
+          );
+        })()}
+        <KlassningsVal
+          inst={klassningsInst}
+          klassning={skiss.klassning}
+          fårÄndra={fårÄndra}
+          onVälj={(nivå) => {
+            const { klassning: _förra, ...utan } = skiss;
+            ändra(nivå ? { ...utan, klassning: { ...nivå, satt: new Date().toISOString() } } : utan);
+          }}
+        />
         <div className="ark-ramar-hoger">
           {osparad && fårÄndra && <span className="ark-ramar-osparad">Osparade ändringar</span>}
           {!osparad && kvitto && <span className="ark-hint--kvitto ark-skiss-kvitto">{kvitto}</span>}
@@ -437,13 +508,48 @@ export function SkissVy() {
             </button>
           )}
           {fårÄndra && (
-            <button className="ark-btn ark-btn--primary" onClick={() => void spara()} disabled={!osparad || sparar} title="Spara (Ctrl+S)">
-              {sparar ? "Sparar …" : "Spara"}
-            </button>
+            <>
+              <button
+                className="ark-btn"
+                onClick={fastslå}
+                disabled={!kanFastslå || sparar}
+                title={kanFastslå ? "Spara som fastslagen – det som gäller, en ny huvudversion" : "Det du ser är redan fastslaget"}
+              >
+                ✓ Fastslå
+              </button>
+              <button className="ark-btn ark-btn--primary" onClick={() => void spara()} disabled={!osparad || sparar} title="Spara som utkast (Ctrl+S)">
+                {sparar ? "Sparar …" : "Spara"}
+              </button>
+            </>
           )}
         </div>
       </div>
       {fel && <div className="ark-error ark-skiss-fel">{fel}</div>}
+      {visadVersion !== null && versioner[visadVersion] && (
+        <div className="ark-skiss-gammal" role="status">
+          <span>
+            Du ser version <strong>{beteckningar[visadVersion]}</strong> ({statusDef(versioner[visadVersion].status).etikett.toLowerCase()}) från{" "}
+            {new Date(versioner[visadVersion].savedAt).toLocaleString("sv-SE")} – inte den senaste ({beteckningar[beteckningar.length - 1]}).
+          </span>
+          <button className="ark-btn" onClick={() => setVisadVersion(null)}>
+            Tillbaka till senaste
+          </button>
+          {fårÄndraSkissen && (
+            <button
+              className="ark-btn"
+              title="Lägger den här versionens innehåll i skissen. Den blir en ny version när du sparar – historiken rörs inte."
+              onClick={() => {
+                const gammal = skissVidVersion(skiss, visadVersion);
+                setVisadVersion(null);
+                ändra(gammal);
+                setMarkerade([]);
+              }}
+            >
+              Återställ den här versionen
+            </button>
+          )}
+        </div>
+      )}
 
       {fårÄndra && (
         <div className="ark-ramar-lada ark-skiss-lada" role="toolbar" aria-label="Lägg till">
@@ -497,8 +603,8 @@ export function SkissVy() {
       <div className="ark-ramar-kropp">
         <SkissCanvas
           ref={canvas}
-          skiss={skiss}
-          visad={visad ?? skiss}
+          skiss={bild ?? skiss}
+          visad={visad ?? bild ?? skiss}
           låst={!fårÄndra}
           markerade={markerade}
           onMarkera={setMarkerade}
@@ -508,7 +614,7 @@ export function SkissVy() {
         />
 
         <aside className="ark-skiss-panel">
-          {!fårÄndra && (
+          {!fårÄndraSkissen && (
             <p className="ark-hint">
               Du tittar på skissen. Bara {skiss.skapadAv?.namn ?? "den som skapade den"} eller en administratör kan ändra den.
             </p>
@@ -768,6 +874,47 @@ export function SkissVy() {
             </>
           )}
 
+          {markerade.length === 0 && (
+            <>
+              <div className="ark-section-title">Versioner</div>
+              <ul className="ark-skiss-versioner">
+                {versioner
+                  .map((v, i) => ({ v, i }))
+                  .reverse()
+                  .map(({ v, i }) => {
+                    const def = statusDef(v.status);
+                    const vald = (visadVersion ?? versioner.length - 1) === i;
+                    return (
+                      <li key={v.id} className={vald ? "vald" : ""}>
+                        <span className={`ark-status-pill ${def.id}`}>
+                          {def.etikett} {beteckningar[i]}
+                        </span>
+                        <span>{new Date(v.savedAt).toLocaleString("sv-SE")}</span>
+                        {v.savedBy && <span className="ark-hint">{v.savedBy}</span>}
+                        {v.label && <span className="ark-hint">– {v.label}</span>}
+                        {!vald && (
+                          <button
+                            className="ark-linkbtn"
+                            onClick={() => {
+                              if (osparad && visadVersion === null && !window.confirm("Du har osparade ändringar. De finns kvar när du går tillbaka till senaste. Visa versionen?"))
+                                return;
+                              setVisadVersion(i === versioner.length - 1 ? null : i);
+                              setMarkerade([]);
+                            }}
+                          >
+                            Visa
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+              </ul>
+              <p className="ark-hint">
+                Spara ger ett utkast (0.1, 1.1 …), Fastslå en ny huvudversion (1.0, 2.0 …). Exporten visar vilken version bilden är.
+              </p>
+            </>
+          )}
+
           {skiss.skapadAv && (
             <p className="ark-hint ark-skiss-fot">
               Skapad av {skiss.skapadAv.namn} · sparad {new Date(skiss.savedAt).toLocaleString("sv-SE")}
@@ -790,6 +937,8 @@ function SkissStart(props: {
   fårDölja: boolean;
   onÖppna: (id: string) => void;
   onSkapa: (namn: string, dold: boolean) => void;
+  /** Klassningsinställningen – märket visas när installationen vill det. */
+  klassning?: Klassningsinställning;
 }) {
   const [namn, setNamn] = useState("");
   const [dold, setDold] = useState(false);
@@ -850,8 +999,9 @@ function SkissStart(props: {
                 {s.namn}
               </span>
               <span className="ark-kort-meta">
-                {s.antalObjekt} objekt{s.skapadAv ? ` · ${s.skapadAv.namn}` : ""}
+                {statusDef(s.status).etikett} {s.beteckning} · {s.antalObjekt} objekt{s.skapadAv ? ` · ${s.skapadAv.namn}` : ""}
                 {s.dold ? " · dold" : ""}
+                {props.klassning && s.klassning ? ` · 🛡 ${klassningsText(props.klassning, s.klassning)}` : ""}
               </span>
               <span className="ark-kort-tid">{new Date(s.savedAt).toLocaleString("sv-SE")}</span>
             </button>

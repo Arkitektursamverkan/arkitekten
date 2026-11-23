@@ -135,3 +135,13 @@ describe("revisionAvVersion", () => {
     expect(revisionAvVersion({}, -1, false)).toBeUndefined();
   });
 });
+
+describe("klassningen i revisionsrutan", () => {
+  it("står FÖRST när den finns, och saknas helt annars", () => {
+    const med = revisionsRuta(0, 0, { version: "1.0", status: "fastslagen", klassning: "Nivå 2 – Betydande skada" });
+    expect(med.indexOf("Klassning: Nivå 2")).toBeGreaterThan(-1);
+    expect(med.indexOf("Klassning")).toBeLessThan(med.indexOf("Fastslagen 1.0"));
+    expect(revisionsRuta(0, 0, { version: "1.0", status: "fastslagen" })).not.toContain("Klassning");
+    expect(revisionsMått({ klassning: "X" }).h).toBeGreaterThan(0);
+  });
+});

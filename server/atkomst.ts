@@ -89,6 +89,7 @@ export function prövaSparning(
     skapadAv: _ocksåIgnorerad,
     publicering: _serverns,
     ursprung: _integrationens,
+    klassning: _klassningsvägens,
     ...kropp
   } = ny;
   if (!befintlig) {
@@ -118,6 +119,8 @@ export function prövaSparning(
     ...(ägare ? { ägare } : {}),
     ...(skapadAv ? { skapadAv } : {}),
     ...(ursprung ? { ursprung } : {}),
+    // Klassningen skrivs bara av `/flows/:id/klassning` – det som står i filen står kvar.
+    ...(befintlig.klassning !== undefined ? { klassning: befintlig.klassning } : {}),
   };
   const till = ytaFör(ut);
   if (till !== ytaFör(befintlig) && !kanByttaYta(u, befintlig, till))

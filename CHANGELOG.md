@@ -9,6 +9,12 @@ funktioner, en ny korrigering för rättelser.
 
 - (inget än)
 
+## 0.18.0 – 2026-11-23
+
+- **Versioner för systemskisser**: varje sparning som ändrar skissen blir en version, som för processerna. *Spara* ger ett utkast (0.1, 1.1 …), den nya knappen *✓ Fastslå* en ny huvudversion (1.0, 2.0 …) med frivillig kommentar. Toppraden visar vilken version man ser; panelen listar historiken, och en äldre version kan visas (låst), exporteras och återställas. Servern bygger historiken ur filen – en tidigare version skrivs aldrig om. Skisser från före versionerna läses som 0.1 och behåller sitt innehåll som första version.
+- **Versionen i exporten**: skissens bild (kopiera, PNG, SVG) får samma revisionsruta som processernas – status, version, datum och vem – och filnamnet bär versionen. Portalen visar senaste fastslagna version av en publicerad skiss (den senaste så länge inget är fastslaget), och flödestjänstens lista bär `status` och `beteckning` för skisserna.
+- **Informationsklassning** (AV som förval): en administratör slår på den under *Inställningar*, väljer modell – produktens neutrala standard (konsekvensnivåerna 0–3 som i SKR:s KLASSA) eller en egen, inskriven som en nivå per rad med indragna undernivåer – och väljer om nivån visas i exporterade bilder och på varje process och skiss. Nivån sätts i processens rubrik och i skissens topprad av den som får ändra; servern prövar den mot modellen. Ingen ny version. Inställningen ligger i `klassning.json` i `STILAR_DIR`. Se `docs/klassning.md`.
+
 ## 0.17.0 – 2026-11-20
 
 - **Lager i systemskissen**: objekt och zoner kan läggas i lager, t.ex. ett per applikation. Raden *Lager* över ritytan skalar bort allt som inte har med de valda lagren att göra: kvar blir lagret, det som det är kopplat till i andra lager (integrationerna) och det gemensamma – utan lager – som hänger ihop med det. Gemensamma zoner dras ihop kring det som visas. Filtret sparas inte.
