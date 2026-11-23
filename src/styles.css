@@ -1962,3 +1962,16 @@ select.ark-input { cursor: pointer; background: var(--panel); }
 .ark-flow-header-klassning { min-width: 9em; flex-shrink: 0.2; display: flex; }
 .ark-flow-header .ark-klassning { min-width: 0; max-width: 100%; }
 .ark-flow-header .ark-klassning--val select { min-width: 0; max-width: 200px; width: 100%; }
+/* Systemskissens utskrift. */
+.ark-utskrift { max-width: 520px; }
+.ark-utskrift-grupp { border: 0; padding: 0; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.ark-utskrift-grupp > legend { width: 100%; margin-bottom: 2px; }
+.ark-utskrift-val { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.ark-utskrift-indrag { margin-left: 22px; }
+.ark-utskrift-blad { margin: 0; padding: 0 0 0 22px; max-height: 220px; overflow-y: auto; font-size: 12.5px; }
+.ark-utskrift-blad li { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; }
+.ark-utskrift-namn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ark-utskrift-pt { white-space: nowrap; color: var(--text-muted, #475467); }
+.ark-utskrift-liten .ark-utskrift-pt { color: #b54708; font-weight: 600; }
+.ark-utskrift-olasbar .ark-utskrift-pt { color: #b42318; font-weight: 600; }
+.ark-utskrift-varning { color: #b54708; }

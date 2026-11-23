@@ -50,6 +50,7 @@ import { copySvgAsPng, svgToPngBlob } from "@/tools/flowchart/export/clipboard";
 import { bridgeJson, flowId } from "@/core/flow-store";
 import { SkissCanvas, type SkissCanvasHandtag } from "./SkissCanvas";
 import { ZON_STIL, skissRevision, skissSvg, sortIkonSvg } from "./skiss-svg";
+import { Utskriftsdialog } from "./Utskriftsdialog";
 
 const INGA_LAGER: SkissLager[] = [];
 
@@ -82,6 +83,8 @@ export function SkissVy() {
   const [medGrannar, setMedGrannar] = useState(true);
   const [fel, setFel] = useState<string | null>(null);
   const [kvitto, setKvitto] = useState<string | null>(null);
+  /** Dialogen Skriv ut är öppen. */
+  const [skriverUt, setSkriverUt] = useState(false);
   const [sparar, setSparar] = useState(false);
   /**
    * En ÄLDRE version man tittar på (index i historiken), eller null = den
@@ -328,16 +331,16 @@ export function SkissVy() {
   const filnamn = skiss
     ? flowId(`${skiss.namn} ${lagernamn} v${beteckningar[visadVersion ?? beteckningar.length - 1] ?? ""}`)
     : "skiss";
+  /** Revisionsrutan för det man tittar på – samma i exporten och utskriften. */
+  const revisionFörBild = () =>
+    skiss
+      ? skissRevision(skiss, visadVersion ?? -1, visadVersion === null && osparad, klassningIExport(klassningsInst, skiss.klassning))
+      : undefined;
   const exportera = async (form: "svg" | "png" | "urklipp") => {
     if (!skiss) return;
     try {
       // Exporten är det man SER: med lager framme blir det bara de lagren.
-      const revision = skissRevision(
-        skiss,
-        visadVersion ?? -1,
-        visadVersion === null && osparad,
-        klassningIExport(klassningsInst, skiss.klassning),
-      );
+      const revision = revisionFörBild();
       const { svg, bredd, höjd } = skissSvg(visad ?? skiss, revision);
       if (form === "svg") laddaNer(new Blob([svg], { type: "image/svg+xml" }), `${filnamn}.svg`);
       else if (form === "png") laddaNer(await svgToPngBlob(svg, bredd, höjd), `${filnamn}.png`);
@@ -501,6 +504,9 @@ export function SkissVy() {
           </button>
           <button className="ark-btn" onClick={() => void exportera("svg")}>
             SVG
+          </button>
+          <button className="ark-btn" onClick={() => setSkriverUt(true)} title="Skriv ut på A4 eller A3, eller spara som PDF">
+            🖨 Skriv ut
           </button>
           {kanTaBortSkiss(användare, skiss) && (
             <button className="ark-btn" onClick={() => void taBortSkissen()} title="Ta bort skissen">
@@ -922,6 +928,9 @@ export function SkissVy() {
           )}
         </aside>
       </div>
+      {skriverUt && bild && (
+        <Utskriftsdialog skiss={bild} filter={filter} grannar={medGrannar} revision={revisionFörBild()} onStäng={() => setSkriverUt(false)} />
+      )}
     </div>
   );
 }

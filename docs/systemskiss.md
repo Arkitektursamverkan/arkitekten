@@ -45,7 +45,36 @@ som användaren bakom proxyn. Gemensamt utan koppling till lagret döljs.
 Gemensamma zoner dras ihop kring det som visas. Filtret är den tittandes eget
 och sparas inte.
 
-**Exporten följer filtret**: kopiera bild, PNG och SVG ger det som visas.
+**Exporten följer filtret**: kopiera bild, PNG och SVG ger det som visas. Utskriften kan också ge ett blad per lager (se *Skriv ut*).
+
+## Skriv ut
+
+**🖨 Skriv ut** öppnar en ruta där man väljer papper (A4 eller A3), riktning
+(den som ger störst bild, stående eller liggande) och innehåll:
+
+- **Det som visas** – ett blad med de lager som är framme (hela skissen utan filter).
+- **Ett blad per lager** – varje lager blir en egen, mindre bild, med samma
+  regel som raden Lager. Tomma lager hoppas över. Hela skissen kan läggas först.
+
+Rutan listar bladen och hur stor rutornas text blir på pappret. Under 6 pt är
+den svår att läsa och märks med orange, under 4,5 pt med rött. En liten bild
+förstoras inte mer än att texten blir 12 pt.
+
+**Dela på flera blad** (på som förval): blir texten ändå under 6 pt delas
+bilden i rader och kolumner så att den blir minst 7 pt. Bladen överlappar
+1 cm så att de går att lägga ihop, och rubriken säger vilken del det är
+(”del 2 av 4, kolumn 2”). Högst 12 blad per bild – större än så är skissen
+för stor och bör delas i fler lager eller i flera skisser.
+
+Varje blad har samma revisionsruta som exporten. Utskriften går genom
+webbläsarens utskriftsdialog – där väljer man skrivare eller *Spara som PDF*.
+Stående och liggande blad i samma utskrift kräver en webbläsare med namngivna
+sidmallar (Edge, Chrome); andra använder det första bladets riktning. Valen
+minns i webbläsaren.
+
+**Rita för papper**: en skiss som ska skrivas ut läses bäst om varje lager
+ryms på ett A3 med minst 6 pt – ungefär 2 150 × 1 450 enheter liggande (A4: 1 500 × 1 000). Lägg
+hellre en stor bild i fler lager än i en enda.
 
 ## Versioner
 

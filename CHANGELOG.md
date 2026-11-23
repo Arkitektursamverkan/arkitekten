@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- **Skriv ut systemskissen på A4 eller A3.** Knappen *🖨 Skriv ut* ger ett blad med det som visas eller ett blad per lager, i den riktning som ger störst bild. Rutan visar textstorleken på pappret för varje blad och varnar under 6 pt. Blir texten för liten delas bilden på flera blad som överlappar 1 cm. Utskriften går genom webbläsarens dialog, så den kan också sparas som PDF. Se `docs/systemskiss.md`.
+
 ## 0.20.0 – 2026-11-23
 
 - **Gemensam inloggning.** När installationen har gemensam inloggning (portalens *Administration → Organisation*, eller `ARK_GEMENSAM_INLOGGNING=1`) skickas en utloggad besökare direkt vidare till Microsoft – den som redan är inloggad i portalen kommer in i Arkitekten utan att klicka. Ingen automatisk inloggning efter *Logga ut*; högst ett automatiskt försök per minut. Av som förval. Se `docs/inloggning.md`.
