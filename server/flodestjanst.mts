@@ -36,7 +36,7 @@ import {
   skissVidVersion,
   type Systemskiss,
 } from "../src/core/systemskiss";
-import { klassningIExport } from "../src/core/klassning";
+import { klassningIExport, läsKlassning } from "../src/core/klassning";
 import { läsKlassningsinställningFil } from "./klassning";
 import { byggSkissScen } from "../src/tools/systemskiss/scen-systemskiss";
 import { skissRevision, skissSvg } from "../src/tools/systemskiss/skiss-svg";
@@ -332,6 +332,10 @@ export function skapaHanterare(
         sättSymbolstil(valdStil(stilarDir));
         if (vad === "scen") {
           const scen = ärAp ? byggApScen(flöde, { version }) : byggFlödesScen(flöde, { version });
+          // Klassningen följer med i scenens revision, som i exporten – bara
+          // när installationen valt att visa den där (core/klassning.ts).
+          const klassning = klassningIExport(läsKlassningsinställningFil(stilarDir), läsKlassning(flöde.klassning));
+          if (klassning) scen.revision = { ...((scen.revision as object | null) ?? {}), klassning };
           return json(res, 200, { ok: true, scen });
         }
         res.statusCode = 200;

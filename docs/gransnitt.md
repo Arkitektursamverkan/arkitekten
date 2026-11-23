@@ -52,7 +52,8 @@ färdigritad i `bakgrund` (inga noder eller kanter) och en färdig bild per lage
 i `lager` (`id`, `namn`, `bakgrund`, `bredd`, `höjd`). Bilden är senaste
 fastslagna version (annars den senaste), och listan bär dess `status` och
 `beteckning`; scenens `revision` säger version och – när installationen vill –
-klassning (`docs/klassning.md`). Opublicerade skisser lämnas aldrig ut. Se
+klassning (`docs/klassning.md`). Processernas scener bär klassningen likadant
+(`revision.klassning`, bara när installationen visar den i exporten). Opublicerade skisser lämnas aldrig ut. Se
 `docs/systemskiss.md`.
 
 **Versionen.** `kontrakt` är huvudversionen av listan och svaren; scenen har
