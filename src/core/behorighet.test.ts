@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { läsKlassningsinställning } from "./klassning";
 import {
   delaIYtor,
+  fårSeKlassning,
+  kanLäsaSkiss,
+  medKlarering,
+  minaSkyddsklasser,
   kanByttaYta,
   kanLäsa,
   kanPublicera,
@@ -121,5 +126,52 @@ describe("vems processen är", () => {
     expect(vemsProcess(annas)).toBe("Anna");
     expect(vemsProcess({ ...annas, skapadAv: { id: "anna", namn: "Anna" } })).toBe("Anna");
     expect(vemsProcess({ ...annas, skapadAv: { id: "bo", namn: "Bo" } })).toBe("Anna · skapad av Bo");
+  });
+});
+
+describe("klassningen skär av", () => {
+  const inst = läsKlassningsinställning({
+    på: true,
+    skyddsklasser: [{ namn: "Känsliga", nivåer: ["niva-3"], behöriga: ["bo@example.org", "anna"] }],
+  });
+  const annaK = medKlarering({ ...anna, id: "ANNA" }, inst);
+  const cecilia = medKlarering({ id: "c", namn: "Cecilia", roller: ["user"] }, inst);
+  const boK = medKlarering({ ...bo, epost: "Bo@Example.org" }, inst);
+  const gemensam = { category: "Ekonomi", klassning: { nivå: "niva-3" } };
+
+  it("klareringen: nivåerna utan krav, och de vars klass man har (id eller e-post)", () => {
+    expect(cecilia.klarering).toEqual(["niva-0", "niva-1", "niva-2"]);
+    expect(annaK.klarering).toEqual(["niva-0", "niva-1", "niva-2", "niva-3"]);
+    expect(boK.klarering).toContain("niva-3");
+    expect(medKlarering(admin, inst).klarering).toBeUndefined();
+    expect(medKlarering(cecilia, { ...inst, på: false }).klarering).toBeUndefined();
+    expect(minaSkyddsklasser(boK, inst)).toEqual(["kansliga"]);
+    expect(minaSkyddsklasser(cecilia, inst)).toEqual([]);
+  });
+
+  it("utan klassen: varken läsa, ändra, flytta, ta bort eller publicera", () => {
+    expect(kanLäsa(cecilia, gemensam)).toBe(false);
+    expect(kanLäsa(boK, gemensam)).toBe(true);
+    expect(kanLäsa(admin, gemensam)).toBe(true);
+    const demo = { category: "Demo", klassning: { nivå: "niva-3" } };
+    expect(kanRedigera(cecilia, demo)).toBe(false);
+    expect(kanRedigera(boK, demo)).toBe(true);
+    const egen = { ägare: { id: "c", namn: "Cecilia" }, klassning: { nivå: "niva-3" } };
+    expect(kanLäsa(cecilia, egen)).toBe(false);
+    expect(kanTaBort(cecilia, egen)).toBe(false);
+    expect(kanByttaYta(cecilia, egen, "gemensam")).toBe(false);
+    expect(kanPublicera(medKlarering(admin, inst), gemensam)).toBe(true);
+    expect(kanLäsaSkiss(cecilia, { klassning: { nivå: "niva-3" } })).toBe(false);
+    expect(kanLäsaSkiss(cecilia, { klassning: { nivå: "niva-2" } })).toBe(true);
+  });
+
+  it("oklassat är öppet; en nivå utanför modellen är stängd", () => {
+    expect(fårSeKlassning(cecilia, undefined)).toBe(true);
+    expect(fårSeKlassning(cecilia, null)).toBe(true);
+    expect(fårSeKlassning(cecilia, { nivå: "borta" })).toBe(false);
+    expect(fårSeKlassning(cecilia, { nivå: 3 })).toBe(false);
+    expect(fårSeKlassning(null, undefined)).toBe(false);
+    // Utan klarering (klassning av, eller ännu inte hämtad): ingen begränsning.
+    expect(fårSeKlassning(anna, { nivå: "niva-3" })).toBe(true);
   });
 });

@@ -138,6 +138,10 @@ bara genom plattformen (`docs/gransnitt.md`). För ALL kod gäller:
    lösenord eller "logga ut överallt" loggar ut alla äldre sessioner.
    Historiken i en PUT prövas av `slåIhopHistorik`: filens versioner
    oförändrade, nya bara sist; `savedBy` på en ny version är serverns.
+   KLASSNINGEN SKÄR AV ÖVERALLT: bryggan sätter användarens `klarering`
+   (`medKlarering`, ur `klassning.json`) vid varje begäran, och varje
+   kan…-regel frågar `fårSeKlassning` först. En nivå utanför modellen är
+   stängd för alla utom admin. Klareringen sparas aldrig i sessionen.
    En process i någon annans egen katalog svarar 404, och en ramserie syns
    bara för den som får läsa dess process (`kanLäsaRamserie`).
    Uppsättning: `docs/inloggning.md`.

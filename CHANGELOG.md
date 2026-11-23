@@ -7,7 +7,10 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
-- (inget än)
+## 0.19.0 – 2026-11-23
+
+- **Klassningen styr vem som ser vad.** En administratör lägger upp *skyddsklasser* under *Inställningar → Informationsklassning* – ett namn, nivåerna som kräver klassen och vilka som har den (e-post eller Entra-kontots objekt-id). En process eller systemskiss vars nivå kräver en klass man inte har finns inte för en: den syns inte i katalogen och går inte att öppna, ändra, flytta eller ta bort. Administratören ser allt; en nivå som inte finns i modellen ser bara administratören. Man kan bara välja en nivå man själv får se. Ändringar gäller från nästa begäran. Se `docs/klassning.md`.
+- **Kravet till portalen**: flödestjänstens lista bär `klassning` (nivå, namn, `skyddsklass`, `skyddsklassNamn`) för varje klassad process och skiss, oavsett om nivån visas i exporten – EA-portalen (0.31.0) avgör av den vem som ser bilden. Kontraktet är oförändrat (nytt fält).
 
 ## 0.18.0 – 2026-11-23
 

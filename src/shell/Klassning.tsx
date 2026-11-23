@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { fårSeKlassning } from "@/core/behorighet";
 import {
   STANDARDINSTÄLLNING,
   klassningsText,
@@ -14,6 +15,7 @@ import {
   type Klassning,
   type Klassningsinställning,
 } from "@/core/klassning";
+import { useAnvändare } from "./Inloggning";
 
 let hämtning: Promise<Klassningsinställning> | null = null;
 
@@ -58,6 +60,7 @@ interface Props {
  * av, och för läsaren ingenting när administratören valt att inte visa den.
  */
 export function KlassningsVal({ inst, klassning, fårÄndra, onVälj, upptagen }: Props) {
+  const användare = useAnvändare();
   if (!inst.på) return null;
   const text = klassningsText(inst, klassning);
   if (!fårÄndra) {
@@ -87,7 +90,8 @@ export function KlassningsVal({ inst, klassning, fårÄndra, onVälj, upptagen }
       >
         <option value="">Ej klassad</option>
         {klassning && !finns && <option value={klassning.nivå}>{klassning.namn} (finns inte i modellen)</option>}
-        {inst.modell.nivåer.map((n) => (
+        {/* Bara nivåer man själv får se – bryggan vägrar de andra (core/behorighet.ts). */}
+        {inst.modell.nivåer.filter((n) => fårSeKlassning(användare, { nivå: n.id })).map((n) => (
           <option key={n.id} value={n.id}>
             {n.djup ? "   – " : ""}
             {n.namn}

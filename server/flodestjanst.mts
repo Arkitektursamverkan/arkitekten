@@ -36,7 +36,7 @@ import {
   skissVidVersion,
   type Systemskiss,
 } from "../src/core/systemskiss";
-import { klassningIExport, läsKlassning } from "../src/core/klassning";
+import { klassningIExport, klassningUtåt, läsKlassning, type Klassningsinställning } from "../src/core/klassning";
 import { läsKlassningsinställningFil } from "./klassning";
 import { byggSkissScen } from "../src/tools/systemskiss/scen-systemskiss";
 import { skissRevision, skissSvg } from "../src/tools/systemskiss/skiss-svg";
@@ -166,7 +166,16 @@ function publiceradBild(s: Systemskiss) {
   return { index, skiss: skissVidVersion(s, index), ...sammanfattaStatus(versioner.slice(0, index + 1)) };
 }
 
-function listaSkisser(skisserDir: string) {
+/**
+ * Klassningen och kravet den ställer (core/klassning.ts) – portalen avgör av
+ * den vem som får se bilden. Följer med oavsett om nivån skrivs ut i bilden.
+ */
+function klassningsfält(inst: Klassningsinställning, rå: unknown) {
+  const k = klassningUtåt(inst, läsKlassning(rå));
+  return k ? { klassning: k } : {};
+}
+
+function listaSkisser(skisserDir: string, inst: Klassningsinställning) {
   return publiceradeSkisser(skisserDir).map((s) => ({
     id: SKISS_TJÄNSTPREFIX + s.id,
     name: s.namn,
@@ -181,10 +190,11 @@ function listaSkisser(skisserDir: string) {
     versionCount: skissVersioner(s).length,
     status: publiceradBild(s).status,
     beteckning: publiceradBild(s).beteckning,
+    ...klassningsfält(inst, s.klassning),
   }));
 }
 
-function listaFlöden(flowsDir: string) {
+function listaFlöden(flowsDir: string, inst: Klassningsinställning) {
   if (!fs.existsSync(flowsDir)) return [];
   const ut = [];
   for (const f of fs.readdirSync(flowsDir).filter((f) => f.endsWith(".json"))) {
@@ -226,6 +236,7 @@ function listaFlöden(flowsDir: string) {
         // Källsystemet processen läses in från, när en integration håller
         // den i takt med ett annat system (core/ursprung.ts).
         ...(läsUrsprung(flow.ursprung) ? { ursprung: läsUrsprung(flow.ursprung) } : {}),
+        ...klassningsfält(inst, flow.klassning),
         stepCount: steps.length,
         versionCount: Array.isArray(flow.versions) ? Math.max(1, flow.versions.length) : 1,
         // Kategorin i katalogen (användarens egen). Saknas = reglerna i
@@ -282,7 +293,7 @@ export function skapaHanterare(
       }
 
       if (väg === "/health") {
-        return json(res, 200, { ok: true, kontrakt: KONTRAKT, antal: listaFlöden(flowsDir).length });
+        return json(res, 200, { ok: true, kontrakt: KONTRAKT, antal: listaFlöden(flowsDir, läsKlassningsinställningFil(stilarDir)).length });
       }
 
       // Allt under /api kräver nyckeln när installationen har en.
@@ -291,7 +302,7 @@ export function skapaHanterare(
       }
 
       if (väg === "/api/flows") {
-        return json(res, 200, { ok: true, kontrakt: KONTRAKT, flows: [...listaFlöden(flowsDir), ...listaSkisser(skisserDir)] });
+        return json(res, 200, { ok: true, kontrakt: KONTRAKT, flows: [...listaFlöden(flowsDir, läsKlassningsinställningFil(stilarDir)), ...listaSkisser(skisserDir, läsKlassningsinställningFil(stilarDir))] });
       }
 
       // En publicerad systemskiss: samma vägar som ett flöde, under sitt prefix.
