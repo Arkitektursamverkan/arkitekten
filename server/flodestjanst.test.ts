@@ -334,6 +334,25 @@ describe("klassningen i en process scen", () => {
       expect(s.revision.version).toBe("1.0");
       fs.writeFileSync(path.join(stilar, "klassning.json"), JSON.stringify({ på: true, visaIExport: false }));
       expect((await scen()).revision?.klassning).toBeUndefined();
+      // Listan bär nivån och KRAVET oavsett visningsvalet – portalen avgör
+      // av det vem som ser bilden (core/klassning.ts, klassningUtåt).
+      const lista = async () => (await (await fetch(`${bas}/api/flows`)).json()).flows[0];
+      expect((await lista()).klassning).toEqual({ nivå: "niva-3", namn: "Nivå 3 – Allvarlig skada", skyddsklass: null });
+      fs.writeFileSync(
+        path.join(stilar, "klassning.json"),
+        JSON.stringify({ på: true, visaIExport: false, skyddsklasser: [{ namn: "Känsliga", nivåer: ["niva-3"], behöriga: ["x@y.se"] }] }),
+      );
+      const k = (await lista()).klassning;
+      expect(k).toEqual({ nivå: "niva-3", namn: "Nivå 3 – Allvarlig skada", skyddsklass: "kansliga", skyddsklassNamn: "Känsliga" });
+      // Vilka som har klassen lämnas aldrig ut.
+      expect(JSON.stringify(await lista())).not.toContain("x@y.se");
+      // En nivå som inte finns i modellen: "okand" – bara administratörer.
+      const f = JSON.parse(fs.readFileSync(path.join(flows, "klassad.json"), "utf8"));
+      fs.writeFileSync(path.join(flows, "klassad.json"), JSON.stringify({ ...f, klassning: { ...f.klassning, nivå: "borta" } }));
+      expect((await lista()).klassning.skyddsklass).toBe("okand");
+      // Avstängd klassning: inget fält alls.
+      fs.writeFileSync(path.join(stilar, "klassning.json"), JSON.stringify({ på: false }));
+      expect((await lista()).klassning).toBeUndefined();
     } finally {
       await new Promise<void>((klar) => t.close(() => klar()));
       fs.rmSync(rot, { recursive: true, force: true });

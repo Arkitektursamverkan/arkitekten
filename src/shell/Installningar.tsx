@@ -21,6 +21,8 @@ import {
   modellTillText,
   textTillNivåer,
   type Klassningsinställning,
+  type Klassningsnivå,
+  type Skyddsklass,
 } from "@/core/klassning";
 
 interface StilRad {
@@ -240,8 +242,82 @@ function KlassningsInställningar(p: {
             <input type="checkbox" checked={inst.visaIVyn} onChange={(e) => onÄndra({ ...inst, visaIVyn: e.target.checked })} />
             <span>Visa klassningen på varje process och systemskiss</span>
           </label>
+          <Skyddsklasser
+            inst={inst}
+            nivåer={egen ? textTillNivåer(p.egenText) : inst.modell.nivåer}
+            onÄndra={(skyddsklasser) => onÄndra({ ...inst, skyddsklasser })}
+          />
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Skyddsklasserna: vilka nivåer som kräver en klass, och vem som har den här
+ * i Arkitekten. I EA-portalen delas samma klass ut som en behörighet i en roll.
+ */
+function Skyddsklasser(p: {
+  inst: Klassningsinställning;
+  nivåer: Klassningsnivå[];
+  onÄndra: (k: Skyddsklass[]) => void;
+}) {
+  const klasser = p.inst.skyddsklasser;
+  const ändra = (i: number, k: Partial<Skyddsklass>) => p.onÄndra(klasser.map((x, j) => (j === i ? { ...x, ...k } : x)));
+  return (
+    <div className="ark-skyddsklasser">
+      <h4 className="ark-installning-underrubrik">Vem får se vad – skyddsklasser</h4>
+      <p className="ark-hint">
+        En nivå kan kräva en skyddsklass. Då ser bara de som har klassen (och administratörer) processer och skisser
+        med den nivån – här i Arkitekten och i EA-portalen. Nivåer utan skyddsklass ser alla som ser processen. I
+        EA-portalen delas klassen ut under Behörigheter, i en roll.
+      </p>
+      {klasser.map((k, i) => (
+        <fieldset key={i} className="ark-skyddsklass">
+          <label className="ark-skiss-falt">
+            Skyddsklassens namn
+            <input className="ark-input" value={k.namn} placeholder="T.ex. Känsliga personuppgifter" onChange={(e) => ändra(i, { namn: e.target.value })} />
+          </label>
+          <div className="ark-skiss-falt">
+            Nivåerna som kräver den
+            {p.nivåer.map((n) => {
+              const annan = klasser.find((x, j) => j !== i && x.nivåer.includes(n.id));
+              return (
+                <label key={n.id} className="ark-installning-val ark-skyddsklass-niva">
+                  <input
+                    type="checkbox"
+                    checked={k.nivåer.includes(n.id)}
+                    disabled={Boolean(annan)}
+                    onChange={(e) =>
+                      ändra(i, { nivåer: e.target.checked ? [...k.nivåer, n.id] : k.nivåer.filter((x) => x !== n.id) })
+                    }
+                  />
+                  <span>
+                    {n.djup ? "– " : ""}
+                    {n.namn}
+                    {annan && <span className="ark-hint"> (kräver {annan.namn || "en annan klass"})</span>}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <label className="ark-skiss-falt">
+            Vilka har klassen i Arkitekten – e-postadress eller Entra-kontots objekt-id, en per rad
+            <textarea
+              className="ark-textarea"
+              rows={4}
+              value={k.behöriga.join("\n")}
+              onChange={(e) => ändra(i, { behöriga: e.target.value.split("\n") })}
+            />
+          </label>
+          <button className="ark-linkbtn" onClick={() => p.onÄndra(klasser.filter((_, j) => j !== i))}>
+            Ta bort skyddsklassen
+          </button>
+        </fieldset>
+      ))}
+      <button className="ark-linkbtn" onClick={() => p.onÄndra([...klasser, { id: "", namn: "", nivåer: [], behöriga: [] }])}>
+        + Ny skyddsklass
+      </button>
     </div>
   );
 }

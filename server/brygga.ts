@@ -75,7 +75,7 @@ import {
 } from "./auth";
 import { bytYta, prövaPublicering, prövaRamserie, prövaSkiss, prövaSparning } from "./atkomst";
 import { läggTillSkissversion, läsSkiss, sammanfattaSkiss } from "../src/core/systemskiss";
-import { Klassningsfel, prövaKlassning } from "../src/core/klassning";
+import { Klassningsfel, läsKlassning, prövaKlassning, utanBehöriga } from "../src/core/klassning";
 import { läsKlassningsinställningFil, sparaKlassningsinställning } from "./klassning";
 import { läsStilar, valdStil, väljStil } from "./symbolstilar";
 import { Inloggningsspärr, Kontofel, Kontolager, sessionsversion, somAnvändare, spärrnycklar, utåt } from "./konton";
@@ -87,8 +87,11 @@ import { skapaPortalWebb, type PortalWebb } from "./installation";
 import { läsBmtMall } from "./bmt-mall";
 import {
   ärAdmin,
+  fårSeKlassning,
   kanLäsa,
   kanRedigera,
+  medKlarering,
+  minaSkyddsklasser,
   kanTaBort,
   kanLäsaRamserie,
   kanLäsaSkiss,
@@ -689,6 +692,8 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                   typeof flow.subcategory === "string" ? flow.subcategory : undefined,
                 // Ytan (gemensam/demo/egen) härleds ur ägaren – se core/behorighet.ts.
                 ägare: flow.ägare && typeof flow.ägare.id === "string" ? flow.ägare : undefined,
+                // Klassningen: katalogen visar den, och `kanLäsa` nedan prövar den.
+                klassning: läsKlassning(flow.klassning),
                 // Vem som skapade processen – visas för den som ser andras processer.
                 skapadAv:
                   flow.skapadAv && typeof flow.skapadAv.id === "string" ? flow.skapadAv : undefined,
@@ -737,10 +742,12 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
 
           // --- Inloggningen. De här vägarna är de enda som nås utan session.
           if (url === "/auth/me" && req.method === "GET") {
+            const inloggad = vem(req);
             json(res, 200, {
               ok: true,
               läge: auth.läge,
-              användare: vem(req),
+              // Med klareringen (core/behorighet.ts): appen gömmer det servern ändå vägrar.
+              användare: inloggad ? medKlarering(inloggad, läsKlassningsinställningFil(o.stilarDir)) : null,
               // Lokala konton utan ett enda konto: första besöket skapar administratören.
               ...(auth.läge === "lokal" && !konton.finnsNågot()
                 ? { förstaKonto: true, kodKrävs: förstaKontoKod().krävs }
@@ -923,11 +930,15 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
           }
 
           // --- ALLT annat kräver en inloggad användare.
-          const användare = vem(req);
-          if (!användare) {
+          const inloggad = vem(req);
+          if (!inloggad) {
             json(res, 401, { ok: false, inloggning: true, error: "Du är inte inloggad – ladda om sidan och logga in." });
             return;
           }
+          // Klareringen räknas för VARJE begäran ur installationens klassning
+          // (core/behorighet.ts): en ändrad skyddsklass gäller direkt, inte
+          // först vid nästa inloggning. Alla regler nedan frågar den.
+          const användare = medKlarering(inloggad, läsKlassningsinställningFil(o.stilarDir));
           /**
            * Får användaren se ramserien? Läsbarheten FÖLJER PROCESSEN den hör
            * till (`kanLäsaRamserie`): en serie över någon annans egen process
@@ -944,6 +955,19 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               return ärAdmin(användare);
             }
             return kanLäsaRamserie(användare, flöde);
+          };
+          /**
+           * En NY nivå får bara sättas av den som själv får se den – annars
+           * stänger man ute sig själv (och kanske den som skapade skissen).
+           * Svarar 403 och ger false när den inte får.
+           */
+          const fårSättaNivå = (ny: { nivå: string } | undefined, förra: { nivå?: unknown } | undefined) => {
+            if (!ny || ny.nivå === förra?.nivå || fårSeKlassning(användare, ny)) return true;
+            json(res, 403, {
+              ok: false,
+              error: "Du kan bara välja en klassningsnivå du själv har behörighet att se.",
+            });
+            return false;
           };
           const baraAdmin = () => {
             if (ärAdmin(användare)) return false;
@@ -1338,7 +1362,13 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
           // --- Informationsklassningen (core/klassning.ts): alla läser
           // inställningen, en administratör ändrar den.
           if (url === "/klassning" && req.method === "GET") {
-            json(res, 200, { ok: true, klassning: läsKlassningsinställningFil(o.stilarDir) });
+            const inst = läsKlassningsinställningFil(o.stilarDir);
+            json(res, 200, {
+              ok: true,
+              // Vilka som har en skyddsklass är administratörens sak.
+              klassning: ärAdmin(användare) ? inst : utanBehöriga(inst),
+              mina: minaSkyddsklasser(användare, inst),
+            });
             return;
           }
           if (url === "/klassning" && req.method === "PUT") {
@@ -1370,6 +1400,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             }
             const b = req.method === "PUT" ? JSON.parse((await readBody(req)) || "{}") : null;
             const klassning = prövaKlassning(inst, befintlig.klassning, b ? (b.klassning ?? null) : null, användare.namn);
+            if (!fårSättaNivå(klassning, befintlig.klassning)) return;
             const { klassning: _förra, ...utan } = befintlig;
             const flow = { ...utan, ...(klassning ? { klassning } : {}) };
             fs.writeFileSync(file, JSON.stringify(flow, null, 2), "utf8");
@@ -1645,6 +1676,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 rå.klassning ?? null,
                 användare.namn,
               );
+              if (!fårSättaNivå(klassning, befintlig?.klassning)) return;
               const { klassning: _begärd, ...utanKlassning } = kropp;
               const prövad = prövaSkiss(användare, befintlig, {
                 ...utanKlassning,

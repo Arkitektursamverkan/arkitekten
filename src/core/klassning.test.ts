@@ -7,7 +7,10 @@ import {
   klassningsText,
   läsKlassning,
   läsKlassningsinställning,
+  klassningUtåt,
   modellTillText,
+  skyddsklassFör,
+  utanBehöriga,
   prövaKlassning,
   textTillNivåer,
 } from "./klassning";
@@ -80,5 +83,49 @@ describe("klassningen på en process eller skiss", () => {
   it("läsningen släpper inget oprövat igenom", () => {
     expect(läsKlassning({ nivå: "<script>", namn: "x" })).toBeUndefined();
     expect(läsKlassning({ nivå: "a", namn: "" })).toBeUndefined();
+  });
+});
+
+describe("skyddsklasserna", () => {
+  const inst = läsKlassningsinställning({
+    på: true,
+    skyddsklasser: [
+      { namn: "Känsliga", nivåer: ["niva-3", "finns-inte"], behöriga: [" A@B.se ", "", "a@b.se"] },
+      // Nivå 3 är redan tagen – en nivå hör till högst en klass.
+      { namn: "Känsliga", nivåer: ["niva-3", "niva-2"], behöriga: [] },
+      { namn: "", nivåer: ["niva-1"] },
+      { id: "okand", namn: "Fusk" },
+    ],
+  });
+
+  it("läses i en form vi litar på", () => {
+    expect(inst.skyddsklasser).toEqual([
+      { id: "kansliga", namn: "Känsliga", nivåer: ["niva-3"], behöriga: ["a@b.se"] },
+      { id: "kansliga-2", namn: "Känsliga", nivåer: ["niva-2"], behöriga: [] },
+      // "okand" är reserverat för en nivå som inte finns i modellen.
+      { id: "fusk", namn: "Fusk", nivåer: [], behöriga: [] },
+    ]);
+    expect(STANDARDINSTÄLLNING.skyddsklasser).toEqual([]);
+  });
+
+  it("kravet per nivå: klassen, ingenting, eller okand för en nivå utanför modellen", () => {
+    expect(skyddsklassFör(inst, "niva-3")).toMatchObject({ id: "kansliga" });
+    expect(skyddsklassFör(inst, "niva-0")).toBeUndefined();
+    expect(skyddsklassFör(inst, "borta")).toBe("okand");
+    expect(skyddsklassFör({ ...inst, på: false }, "borta")).toBeUndefined();
+  });
+
+  it("det som lämnas ut till portalen bär kravet men aldrig vilka som har det", () => {
+    const k = { nivå: "niva-3", namn: "Gammalt namn", satt: "2026-01-01T00:00:00.000Z" };
+    expect(klassningUtåt(inst, k)).toEqual({
+      nivå: "niva-3",
+      namn: "Nivå 3 – Allvarlig skada",
+      skyddsklass: "kansliga",
+      skyddsklassNamn: "Känsliga",
+    });
+    expect(klassningUtåt(inst, { ...k, nivå: "niva-0" })?.skyddsklass).toBeNull();
+    expect(klassningUtåt(inst, { ...k, nivå: "borta" })).toMatchObject({ namn: "Gammalt namn", skyddsklass: "okand" });
+    expect(klassningUtåt({ ...inst, på: false }, k)).toBeUndefined();
+    expect(utanBehöriga(inst).skyddsklasser[0].behöriga).toEqual([]);
   });
 });

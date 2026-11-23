@@ -275,3 +275,93 @@ describe("informationsklassning", () => {
     expect((await admin("/__ark/flows/ap-klassad/klassning", put({ klassning: { nivå: "skyddad" } }))).status).toBe(409);
   });
 });
+
+describe("skyddsklasser – klassningen styr vem som ser vad", () => {
+  const modell = {
+    id: "egen",
+    namn: "Vår modell",
+    nivåer: [{ namn: "Öppen", djup: 0 }, { namn: "Skyddad", djup: 0 }, { namn: "Skyddad A", djup: 1 }],
+  };
+  const inst = {
+    på: true,
+    modell,
+    visaIExport: false,
+    visaIVyn: true,
+    skyddsklasser: [{ namn: "Känsliga", nivåer: ["skyddad", "skyddad-a"], behöriga: [" Bo@Example.org "] }],
+  };
+  const flödesfil = (id: string) => path.join(tmp, "flows", `${id}.json`);
+
+  beforeAll(async () => {
+    expect((await admin("/__ark/klassning", put(inst))).status).toBe(200);
+  });
+
+  it("listan över behöriga ser bara administratören; var och en ser sina egna klasser", async () => {
+    const adm = (await admin("/__ark/klassning")).kropp;
+    expect(adm.klassning.skyddsklasser).toEqual([
+      { id: "kansliga", namn: "Känsliga", nivåer: ["skyddad", "skyddad-a"], behöriga: ["bo@example.org"] },
+    ]);
+    const a = (await anna("/__ark/klassning")).kropp;
+    expect(a.klassning.skyddsklasser[0].behöriga).toEqual([]);
+    expect(a.mina).toEqual([]);
+    expect((await bo("/__ark/klassning")).kropp.mina).toEqual(["kansliga"]);
+    // Klareringen följer med användaren – appen gömmer det bryggan vägrar.
+    expect((await anna("/__ark/auth/me")).kropp.användare.klarering).toEqual(["oppen"]);
+    expect((await bo("/__ark/auth/me")).kropp.användare.klarering).toEqual(["oppen", "skyddad", "skyddad-a"]);
+    expect((await admin("/__ark/auth/me")).kropp.användare.klarering).toBeUndefined();
+  });
+
+  it("en klassad skiss finns inte för den som saknar klassen – inte ens för den som skapade den", async () => {
+    // "vers" skapades av Anna och klassades "Skyddad A" ovan.
+    expect(fil("vers").klassning.nivå).toBe("skyddad-a");
+    expect((await anna("/__ark/skisser")).kropp.skisser.map((s: any) => s.id)).not.toContain("vers");
+    expect((await anna("/__ark/skisser/vers")).status).toBe(404);
+    expect((await anna("/__ark/skisser/vers", put(skiss("vers", { namn: "Över" })))).status).toBe(404);
+    expect((await anna("/__ark/skisser/vers", { method: "DELETE" })).status).toBe(404);
+    expect((await bo("/__ark/skisser")).kropp.skisser.map((s: any) => s.id)).toContain("vers");
+    expect((await bo("/__ark/skisser/vers")).status).toBe(200);
+    expect((await admin("/__ark/skisser/vers")).status).toBe(200);
+  });
+
+  it("man väljer bara en nivå man själv får se", async () => {
+    expect((await anna("/__ark/skisser/annas", put(skiss("annas")))).status).toBe(200);
+    const nej = await anna("/__ark/skisser/annas", put(skiss("annas", { klassning: { nivå: "skyddad" } })));
+    expect(nej.status).toBe(403);
+    expect(fil("annas").klassning).toBeUndefined();
+    expect((await anna("/__ark/skisser/annas", put(skiss("annas", { klassning: { nivå: "oppen" } })))).status).toBe(200);
+    expect(fil("annas").klassning.nivå).toBe("oppen");
+  });
+
+  it("en klassad process: borta ur listan, 404 att hämta – för den utan klassen", async () => {
+    expect((await admin("/__ark/klassning", put(inst))).status).toBe(200);
+    // Till den gemensamma katalogen, som alla läser – utom det klassningen skär av.
+    expect((await admin("/__ark/flows/ap-klassad/yta", post({ till: "gemensam" }))).status).toBe(200);
+    expect((await admin("/__ark/flows/ap-klassad/klassning", put({ klassning: { nivå: "oppen" } }))).status).toBe(200);
+    expect((await anna("/__ark/flows/ap-klassad")).status).toBe(200);
+    expect((await admin("/__ark/flows/ap-klassad/klassning", put({ klassning: { nivå: "skyddad" } }))).status).toBe(200);
+    const ids = async (k: typeof anna) => (await k("/__ark/flows")).kropp.flows.map((f: any) => f.id);
+    expect(await ids(anna)).not.toContain("ap-klassad");
+    expect((await anna("/__ark/flows/ap-klassad")).status).toBe(404);
+    expect(await ids(bo)).toContain("ap-klassad");
+    expect((await bo("/__ark/flows/ap-klassad")).status).toBe(200);
+    // Katalogen bär nivån.
+    expect((await bo("/__ark/flows")).kropp.flows.find((f: any) => f.id === "ap-klassad").klassning.nivå).toBe("skyddad");
+  });
+
+  it("en nivå som inte finns i modellen ser bara administratören", async () => {
+    const f = JSON.parse(fs.readFileSync(flödesfil("ap-klassad"), "utf8"));
+    fs.writeFileSync(flödesfil("ap-klassad"), JSON.stringify({ ...f, klassning: { ...f.klassning, nivå: "borttagen" } }));
+    expect((await bo("/__ark/flows/ap-klassad")).status).toBe(404);
+    expect((await admin("/__ark/flows/ap-klassad")).status).toBe(200);
+  });
+
+  it("en ändrad skyddsklass gäller från nästa begäran", async () => {
+    expect((await anna("/__ark/skisser/vers")).status).toBe(404);
+    const medAnna = { ...inst, skyddsklasser: [{ ...inst.skyddsklasser[0], behöriga: ["anna@example.org"] }] };
+    expect((await admin("/__ark/klassning", put(medAnna))).status).toBe(200);
+    expect((await anna("/__ark/skisser/vers")).status).toBe(200);
+    expect((await bo("/__ark/skisser/vers")).status).toBe(404);
+    // Avstängd klassning begränsar ingenting.
+    expect((await admin("/__ark/klassning", put({ ...inst, på: false }))).status).toBe(200);
+    expect((await bo("/__ark/skisser/vers")).status).toBe(200);
+  });
+});

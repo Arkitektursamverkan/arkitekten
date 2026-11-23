@@ -56,6 +56,13 @@ klassning (`docs/klassning.md`). Processernas scener bär klassningen likadant
 (`revision.klassning`, bara när installationen visar den i exporten). Opublicerade skisser lämnas aldrig ut. Se
 `docs/systemskiss.md`.
 
+**Klassningen och kravet.** När klassning är påslagen bär varje klassad
+process och skiss i listan `klassning`: `nivå` (id), `namn` och `skyddsklass`
+– id:t för skyddsklassen nivån kräver, `"okand"` för en nivå som inte finns i
+modellen (bara administratörer ska se den), eller `null` när nivån inte kräver
+något – samt `skyddsklassNamn`. Fältet följer med oavsett om nivån visas i
+exporten: det avgör vem som får se bilden (`docs/klassning.md`).
+
 **Versionen.** `kontrakt` är huvudversionen av listan och svaren; scenen har
 dessutom sin egen `formatVersion` (`src/core/scen.ts`). En version höjs bara när
 något tas bort eller byter betydelse – nya fält höjer den inte, och en

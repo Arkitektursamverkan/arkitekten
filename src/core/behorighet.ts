@@ -16,7 +16,14 @@
  *                  inloggningen hamnar här utan att en enda fil skrivs om.
  * Ägaren skrivs bara av bryggan: vid skapandet och när ytan byts
  * (`/__ark/flows/:id/yta`). En vanlig sparning kan aldrig ändra den.
+ *
+ * KLASSNINGEN SKÄR AV, ÖVERALLT. En process eller skiss vars klassningsnivå
+ * kräver en skyddsklass användaren inte har (core/klassning.ts) finns inte för
+ * användaren – varken att läsa, ändra, flytta eller publicera. Ytan och rollen
+ * avgör resten, som förut. Administratören ser allt.
  */
+
+import { skyddsklassFör, type Klassningsinställning } from "./klassning";
 
 /** Rollerna, i stigande makt. Entra-appens approller mappas hit (server/auth.ts). */
 export type Roll = "admin" | "user";
@@ -27,6 +34,13 @@ export interface Användare {
   namn: string;
   epost?: string;
   roller: Roll[];
+  /**
+   * Klassningsnivåerna (id) användaren får se – satt av bryggan för varje
+   * begäran (`medKlarering`), aldrig sparad i sessionen: en ändrad
+   * skyddsklass gäller från nästa begäran. Saknas = ingen begränsning
+   * (klassning avstängd, eller administratör).
+   */
+  klarering?: string[];
 }
 
 /** Ägaren som står på en egen process. Namnet följer med för att kunna visas. */
@@ -63,8 +77,13 @@ export function ytaTitel(yta: Yta): string {
   return YTOR.find((y) => y.id === yta)?.titel ?? yta;
 }
 
+/** Klassningen så som reglerna behöver den – bara nivåns id. */
+export interface HarKlassning {
+  klassning?: { nivå?: unknown } | null;
+}
+
 /** Det reglerna behöver veta om ett flöde – passar både SavedFlow och FlowSummary. */
-export interface HarYta {
+export interface HarYta extends HarKlassning {
   ägare?: Ägare;
   category?: string;
 }
@@ -79,6 +98,44 @@ export function ärAdmin(u: Användare | null | undefined): boolean {
   return Boolean(u?.roller.includes("admin"));
 }
 
+/**
+ * Får användaren se något med den här klassningen? Oklassat: ja. Annars bara
+ * om nivån finns bland användarens (`klarering`). En nivå som inte går att läsa
+ * räknas som en användaren inte har – hellre dold än öppen.
+ */
+export function fårSeKlassning(u: Användare | null | undefined, k: HarKlassning["klassning"]): boolean {
+  if (!u) return false;
+  if (!k || k.nivå === undefined || k.nivå === null || k.nivå === "") return true;
+  if (!u.klarering) return true;
+  return typeof k.nivå === "string" && u.klarering.includes(k.nivå);
+}
+
+/**
+ * Användaren med sin klarering: de nivåer i modellen som inte kräver någon
+ * skyddsklass, och de vars klass användaren har (via e-post eller objekt-id).
+ * Administratören och avstängd klassning: ingen begränsning.
+ */
+export function medKlarering(u: Användare, inst: Klassningsinställning): Användare {
+  const { klarering: _gammal, ...utan } = u;
+  if (!inst.på || ärAdmin(u)) return utan;
+  const nycklar = [u.id, u.epost].filter((x): x is string => Boolean(x)).map((x) => x.trim().toLowerCase());
+  const klarering = inst.modell.nivåer
+    .filter((n) => {
+      const klass = skyddsklassFör(inst, n.id);
+      return !klass || (klass !== "okand" && klass.behöriga.some((b) => nycklar.includes(b)));
+    })
+    .map((n) => n.id);
+  return { ...utan, klarering };
+}
+
+/** Skyddsklasserna användaren har – visas för användaren i inställningarna. */
+export function minaSkyddsklasser(u: Användare | null | undefined, inst: Klassningsinställning): string[] {
+  if (!u || !inst.på) return [];
+  if (ärAdmin(u)) return inst.skyddsklasser.map((k) => k.id);
+  const nycklar = [u.id, u.epost].filter((x): x is string => Boolean(x)).map((x) => x.trim().toLowerCase());
+  return inst.skyddsklasser.filter((k) => k.behöriga.some((b) => nycklar.includes(b))).map((k) => k.id);
+}
+
 function ärÄgare(u: Användare | null | undefined, flow: HarYta): boolean {
   return Boolean(u && flow.ägare?.id === u.id);
 }
@@ -89,7 +146,7 @@ function ärÄgare(u: Användare | null | undefined, flow: HarYta): boolean {
  * som slutat.
  */
 export function kanLäsa(u: Användare | null | undefined, flow: HarYta): boolean {
-  if (!u) return false;
+  if (!u || !fårSeKlassning(u, flow.klassning)) return false;
   return ytaFör(flow) !== "egen" || ärÄgare(u, flow) || ärAdmin(u);
 }
 
@@ -99,7 +156,7 @@ export function kanLäsa(u: Användare | null | undefined, flow: HarYta): boolea
  * gäller, och statusen där ska betyda något.
  */
 export function kanRedigera(u: Användare | null | undefined, flow: HarYta): boolean {
-  if (!u) return false;
+  if (!u || !fårSeKlassning(u, flow.klassning)) return false;
   switch (ytaFör(flow)) {
     case "gemensam":
       return ärAdmin(u);
@@ -112,7 +169,7 @@ export function kanRedigera(u: Användare | null | undefined, flow: HarYta): boo
 
 /** Ta bort processen MED HELA HISTORIKEN. Demo är offentlig men inte fri att tömma. */
 export function kanTaBort(u: Användare | null | undefined, flow: HarYta): boolean {
-  if (!u) return false;
+  if (!u || !fårSeKlassning(u, flow.klassning)) return false;
   if (ytaFör(flow) === "egen") return ärÄgare(u, flow) || ärAdmin(u);
   return ärAdmin(u);
 }
@@ -124,7 +181,7 @@ export function kanTaBort(u: Användare | null | undefined, flow: HarYta): boole
  * flyttar man bara till sig själv.
  */
 export function kanByttaYta(u: Användare | null | undefined, flow: HarYta, till: Yta): boolean {
-  if (!u) return false;
+  if (!u || !fårSeKlassning(u, flow.klassning)) return false;
   const från = ytaFör(flow);
   if (från === till) return false;
   if (ärAdmin(u)) return true;
@@ -133,7 +190,7 @@ export function kanByttaYta(u: Användare | null | undefined, flow: HarYta, till
 
 /** Publicera i EA-portalen: bara det som ligger i den gemensamma katalogen. */
 export function kanPublicera(u: Användare | null | undefined, flow: HarYta): boolean {
-  return ytaFör(flow) === "gemensam" && ärAdmin(u);
+  return ytaFör(flow) === "gemensam" && ärAdmin(u) && fårSeKlassning(u, flow.klassning);
 }
 
 /**
@@ -198,7 +255,7 @@ export function kanTaBortRamserie(u: Användare | null | undefined, serie: HarSk
 /* Systemskisser – alla läser, skaparen ändrar, en DOLD ser bara admin */
 /* ------------------------------------------------------------------ */
 
-export interface HarSynlighet extends HarSkapare {
+export interface HarSynlighet extends HarSkapare, HarKlassning {
   /** Dold = bara administratörer ser skissen. */
   dold?: boolean;
 }
@@ -209,7 +266,7 @@ export interface HarSynlighet extends HarSkapare {
  * (`kanDöljaSkiss`), så ingen kan gömma undan sitt eget arbete för sig själv.
  */
 export function kanLäsaSkiss(u: Användare | null | undefined, skiss: HarSynlighet): boolean {
-  if (!u) return false;
+  if (!u || !fårSeKlassning(u, skiss.klassning)) return false;
   return !skiss.dold || ärAdmin(u);
 }
 

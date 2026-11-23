@@ -1845,6 +1845,9 @@ select.ark-input { cursor: pointer; background: var(--panel); }
 /* Inställningar (src/shell/Installningar.tsx) */
 .ark-installning-rubrik { font-size: 13px; margin: 12px 0 2px; }
 .ark-installning-val { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; cursor: pointer; }
+.ark-installning-underrubrik { font-size: 12px; margin: 12px 0 2px; }
+.ark-skyddsklass { border: 1px solid var(--border, #e5e7eb); border-radius: 6px; padding: 6px 10px 8px; margin: 6px 0; }
+.ark-skyddsklass-niva { padding: 1px 0; font-weight: normal; }
 .ark-konto-installningar { margin-left: auto; }
 .ark-konton-tabell { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 13px; }
 .ark-konton-tabell td { padding: 4px 6px; border-top: 1px solid var(--border, #e5e7eb); vertical-align: middle; }
