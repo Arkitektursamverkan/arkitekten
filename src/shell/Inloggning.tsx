@@ -12,6 +12,7 @@
  */
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { fårLoggaInSjälv, glömUtloggad, markeraAutoinloggning, markeraUtloggad } from "./gemensam-inloggning";
 import { läsSymbolstil, sättSymbolstil } from "@/tools/affarsprocess/symbolstil";
 import { sättOrganisation } from "@/core/organisation";
 import { inloggningsfelText } from "@/core/inloggningsfel";
@@ -49,7 +50,15 @@ export function AnvändarKontext({ användare, läge = "entra", children }: Inlo
 type Tillstånd =
   | { typ: "laddar" }
   | { typ: "inloggad"; värde: Inloggad }
-  | { typ: "utloggad"; läge: Inloggningsläge; fel?: string; förstaKonto?: boolean; kodKrävs?: boolean };
+  | {
+      typ: "utloggad";
+      läge: Inloggningsläge;
+      fel?: string;
+      förstaKonto?: boolean;
+      kodKrävs?: boolean;
+      /** Gemensam inloggning: vidare till Microsoft utan knapptryck. */
+      gemensam?: boolean;
+    };
 
 /**
  * Installationens symbolstil (server/symbolstilar.ts). Prövas här också – en
@@ -117,7 +126,14 @@ export function Inloggningsgrind({ children }: { children: ReactNode }) {
         setT(
           b.användare
             ? { typ: "inloggad", värde: { användare: b.användare, läge } }
-            : { typ: "utloggad", läge, fel: tidigareFel ?? b.fel, förstaKonto: b.förstaKonto === true, kodKrävs: b.kodKrävs === true },
+            : {
+                typ: "utloggad",
+                läge,
+                fel: tidigareFel ?? b.fel,
+                förstaKonto: b.förstaKonto === true,
+                kodKrävs: b.kodKrävs === true,
+                gemensam: b.gemensamInloggning === true,
+              },
         );
       } catch {
         if (levande) setT({ typ: "inloggad", värde: { användare: LOKAL_ANVÄNDARE, läge: "öppen" } });
@@ -129,7 +145,10 @@ export function Inloggningsgrind({ children }: { children: ReactNode }) {
   }, [tidigareFel]);
 
   if (t.typ === "laddar") return <div className="ark-inloggning"><p className="ark-hint">Läser inloggningen …</p></div>;
-  if (t.typ === "utloggad") return <Inloggningsruta läge={t.läge} fel={t.fel} förstaKonto={t.förstaKonto} kodKrävs={t.kodKrävs} />;
+  if (t.typ === "utloggad")
+    return (
+      <Inloggningsruta läge={t.läge} fel={t.fel} förstaKonto={t.förstaKonto} kodKrävs={t.kodKrävs} gemensam={t.gemensam} />
+    );
   return <Kontext.Provider value={t.värde}>{children}</Kontext.Provider>;
 }
 
@@ -138,11 +157,13 @@ function Inloggningsruta({
   fel,
   förstaKonto = false,
   kodKrävs = false,
+  gemensam = false,
 }: {
   läge: Inloggningsläge;
   fel?: string;
   förstaKonto?: boolean;
   kodKrävs?: boolean;
+  gemensam?: boolean;
 }) {
   const [namn, setNamn] = useState("");
   const [roll, setRoll] = useState("user");
@@ -150,6 +171,22 @@ function Inloggningsruta({
   // Tillbaka till samma process efter inloggningen – hash:en når aldrig servern
   // av sig själv, så hela adressen skickas med.
   const tillbaka = encodeURIComponent(location.pathname + location.search + location.hash);
+  const loginAdress = `/__ark/auth/login?tillbaka=${tillbaka}`;
+  // Gemensam inloggning: direkt vidare till Microsoft (gemensam-inloggning.ts).
+  // Inte efter ett fel – då ska felet synas – och inte efter en utloggning.
+  const [självmant] = useState(() => läge === "entra" && gemensam && !fel && fårLoggaInSjälv());
+  useEffect(() => {
+    if (!självmant) return;
+    markeraAutoinloggning();
+    location.assign(loginAdress);
+  }, [självmant, loginAdress]);
+  if (självmant) {
+    return (
+      <div className="ark-inloggning">
+        <p className="ark-hint">Loggar in …</p>
+      </div>
+    );
+  }
 
   return (
     <div className="ark-inloggning">
@@ -191,7 +228,7 @@ function Inloggningsruta({
             </button>
           </form>
         ) : (
-          <a className="ark-btn ark-btn--primary" href={`/__ark/auth/login?tillbaka=${tillbaka}`}>
+          <a className="ark-btn ark-btn--primary" href={loginAdress} onClick={glömUtloggad}>
             Logga in med Microsoft
           </a>
         )}
@@ -206,6 +243,7 @@ function Inloggningsruta({
  * Entras utloggning eller startsidan.
  */
 async function loggaUt(): Promise<void> {
+  markeraUtloggad();
   let till = "/";
   try {
     const res = await fetch("/__ark/auth/logout", { method: "POST", headers: { "content-type": "application/json" } });

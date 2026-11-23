@@ -207,3 +207,23 @@ inloggningsrutan men kan inte slutföra inloggningen.
   skapar processer i den gemensamma katalogen, som förut.
 - En visualisering över en process i någons egen katalog syns bara för den
   som får läsa processen (ägaren och administratörerna).
+
+## Gemensam inloggning
+
+Portalen, Arkitekten och installationens övriga appar loggar in mot samma
+app-registrering i Entra. Med **gemensam inloggning** påslagen skickas en
+utloggad besökare direkt vidare till Microsoft i stället för att få knappen
+*Logga in med Microsoft*. Finns redan en Microsoft-session i webbläsaren –
+från portalen, eller från en annan app – kommer man tillbaka inloggad utan att
+klicka.
+
+- Slås på i portalen: *Administration → Organisation → Gemensam inloggning*.
+  Arkitekten läser den därifrån (`shared_login` i portalens
+  `GET /installation`, högst var femte minut). Utan portal, eller för att
+  bestämma själv: `ARK_GEMENSAM_INLOGGNING=1` (eller `0`), som vinner.
+- Av som förval – varje app har då sin egen inloggningsknapp.
+- Efter *Logga ut* sker ingen automatisk inloggning i fliken, och ett
+  misslyckat automatiskt försök visar inloggningsrutan med felet (högst ett
+  försök per minut).
+- Gäller bara Microsoft-inloggning (`ARK_AUTH=entra`); lokala konton loggar
+  in som förut.

@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- **Gemensam inloggning.** När installationen har gemensam inloggning (portalens *Administration → Organisation*, eller `ARK_GEMENSAM_INLOGGNING=1`) skickas en utloggad besökare direkt vidare till Microsoft – den som redan är inloggad i portalen kommer in i Arkitekten utan att klicka. Ingen automatisk inloggning efter *Logga ut*; högst ett automatiskt försök per minut. Av som förval. Se `docs/inloggning.md`.
+
 - **Skyddsklass via Entra-grupp.** En skyddsklass behöriga kan nu också vara en Entra-grupps objekt-id – då har alla i gruppen klassen. Grupperna läses ur inloggningens gruppanspråk (app-registreringen ska skicka det; "Groups assigned to the application" rekommenderas) och gäller från nästa inloggning. Högst 40 grupper per session.
 
 ## 0.19.0 – 2026-11-23
