@@ -11,8 +11,12 @@
  * papper, under 4,5 pt går den inte att läsa. Bilden förstoras aldrig mer än
  * att brödtexten blir 12 pt – en liten bild ska inte bli en affisch.
  *
- * DELNING: blir texten mindre än 6 pt kan bilden delas på flera blad, i rader
- * och kolumner, så att texten blir minst 7 pt. Bladen överlappar 10 mm, så att
+ * Förvalet är ETT blad, hur liten texten än blir (produktägarens krav
+ * 2026-11-23: "allt på en A3 eller A4, det får bli smått").
+ *
+ * DELNING (bara om man slår på den): blir texten mindre än 5 pt kan bilden delas på flera blad, i rader
+ * och kolumner, så att texten blir minst 7 pt. Mellan 5 och 6 pt får bilden
+ * stå kvar på ETT blad – ett lager man valt ska helst bli en sida, inte två. Bladen överlappar 10 mm, så att
  * de går att lägga ihop. Varje del är samma bild med ett annat fönster
  * (viewBox) – inget ritas om.
  */
@@ -36,7 +40,7 @@ export interface Utskriftsval {
   dela: boolean;
 }
 
-export const UTSKRIFT_FÖRVAL: Utskriftsval = { papper: "A3", riktning: "auto", innehåll: "visas", medHela: false, dela: true };
+export const UTSKRIFT_FÖRVAL: Utskriftsval = { papper: "A3", riktning: "auto", innehåll: "visas", medHela: false, dela: false };
 
 /** Pappret i millimeter, stående. */
 const PAPPER: Record<Papper, { b: number; h: number }> = { A4: { b: 210, h: 297 }, A3: { b: 297, h: 420 } };
@@ -50,6 +54,8 @@ export const OLÄSBAR_PT = 4.5;
 const STÖRST_PT = 12;
 /** Textstorleken en delad bild får, och bladens överlapp i millimeter. */
 export const DELAD_PT = 7;
+/** Under detta delas bilden (om man valt delning). */
+export const DELA_UNDER_PT = 5;
 export const ÖVERLAPP = 10;
 /** Högst så många blad för EN bild – mer är en affisch, inte en utskrift. */
 const MAX_DELAR = 12;
@@ -109,7 +115,7 @@ function delning(bredd: number, höjd: number, papper: Papper, liggande: boolean
  */
 export function delaUpp(rubrik: string, svg: string, bredd: number, höjd: number, papper: Papper, riktning: Riktning, dela: boolean): Blad[] {
   const hel = placera(rubrik, svg, bredd, höjd, papper, riktning);
-  if (!dela || hel.textPt >= LÄSBAR_PT) return [hel];
+  if (!dela || hel.textPt >= DELA_UNDER_PT) return [hel];
   const val = (riktning === "auto" ? [true, false] : [riktning === "liggande"]).map((liggande) => ({ liggande, ...delning(bredd, höjd, papper, liggande) }));
   const bäst = val.reduce((a, b) => (b.delar < a.delar ? b : a));
   if (bäst.delar <= 1 || bäst.delar > MAX_DELAR) return [hel];
@@ -220,8 +226,8 @@ export function utskriftsdokument(titel: string, blad: Blad[], papper: Papper): 
     `.stående { page: stående; } .liggande { page: liggande; }` +
     `.rubrik { height: ${RUBRIK}mm; display: flex; justify-content: space-between; align-items: flex-start; font-size: 9pt; }` +
     `.rubrik b { font-weight: 600; } .rubrik span { color: #475467; }` +
-    `.bild { display: flex; justify-content: center; }` +
-    `.delad .bild { justify-content: flex-start; }` +
+    `.bild { display: flex; justify-content: center; align-items: center; height: calc(100% - ${RUBRIK}mm); }` +
+    `.delad .bild { justify-content: flex-start; align-items: flex-start; }` +
     `.bild svg { display: block; }`;
   const kropp = blad
     .map((b, i) => {

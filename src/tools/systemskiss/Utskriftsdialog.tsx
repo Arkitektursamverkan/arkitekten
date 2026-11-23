@@ -103,7 +103,7 @@ export function Utskriftsdialog(props: {
 
         <label className="ark-utskrift-val">
           <input type="checkbox" checked={val.dela} onChange={(e) => ändra({ dela: e.target.checked })} /> Dela en bild på flera blad när
-          texten annars blir för liten (bladen överlappar 1 cm)
+          texten blir mindre än 5 pt (bladen överlappar 1 cm)
         </label>
 
         <div className="ark-field-label">
@@ -124,16 +124,8 @@ export function Utskriftsdialog(props: {
         </ol>
         {blad.length > 0 && läsbarhet(sämsta) !== "bra" && (
           <p className="ark-hint ark-utskrift-varning" role="status">
-            {läsbarhet(sämsta) === "oläsbar" ? "Texten blir för liten för att läsas på papper." : "Texten blir liten på papper."}{" "}
-            {[
-              val.papper === "A4" && "välj A3",
-              harLager && val.innehåll !== "lager" && "skriv ut ett blad per lager",
-              !val.dela && "dela bilden på flera blad",
-            ]
-              .filter(Boolean)
-              .join(", ")
-              .replace(/^./, (c) => c.toUpperCase()) || "Bilden är för stor även delad – dela skissen i fler lager eller mindre skisser"}
-            .
+            Texten blir {läsbarhet(sämsta) === "oläsbar" ? "mycket liten" : "liten"} på pappret
+            {val.papper === "A4" ? " – A3 ger större text" : ""}.
           </p>
         )}
 

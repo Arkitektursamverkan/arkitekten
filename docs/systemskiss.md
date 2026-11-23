@@ -56,11 +56,11 @@ och sparas inte.
 - **Ett blad per lager** – varje lager blir en egen, mindre bild, med samma
   regel som raden Lager. Tomma lager hoppas över. Hela skissen kan läggas först.
 
-Rutan listar bladen och hur stor rutornas text blir på pappret. Under 6 pt är
+Bilden beskärs till det som valts – ett lager blir bara det lagret – och står mitt på bladet. Rutan listar bladen och hur stor rutornas text blir på pappret. Under 6 pt är
 den svår att läsa och märks med orange, under 4,5 pt med rött. En liten bild
 förstoras inte mer än att texten blir 12 pt.
 
-**Dela på flera blad** (på som förval): blir texten ändå under 6 pt delas
+**Dela på flera blad** (av som förval – annars blir allt ETT blad, hur liten texten än blir): blir texten under 5 pt delas
 bilden i rader och kolumner så att den blir minst 7 pt. Bladen överlappar
 1 cm så att de går att lägga ihop, och rubriken säger vilken del det är
 (”del 2 av 4, kolumn 2”). Högst 12 blad per bild – större än så är skissen

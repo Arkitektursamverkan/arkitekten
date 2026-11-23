@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { läggTillObjekt, nySkiss, type Systemskiss } from "@/core/systemskiss";
-import { bildyta, delaUpp, delText, läsbarhet, placera, utskriftsblad, utskriftsdokument, UTSKRIFT_FÖRVAL, ÖVERLAPP } from "./utskrift";
+import { bildyta, DELA_UNDER_PT, delaUpp, delText, läsbarhet, placera, utskriftsblad, utskriftsdokument, UTSKRIFT_FÖRVAL, ÖVERLAPP } from "./utskrift";
 import { SKISS_BRÖDTEXT } from "./skiss-svg";
 
 const MM_PER_PT = 25.4 / 72;
@@ -118,4 +118,26 @@ describe("delning på flera blad", () => {
     expect(html).toContain('viewBox="0.0 0.0 ');
     expect(html).toContain("del 2 av");
   });
+});
+
+it("REGRESSION: ett valt lager med 5–6 pt text delades på två blad – det ska bli ett, centrerat", () => {
+  // Lagret "Servrar att få upp" var 1640 × 310 enheter: 5,5 pt på A4 liggande gav del 1 och 2.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="310" viewBox="0 0 1640 310"></svg>`;
+  const hel = placera("x", svg, 1640, 310, "A4", "auto");
+  expect(hel.textPt).toBeGreaterThan(DELA_UNDER_PT);
+  expect(hel.textPt).toBeLessThan(6);
+  const blad = delaUpp("x", svg, 1640, 310, "A4", "auto", true);
+  expect(blad).toHaveLength(1);
+  expect(blad[0].del).toBeUndefined();
+  // Bilden står mitt på bladet, i båda leden.
+  expect(utskriftsdokument("x", blad, "A4")).toMatch(/\.bild \{[^}]*justify-content: center; align-items: center;/);
+});
+
+it("förvalet är ETT blad, hur liten texten än blir", () => {
+  let s: Systemskiss = nySkiss("Stor");
+  s = läggTillObjekt(s, "server", 0, 0).skiss;
+  s = läggTillObjekt(s, "server", 12000, 4000).skiss;
+  const blad = utskriftsblad(s, UTSKRIFT_FÖRVAL, null, true);
+  expect(blad).toHaveLength(1);
+  expect(läsbarhet(blad[0].textPt)).toBe("oläsbar");
 });
