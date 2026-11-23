@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- **Skyddsklass via Entra-grupp.** En skyddsklass behöriga kan nu också vara en Entra-grupps objekt-id – då har alla i gruppen klassen. Grupperna läses ur inloggningens gruppanspråk (app-registreringen ska skicka det; "Groups assigned to the application" rekommenderas) och gäller från nästa inloggning. Högst 40 grupper per session.
+
 ## 0.19.0 – 2026-11-23
 
 - **Klassningen styr vem som ser vad.** En administratör lägger upp *skyddsklasser* under *Inställningar → Informationsklassning* – ett namn, nivåerna som kräver klassen och vilka som har den (e-post eller Entra-kontots objekt-id). En process eller systemskiss vars nivå kräver en klass man inte har finns inte för en: den syns inte i katalogen och går inte att öppna, ändra, flytta eller ta bort. Administratören ser allt; en nivå som inte finns i modellen ser bara administratören. Man kan bara välja en nivå man själv får se. Ändringar gäller från nästa begäran. Se `docs/klassning.md`.

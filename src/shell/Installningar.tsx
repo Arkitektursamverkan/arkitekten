@@ -302,7 +302,7 @@ function Skyddsklasser(p: {
             })}
           </div>
           <label className="ark-skiss-falt">
-            Vilka har klassen i Arkitekten – e-postadress eller Entra-kontots objekt-id, en per rad
+            Vilka har klassen i Arkitekten – e-postadress, eller objekt-id för ett Entra-konto eller en Entra-grupp, en per rad
             <textarea
               className="ark-textarea"
               rows={4}

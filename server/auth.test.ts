@@ -13,6 +13,8 @@ import {
   signera,
   SESSION_KAKA,
   type EntraKonfig,
+  MAX_GRUPPER,
+  entraGrupper,
 } from "./auth";
 
 const k: EntraKonfig = {
@@ -134,5 +136,16 @@ describe("hela kodflödet", () => {
     await expect(
       avslutaInloggning(k, HEMLIG, undefined, new URLSearchParams({ state, code: "k" }), hämta, nu),
     ).rejects.toThrow(/för lång tid/);
+  });
+});
+
+describe("Entra-grupperna i sessionen", () => {
+  it("bara giltiga objekt-id, med gemener, utan dubbletter och högst MAX_GRUPPER", () => {
+    const g = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE";
+    expect(entraGrupper([g, g.toLowerCase(), "inte-ett-id", 7])).toEqual({ grupper: [g.toLowerCase()] });
+    expect(entraGrupper(undefined)).toEqual({});
+    expect(entraGrupper([])).toEqual({});
+    const många = Array.from({ length: 60 }, (_, i) => `aaaaaaaa-bbbb-cccc-dddd-${String(i).padStart(12, "0")}`);
+    expect(entraGrupper(många).grupper).toHaveLength(MAX_GRUPPER);
   });
 });
