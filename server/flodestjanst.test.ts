@@ -301,3 +301,42 @@ describe("flödestjänstens åtkomst", () => {
     fs.rmSync(path.join(katalog, "ap-trasig.json"));
   });
 });
+
+describe("klassningen i en process scen", () => {
+  it("står i scenens revision när installationen visar den i exporten – annars inte", async () => {
+    const rot = fs.mkdtempSync(path.join(os.tmpdir(), "ark-klass-"));
+    const flows = path.join(rot, "flows");
+    const stilar = path.join(rot, "stilar");
+    fs.mkdirSync(flows);
+    fs.mkdirSync(stilar);
+    const draft = textToDraft("Ny inköpsorder\nAnvändare → Fyller i formulär → System sparar inköpsordern");
+    fs.writeFileSync(
+      path.join(flows, "klassad.json"),
+      JSON.stringify({
+        id: "klassad",
+        name: "Klassad",
+        savedAt: "2026-10-08T00:00:00.000Z",
+        rawText: "",
+        draft,
+        klassning: { nivå: "niva-3", namn: "Nivå 3", satt: "2026-10-08T00:00:00.000Z" },
+        versions: [{ id: "v1", savedAt: "2026-10-08T00:00:00.000Z", status: "fastslagen", rawText: "", draft }],
+      }),
+    );
+    const t = http.createServer(skapaHanterare(flows, stilar, ""));
+    await new Promise<void>((klar) => t.listen(0, klar));
+    const bas = `http://127.0.0.1:${(t.address() as { port: number }).port}`;
+    try {
+      const scen = async () => (await (await fetch(`${bas}/api/flows/klassad/scen`)).json()).scen;
+      expect((await scen()).revision?.klassning).toBeUndefined();
+      fs.writeFileSync(path.join(stilar, "klassning.json"), JSON.stringify({ på: true }));
+      const s = await scen();
+      expect(s.revision.klassning).toBe("Nivå 3 – Allvarlig skada");
+      expect(s.revision.version).toBe("1.0");
+      fs.writeFileSync(path.join(stilar, "klassning.json"), JSON.stringify({ på: true, visaIExport: false }));
+      expect((await scen()).revision?.klassning).toBeUndefined();
+    } finally {
+      await new Promise<void>((klar) => t.close(() => klar()));
+      fs.rmSync(rot, { recursive: true, force: true });
+    }
+  });
+});

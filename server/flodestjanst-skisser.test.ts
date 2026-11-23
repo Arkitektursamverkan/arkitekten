@@ -84,3 +84,36 @@ describe("systemskisser i flödestjänsten", () => {
     expect(svar.text.startsWith("<svg")).toBe(true);
   });
 });
+
+describe("version och klassning i det portalen får", () => {
+  it("skissen lämnas ut i senaste fastslagna version, med version och klassning i scenens revision", async () => {
+    const innehåll = (namn: string, n: number) => ({ namn, objekt: skiss("x").objekt.slice(0, n), zoner: [], kopplingar: [] });
+    fs.writeFileSync(
+      path.join(tmp, "skisser", "versionerad.json"),
+      JSON.stringify(
+        skiss("versionerad", {
+          publicering: PUB,
+          klassning: { nivå: "niva-2", namn: "Nivå 2", satt: "2026-11-20T10:00:00.000Z" },
+          versioner: [
+            { id: "v1", savedAt: "2026-11-20T10:00:00.000Z", status: "fastslagen", innehåll: innehåll("Fastslagen bild", 1) },
+            { id: "v2", savedAt: "2026-11-21T10:00:00.000Z", status: "utkast", innehåll: innehåll("Utkastet", 2) },
+          ],
+        }),
+      ),
+    );
+    const { flows } = JSON.parse((await hämta("/api/flows")).text);
+    expect(flows.find((f: { id: string }) => f.id === "sk-versionerad")).toMatchObject({ status: "fastslagen", beteckning: "1.0", stepCount: 1 });
+    // Klassningen är av: ingen rad.
+    let scen = JSON.parse((await hämta("/api/flows/sk-versionerad/scen")).text).scen;
+    expect(scen.revision).toMatchObject({ version: "1.0", status: "fastslagen" });
+    expect(scen.revision.klassning).toBeUndefined();
+    fs.writeFileSync(path.join(tmp, "stilar", "klassning.json"), JSON.stringify({ på: true }));
+    scen = JSON.parse((await hämta("/api/flows/sk-versionerad/scen")).text).scen;
+    expect(scen.revision.klassning).toBe("Nivå 2 – Betydande skada");
+    // Visas den inte i exporten, så inte heller här.
+    fs.writeFileSync(path.join(tmp, "stilar", "klassning.json"), JSON.stringify({ på: true, visaIExport: false }));
+    scen = JSON.parse((await hämta("/api/flows/sk-versionerad/scen")).text).scen;
+    expect(scen.revision.klassning).toBeUndefined();
+    fs.rmSync(path.join(tmp, "stilar", "klassning.json"));
+  });
+});
