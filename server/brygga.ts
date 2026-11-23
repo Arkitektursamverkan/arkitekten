@@ -43,7 +43,7 @@ import type * as AiBerget from "../src/tools/flowchart/ai/berget";
 import type * as AiBesvara from "../src/tools/flowchart/ai/besvara";
 // Statusreglerna delas med appen. Modulen är avsiktligt beroendefri (ren TS,
 // inget DOM) just för att både bryggan och webbläsaren ska kunna använda den.
-import { sammanfattaStatus } from "../src/core/status";
+import { normaliseraStatus, sammanfattaStatus } from "../src/core/status";
 import { skapadTid } from "../src/core/nyhet";
 import { inloggningsfelKod } from "../src/core/inloggningsfel";
 import {
@@ -74,7 +74,9 @@ import {
   öppenAnvändare,
 } from "./auth";
 import { bytYta, prövaPublicering, prövaRamserie, prövaSkiss, prövaSparning } from "./atkomst";
-import { läsSkiss, sammanfattaSkiss } from "../src/core/systemskiss";
+import { läggTillSkissversion, läsSkiss, sammanfattaSkiss } from "../src/core/systemskiss";
+import { Klassningsfel, prövaKlassning } from "../src/core/klassning";
+import { läsKlassningsinställningFil, sparaKlassningsinställning } from "./klassning";
 import { läsStilar, valdStil, väljStil } from "./symbolstilar";
 import { Inloggningsspärr, Kontofel, Kontolager, sessionsversion, somAnvändare, spärrnycklar, utåt } from "./konton";
 import { ALLMÄNT_FEL, Användarfel, Kroppsfel } from "./fel";
@@ -86,6 +88,7 @@ import { läsBmtMall } from "./bmt-mall";
 import {
   ärAdmin,
   kanLäsa,
+  kanRedigera,
   kanTaBort,
   kanLäsaRamserie,
   kanLäsaSkiss,
@@ -396,6 +399,10 @@ function svaraMedFel(req: IncomingMessage, res: ServerResponse, err: unknown, lo
   }
   if (err instanceof Användarfel) {
     json(res, err.status, { ok: false, error: err.message });
+    return;
+  }
+  if (err instanceof Klassningsfel) {
+    json(res, 400, { ok: false, error: err.message });
     return;
   }
   if (err instanceof SyntaxError) {
@@ -1328,6 +1335,49 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             return;
           }
 
+          // --- Informationsklassningen (core/klassning.ts): alla läser
+          // inställningen, en administratör ändrar den.
+          if (url === "/klassning" && req.method === "GET") {
+            json(res, 200, { ok: true, klassning: läsKlassningsinställningFil(o.stilarDir) });
+            return;
+          }
+          if (url === "/klassning" && req.method === "PUT") {
+            if (baraAdmin()) return;
+            const inst = sparaKlassningsinställning(o.stilarDir, JSON.parse((await readBody(req)) || "{}"));
+            log.info(`  [ark] Klassning ${inst.på ? `på (${inst.modell.namn})` : "av"} (${användare.namn})`);
+            json(res, 200, { ok: true, klassning: inst });
+            return;
+          }
+          // Klassningen på en PROCESS: den som får ändra processen sätter den.
+          // Som publiceringen – ingen ny version, `savedAt` står still.
+          const klassMatch = /^\/flows\/([^/]+)\/klassning$/.exec(url);
+          if (klassMatch && (req.method === "PUT" || req.method === "DELETE")) {
+            const id = decodeURIComponent(klassMatch[1]);
+            const file = path.join(flowsDir, `${id}.json`);
+            const befintlig = SAFE_ID.test(id) ? läsJson(file) : null;
+            if (!befintlig || !kanLäsa(användare, befintlig)) {
+              json(res, 404, { ok: false, error: "Flödet finns inte." });
+              return;
+            }
+            if (!kanRedigera(användare, befintlig)) {
+              json(res, 403, { ok: false, error: "Du har inte behörighet att ändra den här processen." });
+              return;
+            }
+            const inst = läsKlassningsinställningFil(o.stilarDir);
+            if (!inst.på) {
+              json(res, 409, { ok: false, error: "Klassning är inte påslagen i installationen." });
+              return;
+            }
+            const b = req.method === "PUT" ? JSON.parse((await readBody(req)) || "{}") : null;
+            const klassning = prövaKlassning(inst, befintlig.klassning, b ? (b.klassning ?? null) : null, användare.namn);
+            const { klassning: _förra, ...utan } = befintlig;
+            const flow = { ...utan, ...(klassning ? { klassning } : {}) };
+            fs.writeFileSync(file, JSON.stringify(flow, null, 2), "utf8");
+            log.info(`  [ark] Klassning ${klassning ? `"${klassning.namn}"` : "borttagen"}: ${FLOWS}/${id}.json (${användare.namn})`);
+            json(res, 200, { ok: true, flow });
+            return;
+          }
+
           // --- Flödesbiblioteket: lista.
           if (url === "/flows" && req.method === "GET") {
             json(res, 200, { ok: true, flows: listFlows(användare) });
@@ -1580,12 +1630,32 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 json(res, 403, { ok: false, error: "Bara den som skapade skissen, eller en administratör, kan ändra den." });
                 return;
               }
-              const kropp = läsSkiss(JSON.parse((await readBody(req, 2_000_000)) || "{}"));
+              const rå = JSON.parse((await readBody(req, 2_000_000)) || "{}");
+              const kropp = läsSkiss(rå);
               if (!kropp || kropp.id !== id) {
                 json(res, 400, { ok: false, error: "Skissen saknar namn, eller dess id stämmer inte med adressen." });
                 return;
               }
-              const skiss = prövaSkiss(användare, befintlig, kropp);
+              // Historiken byggs ur FILEN – begärans egen används aldrig (invariant 11).
+              // Klassningen prövas mot installationens modell (core/klassning.ts).
+              const val = rå.sparval && typeof rå.sparval === "object" ? rå.sparval : {};
+              const klassning = prövaKlassning(
+                läsKlassningsinställningFil(o.stilarDir),
+                befintlig?.klassning,
+                rå.klassning ?? null,
+                användare.namn,
+              );
+              const { klassning: _begärd, ...utanKlassning } = kropp;
+              const prövad = prövaSkiss(användare, befintlig, {
+                ...utanKlassning,
+                ...(klassning ? { klassning } : {}),
+              });
+              const skiss = läggTillSkissversion(befintlig, prövad, {
+                status: val.status === undefined ? undefined : normaliseraStatus(val.status),
+                label: typeof val.label === "string" ? val.label : undefined,
+                savedBy: auth.läge === "öppen" ? undefined : användare.namn,
+                nu: prövad.savedAt,
+              });
               fs.mkdirSync(skisserDir, { recursive: true });
               fs.writeFileSync(file, JSON.stringify(skiss, null, 2), "utf8");
               log.info(`  [ark] Sparade skiss: ${path.basename(skisserDir)}/${id}.json`);

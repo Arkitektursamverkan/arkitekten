@@ -49,8 +49,11 @@ när en integration läser in processen från ett annat system, se
 server i portalen står i samma lista, med `familj: "systemskiss"`, id med
 prefixet `sk-` och `publicering.eaNodId` = serverns nod. Scenen bär hela bilden
 färdigritad i `bakgrund` (inga noder eller kanter) och en färdig bild per lager
-i `lager` (`id`, `namn`, `bakgrund`, `bredd`, `höjd`). Opublicerade skisser
-lämnas aldrig ut. Se `docs/systemskiss.md`.
+i `lager` (`id`, `namn`, `bakgrund`, `bredd`, `höjd`). Bilden är senaste
+fastslagna version (annars den senaste), och listan bär dess `status` och
+`beteckning`; scenens `revision` säger version och – när installationen vill –
+klassning (`docs/klassning.md`). Opublicerade skisser lämnas aldrig ut. Se
+`docs/systemskiss.md`.
 
 **Versionen.** `kontrakt` är huvudversionen av listan och svaren; scenen har
 dessutom sin egen `formatVersion` (`src/core/scen.ts`). En version höjs bara när

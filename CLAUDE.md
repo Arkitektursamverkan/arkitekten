@@ -357,7 +357,7 @@ vänster (produktägarens beslut 2026-11-20). Användardokumentation:
 
 - **Egen modell och egen lagring** (`core/systemskiss.ts`,
   `core/skiss-store.ts`, `/__ark/skisser`, `SKISSER_DIR`): objekt, zoner och
-  kopplingar – inget mellanlager, ingen historik, ingenting i `flows/`.
+  kopplingar – inget mellanlager, ingenting i `flows/`.
   Id:n är slumpade (invariant 2). Hjälparna sprider skissen; det som kommer
   UTIFRÅN (fil, begäran) byggs däremot alltid om fält för fält av `läsSkiss` –
   bilden är SVG-markup och får aldrig bära något oprövat.
@@ -383,8 +383,31 @@ vänster (produktägarens beslut 2026-11-20). Användardokumentation:
   publicerade skisser i flödeslistan (`sk-`-prefix, familj `systemskiss`) och
   scenen byggs av `scen-systemskiss.ts` ur ritarens markup – ingen egen
   ritregel där. Portalen visar den på servern.
+- **Versioner** (`versioner` i filen, invariant 9 och 11): beteckningen
+  räknas med `versionsBeteckningar` som för processerna. Historiken skrivs
+  BARA av `läggTillSkissversion` – bryggan bygger den ur FILEN och lägger
+  till sist, aldrig ur begäran. En skiss utan historik LÄSES som en version
+  (`skissVersioner`) och dess innehåll blir v1 vid nästa sparning. Bara en
+  BEGÄRD status (Fastslå) räknas som ändring – en vanlig sparning av en
+  fastslagen skiss blir inte ett utkast med samma innehåll. Synlighet,
+  publicering och klassning är ingen ny version. Portalen får senaste
+  fastslagna (`publiceradVersionsindex`). Exporten stämplas med
+  `skissRevision` (samma revisionsruta som processerna).
 - **Tangenterna lyssnar på fönstret** men svarar bara när vyn syns – vyn ligger
   kvar monterad (osparat arbete överlever en titt i katalogen).
+
+## Informationsklassning (core/klassning.ts)
+
+AV som förval. Modellen, inställningen och nivån på en process/skiss bor i
+`core/klassning.ts`; INGEN organisations modell står i koden (produktens
+standard är KLASSA-nivåerna 0–3 – en installation skriver in sin egen under
+Inställningar). Inställningen är `klassning.json` i `STILAR_DIR`
+(`server/klassning.ts`), skriven bara av en administratör. Nivån sitter på
+processen/skissen – ingen ny version (invariant 11:s undantag) – och prövas av
+bryggan med `prövaKlassning` (finns i modellen, stämplas med tid och person).
+En process får sin nivå BARA via `/__ark/flows/:id/klassning`
+(`sättKlassning`); `prövaSparning` tar fältet ur filen. Exporternas rad kommer
+ur `klassningIExport` → `Revision.klassning`; skriv aldrig en egen kopia.
 
 ## BMT-export (.bmt)
 

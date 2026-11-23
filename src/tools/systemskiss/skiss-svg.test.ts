@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { läggTillKoppling, läggTillObjekt, läggTillZon, nySkiss, ändraKoppling, ändraObjekt } from "@/core/systemskiss";
-import { skissGeometri, skissInnehåll, skissSvg, träffISkiss } from "./skiss-svg";
+import { läggTillKoppling, läggTillObjekt, läggTillSkissversion, läggTillZon, nySkiss, ändraKoppling, ändraObjekt } from "@/core/systemskiss";
+import { skissGeometri, skissInnehåll, skissRevision, skissSvg, träffISkiss } from "./skiss-svg";
 
 function exempel() {
   let { skiss, id: a } = läggTillObjekt(nySkiss("Miljö"), "server", 100, 100);
@@ -81,5 +81,21 @@ describe("systemskissens ritare", () => {
     const { svg, bredd } = skissSvg(nySkiss("Tom"));
     expect(svg).toContain("</svg>");
     expect(bredd).toBeGreaterThan(0);
+  });
+});
+
+describe("exportens revisionsruta", () => {
+  it("bilden säger vilken version den är, och klassningen när den ska med", () => {
+    let s = läggTillObjekt(nySkiss("Miljön"), "server", 0, 0).skiss;
+    s = läggTillSkissversion(null, s, { nu: "2026-03-04T00:00:00.000Z" });
+    s = läggTillSkissversion(s, s, { status: "fastslagen", nu: "2026-03-05T00:00:00.000Z" });
+    const utan = skissSvg(s);
+    const med = skissSvg(s, skissRevision(s, -1, false, "Nivå 1 – Måttlig skada"));
+    expect(utan.svg).not.toContain("Fastslagen");
+    expect(med.svg).toContain("Fastslagen 1.0 · 2026-03-05");
+    expect(med.svg).toContain("Klassning: Nivå 1 – Måttlig skada");
+    expect(med.höjd).toBeGreaterThan(utan.höjd);
+    // En äldre version stämplas som sig själv.
+    expect(skissSvg(s, skissRevision(s, 0, false)).svg).toContain("Utkast 0.1");
   });
 });

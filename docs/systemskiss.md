@@ -47,6 +47,34 @@ och sparas inte.
 
 **Exporten följer filtret**: kopiera bild, PNG och SVG ger det som visas.
 
+## Versioner
+
+Skissen versionshanteras som processerna. **Spara** ger ett utkast (0.1, 0.2,
+1.1 …), **✓ Fastslå** en ny huvudversion (1.0, 2.0 …) – det som gäller – med
+en frivillig kommentar. Märket i toppraden säger vilken version man ser
+("Utkast 1.1 · fastslagen 1.0"). Beteckningen räknas fram ur historiken med
+samma regel som för processerna (`src/core/status.ts`) och lagras aldrig.
+
+Under **Versioner** i panelen (när inget är markerat) står hela historiken.
+*Visa* öppnar en äldre version låst, med en rad överst som säger vilken
+version det är; därifrån går man *Tillbaka till senaste* eller *Återställer*
+versionen – den blir då nästa version när man sparar. En tidigare version
+skrivs aldrig om: servern bygger historiken ur filen, aldrig ur begäran.
+
+**Exporten** (kopiera bild, PNG, SVG) får en revisionsruta under bilden:
+status, version, datum, vem som sparade – och klassningen när den ska med.
+Filnamnet bär versionen. En äldre version som visas exporteras som sig själv.
+
+En sparning som bara ändrar synligheten, publiceringen eller klassningen
+ger ingen ny version. En skiss från före versionerna läses som version 0.1,
+och dess innehåll blir v1 när den sparas nästa gång.
+
+## Informationsklassning
+
+När installationen har slagit på klassning (se `docs/klassning.md`) väljer den
+som får ändra skissen nivå i toppraden (🛡). Nivån sparas med skissen och
+är ingen ny version.
+
 ## Visa skissen i Arkitekturportalen
 
 En administratör kan under *Visa i portalen, på servern* välja en server ur
@@ -56,6 +84,9 @@ dold i Arkitekten. Vägen dit är den vanliga: flödestjänsten lämnar ut
 publicerade skisser i sin lista (familjen `systemskiss`, id med prefixet
 `sk-`), Integrationsplattformen speglar dem och portalen hämtar därifrån
 (`docs/gransnitt.md`). Flödestjänsten behöver därför kunna läsa `SKISSER_DIR`.
+Portalen visar senaste **fastslagna** version, och den senaste så länge inget
+är fastslaget – samma regel som för processerna. Listan bär versionens
+`status` och `beteckning`.
 
 ## Vem ser och ändrar
 
@@ -73,8 +104,8 @@ servern.
 ## Lagring
 
 En fil per skiss i `SKISSER_DIR` (förval `skisser/`; i avbilden
-`/data/skisser`). Skisserna har ingen versionshistorik – en sparning ersätter
-den förra. `scripts/sakerhetskopiera-innehall.sh` tar med katalogen.
+`/data/skisser`). Historiken (`versioner`) ligger i samma fil.
+`scripts/sakerhetskopiera-innehall.sh` tar med katalogen.
 
 En installation som monterar innehållets kataloger var för sig (i stället
 för hela `/data`) behöver montera även den här.

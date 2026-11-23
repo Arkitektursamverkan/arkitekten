@@ -23,6 +23,8 @@
  */
 
 import type { Ägare } from "./behorighet";
+import { läsKlassning, type Klassning } from "./klassning";
+import { normaliseraStatus, sammanfattaStatus, senasteFastslagnaIndex, type FlowStatus } from "./status";
 
 /* ------------------------------------------------------------------ */
 /* Datamodellen                                                        */
@@ -117,11 +119,52 @@ export interface SkissPublicering {
   publiceradAt: string;
 }
 
+/**
+ * Det som VERSIONERAS: bilden och dess namn och beskrivning. Synlighet,
+ * publicering och klassning sitter på skissen och är ingen ny version
+ * (som placeringen och publiceringen av en process, invariant 11).
+ */
+export interface SkissInnehåll {
+  namn: string;
+  beskrivning?: string;
+  lager?: SkissLager[];
+  objekt: SkissObjekt[];
+  zoner: SkissZon[];
+  kopplingar: SkissKoppling[];
+}
+
+/**
+ * En sparad version. Beteckningen (0.1, 1.0 …) lagras INTE – den härleds ur
+ * historikens statusar med samma funktion som processerna (core/status.ts,
+ * invariant 9).
+ */
+export interface SkissVersion {
+  /** Löpande: v1, v2 … */
+  id: string;
+  savedAt: string;
+  /** Den inloggade som sparade. Skrivs av bryggan. */
+  savedBy?: string;
+  status: FlowStatus;
+  /** Frivillig kommentar. */
+  label?: string;
+  innehåll: SkissInnehåll;
+}
+
 export interface Systemskiss {
   id: string;
   namn: string;
   beskrivning?: string;
   publicering?: SkissPublicering;
+  /** Informationsklassningen (core/klassning.ts). Ingen ny version. */
+  klassning?: Klassning;
+  /**
+   * Historiken, äldst först; sista posten = innehållet ovan. Skrivs BARA av
+   * `läggTillSkissversion` – bryggan bygger den ur FILEN, aldrig ur begäran,
+   * så en tidigare version kan inte skrivas om (invariant 11). Saknas på
+   * skisser från före versionerna: då läses skissen som en enda version
+   * (`skissVersioner`), och den blir v1 vid nästa sparning.
+   */
+  versioner?: SkissVersion[];
   /**
    * Dold = bara administratörer ser skissen (core/behorighet.ts). Skrivs BARA
    * av bryggan på en administratörs begäran (server/atkomst.ts).
@@ -146,6 +189,11 @@ export interface SkissSammanfattning {
   savedAt: string;
   skapadAv?: Ägare;
   antalObjekt: number;
+  /** Nuvarande beteckning och status – härledda (core/status.ts). */
+  beteckning: string;
+  status: FlowStatus;
+  fastslagenBeteckning?: string;
+  klassning?: Klassning;
 }
 
 export function sammanfattaSkiss(s: Systemskiss): SkissSammanfattning {
@@ -157,7 +205,104 @@ export function sammanfattaSkiss(s: Systemskiss): SkissSammanfattning {
     savedAt: s.savedAt,
     skapadAv: s.skapadAv,
     antalObjekt: s.objekt?.length ?? 0,
+    ...sammanfattaStatus(skissVersioner(s)),
+    ...(s.klassning ? { klassning: s.klassning } : {}),
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Versionerna                                                         */
+/* ------------------------------------------------------------------ */
+
+/** Skissens nuvarande innehåll – det som versioneras. */
+export function skissensInnehåll(s: SkissInnehåll): SkissInnehåll {
+  return {
+    namn: s.namn,
+    ...(s.beskrivning ? { beskrivning: s.beskrivning } : {}),
+    ...(s.lager?.length ? { lager: s.lager } : {}),
+    objekt: s.objekt,
+    zoner: s.zoner,
+    kopplingar: s.kopplingar,
+  };
+}
+
+const innehållsNyckel = (i: SkissInnehåll) => JSON.stringify(skissensInnehåll(i));
+
+/**
+ * Historiken. En skiss från före versionerna har ingen – den LÄSES som en
+ * enda version (utkast, med filens tidpunkt och ingen påhittad person), så
+ * att beteckningen är 0.1 och innehållet finns kvar som v1 när den sparas.
+ */
+export function skissVersioner(s: Systemskiss): SkissVersion[] {
+  if (s.versioner?.length) return s.versioner;
+  return [{ id: "v1", savedAt: s.savedAt, status: "utkast", innehåll: skissensInnehåll(s) }];
+}
+
+export interface NyVersion {
+  status?: FlowStatus;
+  label?: string;
+  savedBy?: string;
+  nu?: string;
+}
+
+/**
+ * Skapar sparningen en ny version? Samma tre skäl som för en process
+ * (`skaparNyVersion` i flow-store): nytt innehåll, en kommentar eller en
+ * begärd ny status (Fastslå). Ny version utan begärd status = utkast.
+ */
+export function skaparNySkissversion(befintlig: Systemskiss | null, ny: SkissInnehåll, v: NyVersion): boolean {
+  if (!befintlig) return true;
+  const alla = skissVersioner(befintlig);
+  const sista = alla[alla.length - 1];
+  return (
+    innehållsNyckel(sista.innehåll) !== innehållsNyckel(ny) ||
+    Boolean(v.label?.trim()) ||
+    // Bara en BEGÄRD status räknas: en vanlig sparning (ny klassning, dold)
+    // av en fastslagen skiss ska inte bli ett utkast med samma innehåll.
+    (v.status !== undefined && normaliseraStatus(sista.status) !== normaliseraStatus(v.status))
+  );
+}
+
+/**
+ * Skissen som den ska sparas: `ny` med historiken ur `befintlig` (FILEN) och
+ * – om något ändrats – en ny version sist. Begärans egen historik används
+ * aldrig. En befintlig version rörs aldrig (invariant 11).
+ */
+export function läggTillSkissversion(befintlig: Systemskiss | null, ny: Systemskiss, v: NyVersion = {}): Systemskiss {
+  const tidigare = befintlig ? skissVersioner(befintlig) : [];
+  const nu = v.nu ?? new Date().toISOString();
+  const versioner = skaparNySkissversion(befintlig, ny, v)
+    ? [
+        ...tidigare,
+        {
+          id: `v${tidigare.length + 1}`,
+          savedAt: nu,
+          ...(v.savedBy?.trim() ? { savedBy: v.savedBy.trim() } : {}),
+          status: normaliseraStatus(v.status),
+          ...(v.label?.trim() ? { label: v.label.trim().slice(0, MAX.namn) } : {}),
+          innehåll: skissensInnehåll(ny),
+        },
+      ]
+    : tidigare;
+  return { ...ny, versioner };
+}
+
+/** Skissen med en äldre versions innehåll – för att titta på den eller exportera den. */
+export function skissVidVersion(s: Systemskiss, index: number): Systemskiss {
+  const v = skissVersioner(s)[index];
+  if (!v) return s;
+  const { beskrivning: _b, lager: _l, ...utan } = s;
+  return { ...utan, ...v.innehåll };
+}
+
+/**
+ * Den version portalen visar: senaste FASTSLAGNA, annars den senaste – samma
+ * regel som för processerna, så länge något är fastslaget.
+ */
+export function publiceradVersionsindex(s: Systemskiss): number {
+  const v = skissVersioner(s);
+  const fast = senasteFastslagnaIndex(v);
+  return fast === -1 ? v.length - 1 : fast;
 }
 
 /* ------------------------------------------------------------------ */
@@ -170,7 +315,7 @@ export const SKISS_RUTNÄT = 10;
 export const OBJEKT_MÅTT = { b: 170, h: 64, minB: 90, minH: 44, maxB: 600, maxH: 600 } as const;
 export const ZON_MÅTT = { b: 420, h: 260, minB: 120, minH: 80, maxB: 6000, maxH: 6000 } as const;
 
-const MAX = { lager: 60, objekt: 400, zoner: 100, kopplingar: 800, namn: 120, text: 600, beskrivning: 2000, koordinat: 50_000 } as const;
+const MAX = { versioner: 1000, lager: 60, objekt: 400, zoner: 100, kopplingar: 800, namn: 120, text: 600, beskrivning: 2000, koordinat: 50_000 } as const;
 
 const ID = /^[a-z0-9-]{1,64}$/;
 /** Ett nod-id i portalen: bokstäver, siffror och bindestreck (ett UUID). */
@@ -533,7 +678,7 @@ const giltigtId = (v: unknown): v is string => typeof v === "string" && ID.test(
  * skiss som en användare sparar öppnas av andra. Ett "tal" som i själva verket
  * är en sträng med markup får aldrig nå ritaren.
  */
-export function läsSkiss(rå: unknown): Systemskiss | null {
+export function läsSkiss(rå: unknown, inneVersion = false): Systemskiss | null {
   if (!rå || typeof rå !== "object") return null;
   const r = rå as Record<string, unknown>;
   const namn = sträng(r.namn, MAX.namn).trim();
@@ -623,6 +768,29 @@ export function läsSkiss(rå: unknown): Systemskiss | null {
       }
     : undefined;
   const savedAt = typeof r.savedAt === "string" && !Number.isNaN(Date.parse(r.savedAt)) ? r.savedAt : new Date(0).toISOString();
+  const klassning = läsKlassning(r.klassning);
+
+  // Varje versions innehåll prövas med SAMMA regler som skissen själv.
+  const versioner: SkissVersion[] = [];
+  if (!inneVersion) {
+    for (const v of lista(r.versioner, Infinity).slice(-MAX.versioner)) {
+      const rå = v.innehåll && typeof v.innehåll === "object" ? (v.innehåll as Record<string, unknown>) : null;
+      // En version utan eget namn får skissens – den ska aldrig falla bort ur historiken.
+      const inn = rå ? läsSkiss({ ...rå, namn: sträng(rå.namn, MAX.namn).trim() || namn, id: r.id }, true) : null;
+      if (!inn) continue;
+      const vSavedAt = typeof v.savedAt === "string" && !Number.isNaN(Date.parse(v.savedAt)) ? v.savedAt : savedAt;
+      const savedBy = sträng(v.savedBy, 200).trim();
+      const label = sträng(v.label, MAX.namn).trim();
+      versioner.push({
+        id: `v${versioner.length + 1}`,
+        savedAt: vSavedAt,
+        ...(savedBy ? { savedBy } : {}),
+        status: normaliseraStatus(v.status),
+        ...(label ? { label } : {}),
+        innehåll: skissensInnehåll(inn),
+      });
+    }
+  }
 
   return {
     id: r.id,
@@ -630,18 +798,20 @@ export function läsSkiss(rå: unknown): Systemskiss | null {
     ...(beskrivning ? { beskrivning } : {}),
     ...(r.dold === true ? { dold: true } : {}),
     ...(publicering ? { publicering } : {}),
+    ...(klassning ? { klassning } : {}),
     savedAt,
     ...(skapadAv ? { skapadAv } : {}),
     ...(lager.length ? { lager } : {}),
     objekt,
     zoner,
     kopplingar,
+    ...(versioner.length ? { versioner } : {}),
   };
 }
 
 /** Innehållet som avgör om skissen har osparade ändringar – tidsstämpel och skapare räknas inte. */
 export function skissNyckel(s: Systemskiss): string {
-  const { savedAt: _t, skapadAv: _s, ...innehåll } = s;
+  const { savedAt: _t, skapadAv: _s, versioner: _v, ...innehåll } = s;
   // Tidpunkten för publiceringen är serverns; servern den pekar på är innehåll.
   if (innehåll.publicering) innehåll.publicering = { ...innehåll.publicering, publiceradAt: "" };
   return JSON.stringify(innehåll);

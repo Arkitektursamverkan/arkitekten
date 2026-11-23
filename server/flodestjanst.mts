@@ -28,9 +28,18 @@
  *   FLOWS_DIR=flows PORT=8200 npx tsx server/flodestjanst.mts
  */
 
-import { SKISS_TJÄNSTPREFIX, läsSkiss, type Systemskiss } from "../src/core/systemskiss";
+import {
+  SKISS_TJÄNSTPREFIX,
+  läsSkiss,
+  publiceradVersionsindex,
+  skissVersioner,
+  skissVidVersion,
+  type Systemskiss,
+} from "../src/core/systemskiss";
+import { klassningIExport } from "../src/core/klassning";
+import { läsKlassningsinställningFil } from "./klassning";
 import { byggSkissScen } from "../src/tools/systemskiss/scen-systemskiss";
-import { skissSvg } from "../src/tools/systemskiss/skiss-svg";
+import { skissRevision, skissSvg } from "../src/tools/systemskiss/skiss-svg";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -147,6 +156,16 @@ function publiceradeSkisser(skisserDir: string): Systemskiss[] {
   return ut;
 }
 
+/**
+ * Den version portalen visar (senaste fastslagna, annars senaste –
+ * `publiceradVersionsindex`) och dess beteckning ur SAMMA funktion som appen.
+ */
+function publiceradBild(s: Systemskiss) {
+  const index = publiceradVersionsindex(s);
+  const versioner = skissVersioner(s);
+  return { index, skiss: skissVidVersion(s, index), ...sammanfattaStatus(versioner.slice(0, index + 1)) };
+}
+
 function listaSkisser(skisserDir: string) {
   return publiceradeSkisser(skisserDir).map((s) => ({
     id: SKISS_TJÄNSTPREFIX + s.id,
@@ -158,8 +177,10 @@ function listaSkisser(skisserDir: string) {
       ...(s.beskrivning ? { beskrivning: s.beskrivning } : {}),
       publiceradAt: s.publicering!.publiceradAt,
     },
-    stepCount: s.objekt.length,
-    versionCount: 1,
+    stepCount: publiceradBild(s).skiss.objekt.length,
+    versionCount: skissVersioner(s).length,
+    status: publiceradBild(s).status,
+    beteckning: publiceradBild(s).beteckning,
   }));
 }
 
@@ -280,12 +301,14 @@ export function skapaHanterare(
         // Ingen sådan skiss: då kan det vara ett FLÖDE vars id råkar börja likadant.
         if (skiss) {
         if (!sk[2]) return json(res, 200, { ok: true, flow: { id: SKISS_TJÄNSTPREFIX + skiss.id, name: skiss.namn, savedAt: skiss.savedAt } });
-        if (sk[2] === "scen") return json(res, 200, { ok: true, scen: byggSkissScen(skiss) });
+        const bild = publiceradBild(skiss);
+        const klassning = klassningIExport(läsKlassningsinställningFil(stilarDir), skiss.klassning);
+        if (sk[2] === "scen") return json(res, 200, { ok: true, scen: byggSkissScen(bild.skiss, skissRevision(skiss, bild.index, false, klassning)) });
         res.statusCode = 200;
         res.setHeader("content-type", "image/svg+xml; charset=utf-8");
         res.setHeader("x-content-type-options", "nosniff");
         res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'");
-        res.end(skissSvg(skiss).svg);
+        res.end(skissSvg(bild.skiss, skissRevision(skiss, bild.index, false, klassning)).svg);
         return;
         }
       }

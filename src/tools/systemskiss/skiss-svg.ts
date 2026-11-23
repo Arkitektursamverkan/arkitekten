@@ -14,7 +14,8 @@
  * ur skissen escapas eller är tal; färgerna är nycklar som slås upp här.
  */
 
-import type { SkissKoppling, SkissObjekt, SkissSort, SkissZon, Systemskiss, ZonFärg } from "@/core/systemskiss";
+import { revisionAvVersion, revisionsMått, revisionsRuta, type Revision } from "@/tools/flowchart/export/revision";
+import { skissVersioner, type SkissKoppling, type SkissObjekt, type SkissSort, type SkissZon, type Systemskiss, type ZonFärg } from "@/core/systemskiss";
 import {
   labelAnchor,
   pickEdgeSides,
@@ -381,15 +382,34 @@ export function skissInnehåll(skiss: Systemskiss, g: SkissGeometri = skissGeome
   );
 }
 
-/** Hela bilden som fristående SVG – exporten. */
-export function skissSvg(skiss: Systemskiss): { svg: string; bredd: number; höjd: number } {
+/**
+ * Hela bilden som fristående SVG – exporten. Med `revision` får bilden samma
+ * revisionsruta som processernas exporter (version, status, klassning –
+ * tools/flowchart/export/revision.ts), under bilden till vänster.
+ */
+export function skissSvg(skiss: Systemskiss, revision?: Revision): { svg: string; bredd: number; höjd: number } {
   const g = skissGeometri(skiss);
-  const { x, y, w, h } = g.gräns;
+  const { x, y } = g.gräns;
+  const rm = revisionsMått(revision);
+  const luft = rm.h ? 12 : 0;
+  const w = Math.max(g.gräns.w, rm.w + 24);
+  const h = g.gräns.h + rm.h + luft;
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${nr(w)}" height="${nr(h)}" viewBox="${nr(x)} ${nr(y)} ${nr(w)} ${nr(h)}" font-family='${SKISS_TECKENSNITT}'>` +
     `<title>${esc(skiss.namn)}</title>` +
     `<rect x="${nr(x)}" y="${nr(y)}" width="${nr(w)}" height="${nr(h)}" fill="#ffffff"/>` +
     skissInnehåll(skiss, g) +
+    revisionsRuta(x + 12, y + g.gräns.h, revision) +
     `</svg>`;
   return { svg, bredd: w, höjd: h };
+}
+
+/**
+ * Revisionsrutan för en version av skissen (index -1 = senaste) – samma
+ * funktion som processernas exporter stämplar med. `klassning` är den färdiga
+ * texten ur `klassningIExport` (tom = ingen rad).
+ */
+export function skissRevision(s: Systemskiss, index: number, osparat: boolean, klassning = ""): Revision | undefined {
+  const rev = revisionAvVersion({ savedAt: s.savedAt, versions: skissVersioner(s) }, index, osparat);
+  return klassning ? { ...rev, klassning } : rev;
 }

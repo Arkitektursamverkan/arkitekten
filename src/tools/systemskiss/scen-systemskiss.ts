@@ -14,6 +14,7 @@
 
 import type { Scen, ScenLager } from "@/core/scen";
 import { SKISS_TJÄNSTPREFIX, filtreraSkiss, type Systemskiss } from "@/core/systemskiss";
+import type { Revision } from "@/tools/flowchart/export/revision";
 import { SKISS_TECKENSNITT, skissGeometri, skissInnehåll } from "./skiss-svg";
 
 const nr = (n: number) => +n.toFixed(1);
@@ -28,7 +29,8 @@ function bild(skiss: Systemskiss): { bakgrund: string; bredd: number; höjd: num
   };
 }
 
-export function byggSkissScen(skiss: Systemskiss): Scen {
+/** `revision` följer med i scenen som för processerna (vem, när, vilken version, klassning). */
+export function byggSkissScen(skiss: Systemskiss, revision?: Revision): Scen {
   const lager: ScenLager[] = (skiss.lager ?? []).map((l) => ({
     id: l.id,
     namn: l.namn,
@@ -49,6 +51,6 @@ export function byggSkissScen(skiss: Systemskiss): Scen {
     kanter: [],
     steg: {},
     ...(lager.length ? { lager } : {}),
-    revision: null,
+    revision: revision ?? null,
   };
 }

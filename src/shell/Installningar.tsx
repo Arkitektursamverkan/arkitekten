@@ -1,7 +1,8 @@
 /**
  * Installationens inställningar – för administratören.
  *
- * Just nu en sak: SYMBOLSTILEN, hur affärsprocessernas symboler ser ut
+ * INFORMATIONSKLASSNINGEN (core/klassning.ts): om den används, vilken modell
+ * som gäller och var nivån visas. Och SYMBOLSTILEN, hur affärsprocessernas symboler ser ut
  * (src/tools/affarsprocess/symbolstil.ts). Stilarna kommer ur installationens
  * innehållspaket; standardstilen finns alltid. Valet gäller alla användare och
  * portalens bilder, och sidan laddas om så att varje rityta ritas med den nya
@@ -12,6 +13,15 @@
 import { useEffect, useState } from "react";
 import type { Inloggningsläge } from "@/core/behorighet";
 import { KontoAdmin } from "./LokalaKonton";
+import {
+  EGEN_MODELL,
+  INBYGGDA_MODELLER,
+  STANDARDINSTÄLLNING,
+  läsKlassningsinställning,
+  modellTillText,
+  textTillNivåer,
+  type Klassningsinställning,
+} from "@/core/klassning";
 
 interface StilRad {
   id: string;
@@ -42,6 +52,22 @@ export function InstallningarDialog({ läge, egetId, onStäng }: Props & { onSt�
   const [vald, setVald] = useState<string>("");
   const [fel, setFel] = useState<string[]>([]);
   const [sparar, setSparar] = useState(false);
+  const [klassning, setKlassning] = useState<Klassningsinställning | null>(null);
+  /** Den egna modellen som text – en nivå per rad, indragen rad = undernivå. */
+  const [egenText, setEgenText] = useState("");
+  const [egetNamn, setEgetNamn] = useState("");
+
+  useEffect(() => {
+    void fetch("/__ark/klassning")
+      .then((r) => r.json())
+      .then((b) => {
+        const inst = läsKlassningsinställning(b?.ok ? b.klassning : null);
+        setKlassning(inst);
+        setEgenText(modellTillText(inst.modell));
+        setEgetNamn(inst.modell.id === EGEN_MODELL ? inst.modell.namn : "");
+      })
+      .catch(() => setKlassning(STANDARDINSTÄLLNING));
+  }, []);
 
   useEffect(() => {
     let levande = true;
@@ -66,6 +92,20 @@ export function InstallningarDialog({ läge, egetId, onStäng }: Props & { onSt�
   async function spara() {
     setSparar(true);
     try {
+      if (klassning) {
+        const modell =
+          klassning.modell.id === EGEN_MODELL
+            ? { id: EGEN_MODELL, namn: egetNamn.trim() || "Egen modell", nivåer: textTillNivåer(egenText) }
+            : klassning.modell;
+        if (klassning.på && !modell.nivåer.length) throw new Error("Den egna modellen behöver minst en nivå.");
+        const svar = await fetch("/__ark/klassning", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ...klassning, modell }),
+        });
+        const kb = await svar.json();
+        if (!kb.ok) throw new Error(kb.error ?? "Klassningen gick inte att spara.");
+      }
       const res = await fetch("/__ark/symbolstil", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -84,6 +124,16 @@ export function InstallningarDialog({ läge, egetId, onStäng }: Props & { onSt�
     <div className="ark-flyttalager" onClick={onStäng}>
       <div className="ark-flyttadialog" role="dialog" aria-label="Inställningar" onClick={(e) => e.stopPropagation()}>
         <h2 className="ark-flytta-rubrik">Inställningar</h2>
+        {klassning && (
+          <KlassningsInställningar
+            inst={klassning}
+            onÄndra={setKlassning}
+            egenText={egenText}
+            onEgenText={setEgenText}
+            egetNamn={egetNamn}
+            onEgetNamn={setEgetNamn}
+          />
+        )}
         <h3 className="ark-installning-rubrik">Symbolstil för affärsprocesser</h3>
         <p className="ark-hint">
           Hur symbolerna ser ut i verktyget, i exporterna och i portalens bilder. Gäller alla användare.
@@ -114,6 +164,84 @@ export function InstallningarDialog({ läge, egetId, onStäng }: Props & { onSt�
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Informationsklassningen: på/av, modell och var nivån visas. */
+function KlassningsInställningar(p: {
+  inst: Klassningsinställning;
+  onÄndra: (i: Klassningsinställning) => void;
+  egenText: string;
+  onEgenText: (t: string) => void;
+  egetNamn: string;
+  onEgetNamn: (t: string) => void;
+}) {
+  const { inst, onÄndra } = p;
+  const egen = inst.modell.id === EGEN_MODELL;
+  return (
+    <div>
+      <h3 className="ark-installning-rubrik">Informationsklassning</h3>
+      <p className="ark-hint">
+        Varje process och systemskiss kan få en klassningsnivå. Den som får ändra processen eller skissen väljer nivån.
+      </p>
+      <label className="ark-installning-val">
+        <input type="checkbox" checked={inst.på} onChange={(e) => onÄndra({ ...inst, på: e.target.checked })} />
+        <span>
+          <strong>Använd informationsklassning</strong>
+        </span>
+      </label>
+      {inst.på && (
+        <>
+          <label className="ark-skiss-falt">
+            Klassningsmodell
+            <select
+              className="ark-input"
+              value={inst.modell.id}
+              onChange={(e) => {
+                const inbyggd = INBYGGDA_MODELLER.find((m) => m.id === e.target.value);
+                onÄndra({
+                  ...inst,
+                  modell: inbyggd ?? { id: EGEN_MODELL, namn: p.egetNamn || "Egen modell", nivåer: textTillNivåer(p.egenText) },
+                });
+              }}
+            >
+              {INBYGGDA_MODELLER.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.namn}
+                </option>
+              ))}
+              <option value={EGEN_MODELL}>Egen modell …</option>
+            </select>
+          </label>
+          {egen ? (
+            <>
+              <label className="ark-skiss-falt">
+                Modellens namn
+                <input className="ark-input" value={p.egetNamn} placeholder="T.ex. Vår klassningsmodell" onChange={(e) => p.onEgetNamn(e.target.value)} />
+              </label>
+              <label className="ark-skiss-falt">
+                Nivåerna – en per rad, indragen rad = undernivå
+                <textarea className="ark-textarea" rows={8} value={p.egenText} onChange={(e) => p.onEgenText(e.target.value)} />
+              </label>
+            </>
+          ) : (
+            <ul className="ark-hint">
+              {inst.modell.nivåer.map((n) => (
+                <li key={n.id}>{n.namn}</li>
+              ))}
+            </ul>
+          )}
+          <label className="ark-installning-val">
+            <input type="checkbox" checked={inst.visaIExport} onChange={(e) => onÄndra({ ...inst, visaIExport: e.target.checked })} />
+            <span>Visa klassningen i exporterade bilder</span>
+          </label>
+          <label className="ark-installning-val">
+            <input type="checkbox" checked={inst.visaIVyn} onChange={(e) => onÄndra({ ...inst, visaIVyn: e.target.checked })} />
+            <span>Visa klassningen på varje process och systemskiss</span>
+          </label>
+        </>
+      )}
     </div>
   );
 }

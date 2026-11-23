@@ -7,14 +7,24 @@
  */
 
 import { bridgeJson, isJson } from "./flow-store";
-import { läsSkiss, sammanfattaSkiss, type SkissSammanfattning, type Systemskiss } from "./systemskiss";
+import type { FlowStatus } from "./status";
+import { läggTillSkissversion, läsSkiss, sammanfattaSkiss, type SkissSammanfattning, type Systemskiss } from "./systemskiss";
+
+/** Vad sparningen ska bli: utkast (förval) eller fastslagen, och en frivillig kommentar. */
+export interface Sparval {
+  status?: FlowStatus;
+  label?: string;
+}
 
 export interface SkissStore {
   kind: "disk" | "local";
   list(): Promise<SkissSammanfattning[]>;
   load(id: string): Promise<Systemskiss>;
-  /** Sparar och returnerar skissen SOM DEN SPARADES (bryggan stämplar skapare, tid och synlighet). */
-  save(skiss: Systemskiss): Promise<Systemskiss>;
+  /**
+   * Sparar och returnerar skissen SOM DEN SPARADES (bryggan stämplar skapare,
+   * tid och synlighet, och lägger en ny version sist när något ändrats).
+   */
+  save(skiss: Systemskiss, val?: Sparval): Promise<Systemskiss>;
   remove(id: string): Promise<void>;
 }
 
@@ -32,11 +42,13 @@ const diskStore: SkissStore = {
   async load(id) {
     return tolka((await bridgeJson(`/__ark/skisser/${encodeURIComponent(id)}`)).skiss);
   },
-  async save(skiss) {
+  async save(skiss, val) {
+    // Historiken skickas inte – bryggan bygger den ur filen (invariant 11).
+    const { versioner: _v, ...utan } = skiss;
     const svar = await bridgeJson(`/__ark/skisser/${encodeURIComponent(skiss.id)}`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(skiss),
+      body: JSON.stringify({ ...utan, sparval: { status: val?.status, label: val?.label } }),
     });
     return tolka(svar.skiss);
   },
@@ -71,8 +83,9 @@ export function createLocalSkissStore(storage: Storage): SkissStore {
       if (!s) throw new Error("Skissen finns inte.");
       return s;
     },
-    async save(skiss) {
-      const sparad = { ...skiss, savedAt: new Date().toISOString() };
+    async save(skiss, val) {
+      const nu = new Date().toISOString();
+      const sparad = { ...läggTillSkissversion(read(LS_PREFIX + skiss.id), skiss, { ...val, nu }), savedAt: nu };
       storage.setItem(LS_PREFIX + skiss.id, JSON.stringify(sparad));
       return sparad;
     },

@@ -46,6 +46,12 @@ export interface Revision {
    * frågan rutan finns för att svara på.
    */
   osparat?: boolean;
+  /**
+   * Informationsklassningen, färdig att skriva ut (core/klassning.ts,
+   * `klassningIExport`). Tom = raden utelämnas – installationen har inte slagit
+   * på klassning, eller valt att inte visa den i exporten.
+   */
+  klassning?: string;
 }
 
 /** Det `revisionAvVersion` behöver av ett flöde – inget mer. */
@@ -108,6 +114,8 @@ const TECKEN_PX = 4.9;
  */
 function rader(rev: Revision): string[] {
   const ut: string[] = [];
+  // Klassningen FÖRST: hur bilden får hanteras ska synas innan något annat.
+  if (rev.klassning?.trim()) ut.push(`Klassning: ${rev.klassning.trim()}`);
   const version = rev.version?.trim().replace(/^v/i, "");
   const datum = datumText(rev.datum);
   // Saknas statusen helt (ett flöde utan historik) står det "Version" som förr –
