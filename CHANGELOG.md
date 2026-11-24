@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- **Större text i flödets rutor på utskriften.** Som anteckningarna sedan 0.22.0 förstoras nu också övriga rutors text så att den fyller rutan, högst dubbelt – med EN gemensam förstoring för hela skissen, så att flödet ser likadant ut i varje ruta. En ruta med luft ger alltså större text på papper. Skärmen och exporten är oförändrade.
+
 ## 0.22.1 – 2026-11-24
 
 - **Utskriften delar inte längre en bred skiss i remsor.** I 0.22.0 kunde en mycket bred skiss (t.ex. *Bostadsfördelning – nuläge*) stå i två remsor under varandra på bladet; flödet bröts mitt i och blev svårt att följa. Bilden står nu hel igen. Revisionsrutan i rubriken och de förstorade anteckningarna är kvar.

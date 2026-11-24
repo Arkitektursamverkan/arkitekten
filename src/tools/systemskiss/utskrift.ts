@@ -23,8 +23,9 @@
  * LÄSBARHET PÅ PAPPER (produktägaren 2026-11-24: revisionsrutan och de gula
  * rutorna gick inte att läsa på A3): revisionsrutan – klassning, version,
  * vem som justerat – ritas inte i bilden, där den krymper med skissen, utan
- * står i bladets rubrik i fast storlek. Anteckningarnas text förstoras så att
- * den fyller rutan (`fyllAnteckningar`, högst dubbelt).
+ * står i bladets rubrik i fast storlek. Rutornas text förstoras så att den
+ * fyller rutan (`fyllRutor`, högst dubbelt) – anteckningarna per zon eller rad,
+ * övriga rutor lika mycket i hela skissen.
  *
  * Ingen bild delas i remsor på samma blad: ett flöde som bröts mitt i blev
  * svårare att följa än en liten bild (produktägaren 2026-11-24, 0.22.0).
@@ -174,7 +175,7 @@ export function utskriftsblad(
 ): Blad[] {
   const blad = (rubrik: string, s: Systemskiss): Blad[] => {
     if (s.objekt.length === 0 && s.zoner.length === 0) return [];
-    const { svg, bredd, höjd } = skissSvg(s, undefined, { fyllAnteckningar: true });
+    const { svg, bredd, höjd } = skissSvg(s, undefined, { fyllRutor: true });
     const rader = revision ? revisionsRader(revision) : [];
     return delaUpp(rubrik, svg, bredd, höjd, val.papper, val.riktning, val.dela).map((b) => (rader.length ? { ...b, revision: rader } : b));
   };

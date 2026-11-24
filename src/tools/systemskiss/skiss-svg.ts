@@ -122,22 +122,24 @@ export interface ObjektLayout {
   ruta: Rect;
   namnRader: string[];
   textRader: string[];
-  /** Textens förstoring i rutan – 1 utom för en anteckning i en utskrift (se `fyllAnteckningar`). */
+  /** Textens förstoring i rutan – 1 utom i en utskrift (se `fyllRutor`). */
   skala: number;
 }
 
 export interface LayoutVal {
   /**
-   * Anteckningarnas text förstoras så att den fyller rutan, högst
-   * `ANTECKNING_MAX` gånger – rutan växer inte. Utskriften slår på det: en
-   * stor skiss skalas ned för att rymmas på bladet, och de gula rutornas
-   * brödtext blev oläslig fast rutorna hade plats för större text.
+   * Rutornas text förstoras så att den fyller rutan, högst `TEXT_MAX` gånger
+   * – rutan växer inte. Utskriften slår på det: en stor skiss skalas ned för
+   * att rymmas på bladet, och texten blev oläslig fast rutorna hade plats för
+   * större text. Anteckningarna förstoras för sig (per zon eller rad), övriga
+   * rutor med EN gemensam förstoring för hela skissen – flödet ska se likadant
+   * ut i varje ruta.
    */
-  fyllAnteckningar?: boolean;
+  fyllRutor?: boolean;
 }
 
-/** Högsta förstoringen av en anteckningstext i en utskrift. */
-export const ANTECKNING_MAX = 2;
+/** Högsta förstoringen av en text i en utskrift. */
+export const TEXT_MAX = 2;
 
 export interface KopplingLayout {
   koppling: SkissKoppling;
@@ -174,11 +176,11 @@ function layoutVid(o: SkissObjekt, f: number, maxNamn: number, maxText: number) 
   return { namnRader, textRader, innehåll: LUFT.över + texthöjd(namnRader.length, textRader.length, f) + LUFT.under };
 }
 
-/** Största förstoringen (steg om 0,05) där ALL text i anteckningen ryms i rutan som den är – inget kapas. */
-export function anteckningensSkala(o: SkissObjekt): number {
-  if (o.sort !== "anteckning" || layoutVid(o, 1, 4, 12).innehåll > o.h) return 1;
+/** Största förstoringen (steg om 0,05) där ALL text i rutan ryms i rutan som den är – inget kapas. */
+export function rutansSkala(o: SkissObjekt): number {
+  if (layoutVid(o, 1, 4, 12).innehåll > o.h) return 1;
   let bäst = 1;
-  for (let steg = 1; 1 + steg * 0.05 <= ANTECKNING_MAX + 1e-9; steg++) {
+  for (let steg = 1; 1 + steg * 0.05 <= TEXT_MAX + 1e-9; steg++) {
     const f = 1 + steg * 0.05;
     const l = layoutVid(o, f, 99, 99);
     if (l.innehåll > o.h || l.namnRader.length > 4) break;
@@ -188,22 +190,22 @@ export function anteckningensSkala(o: SkissObjekt): number {
 }
 
 /**
- * `skala` > 1 förstorar en anteckningstext – värdet ska komma ur
- * `anteckningensSkala`, så att texten ryms.
+ * `skala` > 1 förstorar rutans text – värdet ska komma ur `rutansSkala`, så
+ * att texten ryms.
  */
 export function objektLayout(o: SkissObjekt, skala = 1): ObjektLayout {
-  const f = o.sort === "anteckning" ? skala : 1;
+  const f = skala;
   const { namnRader, textRader, innehåll } = f === 1 ? layoutVid(o, 1, 4, 12) : layoutVid(o, f, 99, 99);
   return { objekt: o, ruta: { x: o.x, y: o.y, w: o.b, h: Math.max(o.h, innehåll) }, namnRader, textRader, skala: f };
 }
 
 /**
- * Förstoringen per anteckning i en utskrift. Anteckningar som hör ihop – i
- * samma zon, eller utan zon på samma rad med samma höjd – får SAMMA
- * förstoring, den minsta av deras: en rad gula rutor med olika textstorlek
- * ser ut som ett fel.
+ * Förstoringen per ruta i en utskrift. Anteckningar som hör ihop – i samma
+ * zon, eller utan zon på samma rad med samma höjd – får SAMMA förstoring, den
+ * minsta av deras: en rad gula rutor med olika textstorlek ser ut som ett fel.
+ * Övriga rutor är en enda grupp för hela skissen.
  */
-function anteckningsskalor(skiss: Systemskiss): Map<string, number> {
+function textskalor(skiss: Systemskiss): Map<string, number> {
   const grupp = (o: SkissObjekt): string => {
     const cx = o.x + o.b / 2;
     const cy = o.y + o.h / 2;
@@ -215,10 +217,9 @@ function anteckningsskalor(skiss: Systemskiss): Map<string, number> {
   const minst = new Map<string, number>();
   const per = new Map<string, string>();
   for (const o of skiss.objekt) {
-    if (o.sort !== "anteckning") continue;
-    const g = grupp(o);
+    const g = o.sort === "anteckning" ? grupp(o) : "rutor";
     per.set(o.id, g);
-    minst.set(g, Math.min(minst.get(g) ?? Infinity, anteckningensSkala(o)));
+    minst.set(g, Math.min(minst.get(g) ?? Infinity, rutansSkala(o)));
   }
   return new Map([...per].map(([id, g]) => [id, minst.get(g) ?? 1]));
 }
@@ -246,7 +247,7 @@ function port(r: Rect, sida: Side, andel: number): Point {
  */
 export function skissGeometri(skiss: Systemskiss, val: LayoutVal = {}): SkissGeometri {
   const objekt = new Map<string, ObjektLayout>();
-  const skalor = val.fyllAnteckningar ? anteckningsskalor(skiss) : null;
+  const skalor = val.fyllRutor ? textskalor(skiss) : null;
   for (const o of skiss.objekt) objekt.set(o.id, objektLayout(o, skalor?.get(o.id) ?? 1));
 
   interface Ände {
