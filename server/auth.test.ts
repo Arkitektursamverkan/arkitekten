@@ -160,6 +160,7 @@ describe("Entra-grupperna i sessionen", () => {
     expect(ut.grupper?.[0]).toBe(ger);
     // Utan något som ger: de första i tokenens ordning, som förut.
     expect(gruppurval(u, []).grupper).toEqual(många.slice(0, MAX_GRUPPER));
-    expect(gruppurval({ id: "x", namn: "x", roller: [] }, [ger])).toEqual({ id: "x", namn: "x", roller: [] });
+    const utanGrupper = { id: "x", namn: "x", roller: [] as string[] };
+    expect(gruppurval(utanGrupper, [ger])).toEqual(utanGrupper);
   });
 });
