@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+## 0.22.0 – 2026-11-24
+
 - **Utskriften går att läsa bättre på A3.** Revisionsrutan (klassning, version, vem som justerat) står i bladets rubrik i fast storlek i stället för i bilden, där den krympte med skissen. De gula anteckningarnas text förstoras så att den fyller rutan, högst dubbelt – samma storlek för anteckningar i samma zon eller på samma rad. En mycket bred skiss (t.ex. simbanor) vars text annars blir under 6 pt står i två eller tre remsor under varandra på samma blad. Rutan föreslår *Ett blad per lager* när texten blir liten. Skärmen och exporten är oförändrade.
 
 ## 0.21.0 – 2026-11-23
