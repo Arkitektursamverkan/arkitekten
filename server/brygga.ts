@@ -64,6 +64,7 @@ import {
   rättKod,
   avslutaInloggning,
   devAnvändare,
+  gruppurval,
   kaka,
   läsSessionen,
   påbörjaInloggning,
@@ -778,8 +779,21 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             }
             try {
               const fråga = new URL(req.url ?? "", "http://x").searchParams;
-              const { användare, tillbaka } = await avslutaInloggning(auth, hemlighet, req.headers.cookie, fråga);
-              log.info(`  [ark] Inloggad: ${användare.namn} (${användare.roller.join(", ")})`);
+              const inloggning = await avslutaInloggning(auth, hemlighet, req.headers.cookie, fråga);
+              const { tillbaka } = inloggning;
+              // Grupperna som ger något här går före i sessionens begränsade plats.
+              const klassning = läsKlassningsinställningFil(o.stilarDir);
+              const viktiga = [
+                ...(auth.läge === "entra" ? auth.adminGrupper : []),
+                ...klassning.skyddsklasser.flatMap((k) => k.behöriga),
+              ];
+              const användare = gruppurval(inloggning.användare, viktiga);
+              const klasser = minaSkyddsklasser(användare, klassning);
+              log.info(
+                `  [ark] Inloggad: ${användare.namn} (${användare.roller.join(", ")}) – ` +
+                  `${inloggning.användare.grupper?.length ?? 0} Entra-grupper i token` +
+                  (klassning.på ? `, skyddsklasser: ${klasser.join(", ") || "inga"}` : ""),
+              );
               omdirigera(res, tillbaka, [
                 kaka(SESSION_KAKA, skapaSession(användare, hemlighet), { maxÅlder: SESSION_SEKUNDER, säker: säkerKaka(req) }),
                 rensaOidcKaka(säkerKaka(req)),

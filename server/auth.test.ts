@@ -15,6 +15,7 @@ import {
   type EntraKonfig,
   MAX_GRUPPER,
   entraGrupper,
+  gruppurval,
 } from "./auth";
 
 const k: EntraKonfig = {
@@ -147,5 +148,19 @@ describe("Entra-grupperna i sessionen", () => {
     expect(entraGrupper([])).toEqual({});
     const många = Array.from({ length: 60 }, (_, i) => `aaaaaaaa-bbbb-cccc-dddd-${String(i).padStart(12, "0")}`);
     expect(entraGrupper(många).grupper).toHaveLength(MAX_GRUPPER);
+  });
+
+  it("gruppen som ger en skyddsklass följer med även när den ligger efter plats 40 i token", () => {
+    const många = Array.from({ length: 60 }, (_, i) => `aaaaaaaa-bbbb-cccc-dddd-${String(i).padStart(12, "0")}`);
+    const ger = många[55];
+    const u = { id: "oid", namn: "T", roller: ["user" as const], ...entraGrupper(många, Infinity) };
+    expect(u.grupper).toHaveLength(60);
+    const ut = gruppurval(u, [ger.toUpperCase()]);
+    expect(ut.grupper).toHaveLength(MAX_GRUPPER);
+    expect(ut.grupper?.[0]).toBe(ger);
+    // Utan något som ger: de första i tokenens ordning, som förut.
+    expect(gruppurval(u, []).grupper).toEqual(många.slice(0, MAX_GRUPPER));
+    const utanGrupper: { id: string; grupper?: string[] } = { id: "x" };
+    expect(gruppurval(utanGrupper, [ger])).toEqual(utanGrupper);
   });
 });

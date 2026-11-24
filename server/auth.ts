@@ -386,7 +386,9 @@ export function användareUrIdToken(
     namn: c.name?.trim() || epost || "Okänd",
     epost: epost || undefined,
     roller: rollerFör(k, c.roles ?? [], [c.oid, epost], c.groups ?? []),
-    ...entraGrupper(c.groups),
+    // Alla grupper här – urvalet till sessionen görs av `gruppurval`, som
+    // vet vilka grupper som ger något i installationen.
+    ...entraGrupper(c.groups, Infinity),
   };
 }
 
@@ -399,12 +401,27 @@ export function användareUrIdToken(
  */
 export const MAX_GRUPPER = 40;
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-export function entraGrupper(rå: unknown): { grupper?: string[] } {
+export function entraGrupper(rå: unknown, max: number = MAX_GRUPPER): { grupper?: string[] } {
   if (!Array.isArray(rå)) return {};
   const grupper = [...new Set(rå.filter((g): g is string => typeof g === "string").map((g) => g.trim().toLowerCase()))]
     .filter((g) => GUID.test(g))
-    .slice(0, MAX_GRUPPER);
+    .slice(0, max);
   return grupper.length ? { grupper } : {};
+}
+
+/**
+ * Grupperna som får plats i sessionen: först de som GER något – skyddsklasser
+ * och administratörsgrupper (`viktiga`) – sedan övriga, högst MAX_GRUPPER.
+ * REGRESSION: en användare med fler än 40 grupper förlorade gruppen som gav
+ * skyddsklassen när den låg efter plats 40 i token, och såg inte de klassade
+ * skisserna trots att hen var med i rätt grupp.
+ */
+export function gruppurval<T extends { grupper?: string[] }>(u: T, viktiga: Iterable<string>): T {
+  if (!u.grupper?.length) return u;
+  const ger = new Set([...viktiga].map((g) => g.trim().toLowerCase()));
+  const först = u.grupper.filter((g) => ger.has(g));
+  const sedan = u.grupper.filter((g) => !ger.has(g));
+  return { ...u, grupper: [...först, ...sedan].slice(0, MAX_GRUPPER) };
 }
 
 /**

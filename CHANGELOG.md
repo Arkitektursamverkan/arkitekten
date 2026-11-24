@@ -7,6 +7,10 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+## 0.23.1 – 2026-11-24
+
+- **Skyddsklass via Entra-grupp fungerar även för den som är med i många grupper.** Sessionen rymmer högst 40 Entra-grupper; de togs i tokenens ordning, så en användare med fler grupper kunde tappa just gruppen som gav skyddsklassen och inte se de klassade skisserna. Nu går grupperna som ger något – skyddsklasser och administratörsgrupper (`ENTRA_ADMIN_GRUPPER`) – först. Loggen visar vid inloggningen hur många grupper tokenen bar och vilka skyddsklasser användaren fick. Ändrade skyddsklasser gäller grupper från nästa inloggning.
+
 ## 0.23.0 – 2026-11-24
 
 - **Större text i flödets rutor på utskriften.** Som anteckningarna sedan 0.22.0 förstoras nu också övriga rutors text så att den fyller rutan, högst dubbelt – med EN gemensam förstoring för hela skissen, så att flödet ser likadant ut i varje ruta. En ruta med luft ger alltså större text på papper. Skärmen och exporten är oförändrade.
