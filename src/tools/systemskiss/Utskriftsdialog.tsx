@@ -117,7 +117,8 @@ export function Utskriftsdialog(props: {
                 {b.del ? ` · ${delText(b)}` : ""}
               </span>
               <span className="ark-utskrift-pt">
-                {b.liggande ? "liggande" : "stående"} · {pt(b.textPt)} pt
+                {b.liggande ? "liggande" : "stående"}
+                {b.remsor ? ` · i ${b.remsor.length} remsor` : ""} · {pt(b.textPt)} pt
               </span>
             </li>
           ))}
@@ -125,7 +126,8 @@ export function Utskriftsdialog(props: {
         {blad.length > 0 && läsbarhet(sämsta) !== "bra" && (
           <p className="ark-hint ark-utskrift-varning" role="status">
             Texten blir {läsbarhet(sämsta) === "oläsbar" ? "mycket liten" : "liten"} på pappret
-            {val.papper === "A4" ? " – A3 ger större text" : ""}.
+            {val.papper === "A4" ? " – A3 ger större text" : ""}
+            {harLager && val.innehåll === "visas" ? ". Ett blad per lager ger större text" : ""}.
           </p>
         )}
 
