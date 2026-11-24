@@ -122,7 +122,22 @@ export interface ObjektLayout {
   ruta: Rect;
   namnRader: string[];
   textRader: string[];
+  /** Textens förstoring i rutan – 1 utom för en anteckning i en utskrift (se `fyllAnteckningar`). */
+  skala: number;
 }
+
+export interface LayoutVal {
+  /**
+   * Anteckningarnas text förstoras så att den fyller rutan, högst
+   * `ANTECKNING_MAX` gånger – rutan växer inte. Utskriften slår på det: en
+   * stor skiss skalas ned för att rymmas på bladet, och de gula rutornas
+   * brödtext blev oläslig fast rutorna hade plats för större text.
+   */
+  fyllAnteckningar?: boolean;
+}
+
+/** Högsta förstoringen av en anteckningstext i en utskrift. */
+export const ANTECKNING_MAX = 2;
 
 export interface KopplingLayout {
   koppling: SkissKoppling;
@@ -146,17 +161,66 @@ function brytText(text: string, max: number, maxRader: number): string[] {
   return ut.slice(0, maxRader);
 }
 
-export function objektLayout(o: SkissObjekt): ObjektLayout {
+/** Textens höjd i rutan (utan luften över och under) vid förstoringen `f`. */
+function texthöjd(namn: number, text: number, f: number): number {
+  return (namn * NAMN.radhöjd + (text ? (namn ? LUFT.mellan : 0) + text * UNDER.radhöjd : 0)) * f;
+}
+
+function layoutVid(o: SkissObjekt, f: number, maxNamn: number, maxText: number) {
   const band = o.sort === "anteckning" ? 0 : BAND;
   const bredd = Math.max(40, o.b - band - 2 * LUFT.sida);
-  const namnRader = brytText(o.namn, Math.max(6, Math.floor(bredd / NAMN.tecken)), 4);
-  const textRader = brytText(o.text ?? "", Math.max(8, Math.floor(bredd / UNDER.tecken)), 12);
-  const innehåll =
-    LUFT.över +
-    namnRader.length * NAMN.radhöjd +
-    (textRader.length ? (namnRader.length ? LUFT.mellan : 0) + textRader.length * UNDER.radhöjd : 0) +
-    LUFT.under;
-  return { objekt: o, ruta: { x: o.x, y: o.y, w: o.b, h: Math.max(o.h, innehåll) }, namnRader, textRader };
+  const namnRader = brytText(o.namn, Math.max(6, Math.floor(bredd / (NAMN.tecken * f))), maxNamn);
+  const textRader = brytText(o.text ?? "", Math.max(8, Math.floor(bredd / (UNDER.tecken * f))), maxText);
+  return { namnRader, textRader, innehåll: LUFT.över + texthöjd(namnRader.length, textRader.length, f) + LUFT.under };
+}
+
+/** Största förstoringen (steg om 0,05) där ALL text i anteckningen ryms i rutan som den är – inget kapas. */
+export function anteckningensSkala(o: SkissObjekt): number {
+  if (o.sort !== "anteckning" || layoutVid(o, 1, 4, 12).innehåll > o.h) return 1;
+  let bäst = 1;
+  for (let steg = 1; 1 + steg * 0.05 <= ANTECKNING_MAX + 1e-9; steg++) {
+    const f = 1 + steg * 0.05;
+    const l = layoutVid(o, f, 99, 99);
+    if (l.innehåll > o.h || l.namnRader.length > 4) break;
+    bäst = f;
+  }
+  return bäst;
+}
+
+/**
+ * `skala` > 1 förstorar en anteckningstext – värdet ska komma ur
+ * `anteckningensSkala`, så att texten ryms.
+ */
+export function objektLayout(o: SkissObjekt, skala = 1): ObjektLayout {
+  const f = o.sort === "anteckning" ? skala : 1;
+  const { namnRader, textRader, innehåll } = f === 1 ? layoutVid(o, 1, 4, 12) : layoutVid(o, f, 99, 99);
+  return { objekt: o, ruta: { x: o.x, y: o.y, w: o.b, h: Math.max(o.h, innehåll) }, namnRader, textRader, skala: f };
+}
+
+/**
+ * Förstoringen per anteckning i en utskrift. Anteckningar som hör ihop – i
+ * samma zon, eller utan zon på samma rad med samma höjd – får SAMMA
+ * förstoring, den minsta av deras: en rad gula rutor med olika textstorlek
+ * ser ut som ett fel.
+ */
+function anteckningsskalor(skiss: Systemskiss): Map<string, number> {
+  const grupp = (o: SkissObjekt): string => {
+    const cx = o.x + o.b / 2;
+    const cy = o.y + o.h / 2;
+    const zon = skiss.zoner
+      .filter((z) => cx >= z.x && cx <= z.x + z.b && cy >= z.y && cy <= z.y + z.h)
+      .sort((a, b) => a.b * a.h - b.b * b.h)[0];
+    return zon ? `zon:${zon.id}` : `rad:${Math.round(o.y)}:${Math.round(o.h)}`;
+  };
+  const minst = new Map<string, number>();
+  const per = new Map<string, string>();
+  for (const o of skiss.objekt) {
+    if (o.sort !== "anteckning") continue;
+    const g = grupp(o);
+    per.set(o.id, g);
+    minst.set(g, Math.min(minst.get(g) ?? Infinity, anteckningensSkala(o)));
+  }
+  return new Map([...per].map(([id, g]) => [id, minst.get(g) ?? 1]));
 }
 
 const zonRuta = (z: SkissZon): Rect => ({ x: z.x, y: z.y, w: z.b, h: z.h });
@@ -180,9 +244,10 @@ function port(r: Rect, sida: Side, andel: number): Point {
  * FÖRDELAS längs sidan, i den ordning deras andra ändar ligger – annars låg
  * de på varandra och en server med fem kopplingar såg ut att ha en.
  */
-export function skissGeometri(skiss: Systemskiss): SkissGeometri {
+export function skissGeometri(skiss: Systemskiss, val: LayoutVal = {}): SkissGeometri {
   const objekt = new Map<string, ObjektLayout>();
-  for (const o of skiss.objekt) objekt.set(o.id, objektLayout(o));
+  const skalor = val.fyllAnteckningar ? anteckningsskalor(skiss) : null;
+  for (const o of skiss.objekt) objekt.set(o.id, objektLayout(o, skalor?.get(o.id) ?? 1));
 
   interface Ände {
     index: number;
@@ -318,20 +383,19 @@ function objektSvg(l: ObjektLayout): string {
   const anteckning = o.sort === "anteckning";
   const färg = SORT_FÄRG[o.sort] ?? SORT_FÄRG.server;
   const band = anteckning ? 0 : BAND;
-  const höjd =
-    l.namnRader.length * NAMN.radhöjd +
-    (l.textRader.length ? (l.namnRader.length ? LUFT.mellan : 0) + l.textRader.length * UNDER.radhöjd : 0);
+  const f = l.skala;
+  const höjd = texthöjd(l.namnRader.length, l.textRader.length, f);
   let y = r.y + (r.h - höjd) / 2;
   const tx = r.x + band + LUFT.sida;
   let text = "";
   for (const rad of l.namnRader) {
-    text += `<text x="${nr(tx)}" y="${nr(y + NAMN.radhöjd - 4.5)}" font-size="${NAMN.storlek}" font-weight="650" fill="${TEXT}">${esc(rad)}</text>`;
-    y += NAMN.radhöjd;
+    text += `<text x="${nr(tx)}" y="${nr(y + (NAMN.radhöjd - 4.5) * f)}" font-size="${nr(NAMN.storlek * f)}" font-weight="650" fill="${TEXT}">${esc(rad)}</text>`;
+    y += NAMN.radhöjd * f;
   }
-  if (l.textRader.length && l.namnRader.length) y += LUFT.mellan;
+  if (l.textRader.length && l.namnRader.length) y += LUFT.mellan * f;
   for (const rad of l.textRader) {
-    text += `<text x="${nr(tx)}" y="${nr(y + UNDER.radhöjd - 4)}" font-size="${UNDER.storlek}" fill="${DÄMPAD}">${esc(rad)}</text>`;
-    y += UNDER.radhöjd;
+    text += `<text x="${nr(tx)}" y="${nr(y + (UNDER.radhöjd - 4) * f)}" font-size="${nr(UNDER.storlek * f)}" fill="${DÄMPAD}">${esc(rad)}</text>`;
+    y += UNDER.radhöjd * f;
   }
   const kropp = anteckning
     ? `<rect x="${nr(r.x)}" y="${nr(r.y)}" width="${nr(r.w)}" height="${nr(r.h)}" rx="4" fill="${ANTECKNING.fyll}" stroke="${ANTECKNING.kant}" stroke-width="1.2"/>`
@@ -389,8 +453,8 @@ export function skissInnehåll(skiss: Systemskiss, g: SkissGeometri = skissGeome
  * revisionsruta som processernas exporter (version, status, klassning –
  * tools/flowchart/export/revision.ts), under bilden till vänster.
  */
-export function skissSvg(skiss: Systemskiss, revision?: Revision): { svg: string; bredd: number; höjd: number } {
-  const g = skissGeometri(skiss);
+export function skissSvg(skiss: Systemskiss, revision?: Revision, val: LayoutVal = {}): { svg: string; bredd: number; höjd: number } {
+  const g = skissGeometri(skiss, val);
   const { x, y } = g.gräns;
   const rm = revisionsMått(revision);
   const luft = rm.h ? 12 : 0;

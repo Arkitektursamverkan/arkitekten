@@ -112,7 +112,7 @@ const TECKEN_PX = 4.9;
  * läsare behöver veta om en bild i ett dokument är om den gäller eller inte.
  * "Fastslagen 2.0 · 2026-07-12" säger båda sakerna på en rad.
  */
-function rader(rev: Revision): string[] {
+export function revisionsRader(rev: Revision): string[] {
   const ut: string[] = [];
   // Klassningen FÖRST: hur bilden får hanteras ska synas innan något annat.
   if (rev.klassning?.trim()) ut.push(`Klassning: ${rev.klassning.trim()}`);
@@ -143,7 +143,7 @@ function datumText(iso?: string): string {
 
 /** Rutans mått – exporten reserverar plats innan den ritar. */
 export function revisionsMått(rev: Revision | undefined): { w: number; h: number } {
-  const r = rev ? rader(rev) : [];
+  const r = rev ? revisionsRader(rev) : [];
   if (!r.length) return { w: 0, h: 0 };
   const bredast = Math.max(...r.map((t) => t.length));
   return {
@@ -158,7 +158,7 @@ export function revisionsMått(rev: Revision | undefined): { w: number; h: numbe
  * då ska exporten se ut precis som förut.
  */
 export function revisionsRuta(x: number, y: number, rev: Revision | undefined): string {
-  const r = rev ? rader(rev) : [];
+  const r = rev ? revisionsRader(rev) : [];
   if (!r.length) return "";
   const { w, h } = revisionsMått(rev);
   const delar = [

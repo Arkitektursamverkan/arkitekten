@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { läggTillObjekt, nySkiss, type Systemskiss } from "@/core/systemskiss";
-import { bildyta, DELA_UNDER_PT, delaUpp, delText, läsbarhet, placera, utskriftsblad, utskriftsdokument, UTSKRIFT_FÖRVAL, ÖVERLAPP } from "./utskrift";
+import { bildyta, DELA_UNDER_PT, REMSLUFT, delaUpp, delText, läsbarhet, placera, utskriftsblad, utskriftsdokument, UTSKRIFT_FÖRVAL, ÖVERLAPP } from "./utskrift";
 import { SKISS_BRÖDTEXT } from "./skiss-svg";
 
 const MM_PER_PT = 25.4 / 72;
@@ -123,9 +123,9 @@ describe("delning på flera blad", () => {
 it("REGRESSION: ett valt lager med 5–6 pt text delades på två blad – det ska bli ett, centrerat", () => {
   // Lagret "Servrar att få upp" var 1640 × 310 enheter: 5,5 pt på A4 liggande gav del 1 och 2.
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1640" height="310" viewBox="0 0 1640 310"></svg>`;
+  // Sedan 2026-11-24 står en så bred bild i remsor på bladet – fortfarande ETT blad.
   const hel = placera("x", svg, 1640, 310, "A4", "auto");
   expect(hel.textPt).toBeGreaterThan(DELA_UNDER_PT);
-  expect(hel.textPt).toBeLessThan(6);
   const blad = delaUpp("x", svg, 1640, 310, "A4", "auto", true);
   expect(blad).toHaveLength(1);
   expect(blad[0].del).toBeUndefined();
@@ -140,4 +140,43 @@ it("förvalet är ETT blad, hur liten texten än blir", () => {
   const blad = utskriftsblad(s, UTSKRIFT_FÖRVAL, null, true);
   expect(blad).toHaveLength(1);
   expect(läsbarhet(blad[0].textPt)).toBe("oläsbar");
+});
+
+describe("läsbarhet på papper (2026-11-24)", () => {
+  it("revisionsrutan står i bladets rubrik i fast storlek, inte i bilden", () => {
+    let s: Systemskiss = nySkiss("Miljö");
+    s = läggTillObjekt(s, "server", 0, 0).skiss;
+    const rev = { klassning: "Nivå 2 - Affärshemlig", version: "0.5", status: "utkast" as const, ändradAv: "Anna" };
+    const blad = utskriftsblad(s, UTSKRIFT_FÖRVAL, null, true, rev);
+    expect(blad[0].revision?.[0]).toBe("Klassning: Nivå 2 - Affärshemlig");
+    expect(blad[0].svg).not.toContain("Affärshemlig");
+    const dok = utskriftsdokument("x", blad, "A3");
+    expect(dok).toMatch(/<div class="rev"><span class="klass">Klassning: Nivå 2 - Affärshemlig<\/span> · [^<]*0\.5[^<]* · Justerad av Anna<\/div>/);
+  });
+
+  it("en mycket bred bild med liten text står i remsor under varandra på ETT blad", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="8000" height="1600" viewBox="10 20 8000 1600"></svg>`;
+    const b = placera("x", svg, 8000, 1600, "A3", "auto");
+    const utan = Math.max(...[true, false].map((l) => Math.min(bildyta("A3", l).b / 8000, bildyta("A3", l).h / 1600)));
+    expect(b.remsor?.length).toBeGreaterThanOrEqual(2);
+    expect(b.textPt).toBeGreaterThan(((SKISS_BRÖDTEXT * utan) / MM_PER_PT) * 1.25);
+    // Remsorna täcker hela bredden och överlappar.
+    const r = b.remsor!;
+    expect(r[0].x).toBeCloseTo(10, 5);
+    expect(r[r.length - 1].x + r[r.length - 1].b).toBeCloseTo(8010, 5);
+    expect(r[1].x).toBeLessThan(r[0].x + r[0].b);
+    // Allt ryms på bladet.
+    const yta = bildyta("A3", b.liggande);
+    expect(b.hMm).toBeLessThanOrEqual(yta.h + 1e-6);
+    expect(b.bMm).toBeLessThanOrEqual(yta.b + 1e-6);
+    const dok = utskriftsdokument("x", [b], "A3");
+    expect(dok.match(/class="remsa"/g)).toHaveLength(r.length);
+    expect(dok).toContain(`height: ${REMSLUFT}mm`);
+  });
+
+  it("en bild som redan går att läsa delas inte i remsor", () => {
+    const b = placera("x", "<svg/>", 1640, 310, "A3", "auto");
+    expect(b.textPt).toBeGreaterThanOrEqual(6);
+    expect(b.remsor).toBeUndefined();
+  });
 });

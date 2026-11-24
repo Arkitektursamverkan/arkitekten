@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- **Utskriften går att läsa bättre på A3.** Revisionsrutan (klassning, version, vem som justerat) står i bladets rubrik i fast storlek i stället för i bilden, där den krympte med skissen. De gula anteckningarnas text förstoras så att den fyller rutan, högst dubbelt – samma storlek för anteckningar i samma zon eller på samma rad. En mycket bred skiss (t.ex. simbanor) vars text annars blir under 6 pt står i två eller tre remsor under varandra på samma blad. Rutan föreslår *Ett blad per lager* när texten blir liten. Skärmen och exporten är oförändrade.
+
 ## 0.21.0 – 2026-11-23
 
 - **Skriv ut systemskissen på A4 eller A3.** Knappen *🖨 Skriv ut* ger ett blad med det som visas eller ett blad per lager, i den riktning som ger störst bild. Rutan visar textstorleken på pappret för varje blad och varnar under 6 pt. Bilden beskärs till det som valts och står mitt på bladet – ETT blad som förval, hur liten texten än blir. Vill man kan en bild med text under 5 pt delas på flera blad som överlappar 1 cm. Utskriften går genom webbläsarens dialog, så den kan också sparas som PDF. Se `docs/systemskiss.md`.

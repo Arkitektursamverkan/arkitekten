@@ -66,7 +66,15 @@ bilden i rader och kolumner så att den blir minst 7 pt. Bladen överlappar
 (”del 2 av 4, kolumn 2”). Högst 12 blad per bild – större än så är skissen
 för stor och bör delas i fler lager eller i flera skisser.
 
-Varje blad har samma revisionsruta som exporten. Utskriften går genom
+Revisionsrutan – klassning, version och vem som justerat – står i bladets
+rubrik i fast storlek (9 pt), inte i bilden, så att den går att läsa hur
+mycket bilden än krymper. De gula anteckningarnas text förstoras så att den
+fyller rutan (högst dubbelt); anteckningar i samma zon, eller på samma rad
+utan zon, får samma storlek. En mycket bred bild vars text annars blir under
+6 pt står i två eller tre remsor under varandra på bladet – fortfarande ett
+blad – när det ger minst en fjärdedel större text.
+
+Utskriften går genom
 webbläsarens utskriftsdialog – där väljer man skrivare eller *Spara som PDF*.
 Stående och liggande blad i samma utskrift kräver en webbläsare med namngivna
 sidmallar (Edge, Chrome); andra använder det första bladets riktning. Valen
