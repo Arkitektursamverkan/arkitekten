@@ -68,9 +68,11 @@ för stor och bör delas i fler lager eller i flera skisser.
 
 Revisionsrutan – klassning, version och vem som justerat – står i bladets
 rubrik i fast storlek (9 pt), inte i bilden, så att den går att läsa hur
-mycket bilden än krymper. De gula anteckningarnas text förstoras så att den
-fyller rutan (högst dubbelt); anteckningar i samma zon, eller på samma rad
-utan zon, får samma storlek.
+mycket bilden än krymper. Rutornas text förstoras så att den fyller rutan
+(högst dubbelt): anteckningar i samma zon, eller på samma rad utan zon, får
+samma storlek, och flödets övriga rutor förstoras lika mycket i hela skissen.
+En skiss blir alltså läsbarare på papper om rutorna har luft – är bredden
+full kan rutorna göras högre.
 En bild delas aldrig i remsor på samma blad – ett flöde som bryts mitt i blir
 svårare att följa än en liten bild.
 

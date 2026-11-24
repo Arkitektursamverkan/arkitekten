@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { läggTillKoppling, läggTillObjekt, läggTillSkissversion, läggTillZon, nySkiss, ändraKoppling, ändraObjekt, type Systemskiss } from "@/core/systemskiss";
-import { ANTECKNING_MAX, anteckningensSkala, skissGeometri, skissInnehåll, skissRevision, skissSvg, träffISkiss } from "./skiss-svg";
+import { TEXT_MAX, rutansSkala, skissGeometri, skissInnehåll, skissRevision, skissSvg, träffISkiss } from "./skiss-svg";
 
 function exempel() {
   let { skiss, id: a } = läggTillObjekt(nySkiss("Miljö"), "server", 100, 100);
@@ -100,15 +100,15 @@ describe("exportens revisionsruta", () => {
   });
 });
 
-describe("anteckningarnas text i en utskrift (fyllAnteckningar)", () => {
+describe("rutornas text i en utskrift (fyllRutor)", () => {
   const anteckning = (id: string, x: number, y: number, text: string, b = 420, h = 230) => ({ id, sort: "anteckning" as const, namn: "Rubrik", text, x, y, b, h });
 
   it("förstoras så att texten fyller rutan – utan att rutan växer eller något kapas", () => {
     const o = anteckning("a", 0, 0, "Kort text.");
-    const f = anteckningensSkala(o);
+    const f = rutansSkala(o);
     expect(f).toBeGreaterThan(1);
-    expect(f).toBeLessThanOrEqual(ANTECKNING_MAX);
-    const g = skissGeometri({ ...nySkiss("x"), objekt: [o] }, { fyllAnteckningar: true });
+    expect(f).toBeLessThanOrEqual(TEXT_MAX);
+    const g = skissGeometri({ ...nySkiss("x"), objekt: [o] }, { fyllRutor: true });
     const l = g.objekt.get("a")!;
     expect(l.skala).toBe(f);
     expect(l.ruta.h).toBe(230);
@@ -117,23 +117,32 @@ describe("anteckningarnas text i en utskrift (fyllAnteckningar)", () => {
     expect(skissGeometri({ ...nySkiss("x"), objekt: [o] }).objekt.get("a")!.skala).toBe(1);
   });
 
-  it("en full anteckning förstoras inte, och andra rutor aldrig", () => {
-    expect(anteckningensSkala(anteckning("a", 0, 0, "ord ".repeat(300)))).toBe(1);
-    expect(anteckningensSkala({ ...anteckning("s", 0, 0, "x"), sort: "server" })).toBe(1);
+  it("en full ruta förstoras inte", () => {
+    expect(rutansSkala(anteckning("a", 0, 0, "ord ".repeat(300)))).toBe(1);
+  });
+
+  it("flödets rutor får EN förstoring för hela skissen – den minsta", () => {
+    const ruta = (id: string, x: number, namn: string, text: string) => ({ id, sort: "server" as const, namn, text, x, y: 0, b: 240, h: 150 });
+    const s: Systemskiss = { ...nySkiss("x"), objekt: [ruta("kort", 0, "A", "x"), ruta("lång", 300, "En längre rubrik här", "Och en text som tar några rader i rutan")] };
+    const g = skissGeometri(s, { fyllRutor: true });
+    expect(g.objekt.get("kort")!.skala).toBeGreaterThan(1);
+    expect(g.objekt.get("kort")!.skala).toBe(g.objekt.get("lång")!.skala);
+    expect(g.objekt.get("kort")!.skala).toBe(rutansSkala(s.objekt[1]));
+    expect(g.objekt.get("lång")!.ruta.h).toBe(150);
   });
 
   it("anteckningar i samma zon får samma storlek – den minsta", () => {
     let s: Systemskiss = { ...nySkiss("x"), objekt: [anteckning("kort", 20, 40, "Kort."), anteckning("lång", 460, 40, "ord ".repeat(80))] };
     s = läggTillZon(s, 0, 0).skiss;
     s = { ...s, zoner: s.zoner.map((z) => ({ ...z, x: 0, y: 0, b: 1000, h: 400 })) };
-    const g = skissGeometri(s, { fyllAnteckningar: true });
+    const g = skissGeometri(s, { fyllRutor: true });
     expect(g.objekt.get("kort")!.skala).toBe(g.objekt.get("lång")!.skala);
-    expect(g.objekt.get("kort")!.skala).toBe(anteckningensSkala(s.objekt[1]));
+    expect(g.objekt.get("kort")!.skala).toBe(rutansSkala(s.objekt[1]));
   });
 
   it("den förstorade texten ritas i större storlek", () => {
     const s = { ...nySkiss("x"), objekt: [anteckning("a", 0, 0, "Kort text.")] };
-    const f = anteckningensSkala(s.objekt[0]);
-    expect(skissSvg(s, undefined, { fyllAnteckningar: true }).svg).toContain(`font-size="${+(11.5 * f).toFixed(1)}"`);
+    const f = rutansSkala(s.objekt[0]);
+    expect(skissSvg(s, undefined, { fyllRutor: true }).svg).toContain(`font-size="${+(11.5 * f).toFixed(1)}"`);
   });
 });
