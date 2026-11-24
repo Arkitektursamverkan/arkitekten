@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+## 0.23.0 – 2026-11-24
+
 - **Större text i flödets rutor på utskriften.** Som anteckningarna sedan 0.22.0 förstoras nu också övriga rutors text så att den fyller rutan, högst dubbelt – med EN gemensam förstoring för hela skissen, så att flödet ser likadant ut i varje ruta. En ruta med luft ger alltså större text på papper. Skärmen och exporten är oförändrade.
 
 ## 0.22.1 – 2026-11-24
