@@ -117,8 +117,7 @@ export function Utskriftsdialog(props: {
                 {b.del ? ` · ${delText(b)}` : ""}
               </span>
               <span className="ark-utskrift-pt">
-                {b.liggande ? "liggande" : "stående"}
-                {b.remsor ? ` · i ${b.remsor.length} remsor` : ""} · {pt(b.textPt)} pt
+                {b.liggande ? "liggande" : "stående"} · {pt(b.textPt)} pt
               </span>
             </li>
           ))}

@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- **Utskriften delar inte längre en bred skiss i remsor.** I 0.22.0 kunde en mycket bred skiss (t.ex. *Bostadsfördelning – nuläge*) stå i två remsor under varandra på bladet; flödet bröts mitt i och blev svårt att följa. Bilden står nu hel igen. Revisionsrutan i rubriken och de förstorade anteckningarna är kvar.
+
 ## 0.22.0 – 2026-11-24
 
 - **Utskriften går att läsa bättre på A3.** Revisionsrutan (klassning, version, vem som justerat) står i bladets rubrik i fast storlek i stället för i bilden, där den krympte med skissen. De gula anteckningarnas text förstoras så att den fyller rutan, högst dubbelt – samma storlek för anteckningar i samma zon eller på samma rad. En mycket bred skiss (t.ex. simbanor) vars text annars blir under 6 pt står i två eller tre remsor under varandra på samma blad. Rutan föreslår *Ett blad per lager* när texten blir liten. Skärmen och exporten är oförändrade.

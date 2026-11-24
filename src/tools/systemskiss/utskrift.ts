@@ -26,11 +26,8 @@
  * står i bladets rubrik i fast storlek. Anteckningarnas text förstoras så att
  * den fyller rutan (`fyllAnteckningar`, högst dubbelt).
  *
- * REMSOR: en bild som är mycket bredare än bladet (t.ex. simbanor) delas i två
- * eller tre remsor som står UNDER VARANDRA på samma blad – fortfarande ett
- * blad, men texten blir större. Remsorna överlappar lite, så att en ruta som
- * hamnar i skarven syns hel i den ena. Remsor används bara när de ger minst
- * en fjärdedel större text, och bara när texten annars blir mindre än 6 pt.
+ * Ingen bild delas i remsor på samma blad: ett flöde som bröts mitt i blev
+ * svårare att följa än en liten bild (produktägaren 2026-11-24, 0.22.0).
  */
 import { revisionsRader, type Revision } from "@/tools/flowchart/export/revision";
 import { esc } from "@/tools/flowchart/render/text-util";
@@ -86,8 +83,6 @@ export interface Blad {
   hMm: number;
   /** Rutornas brödtext på pappret, i punkter. */
   textPt: number;
-  /** Bilden i remsor under varandra på bladet: varje remsas fönster i skissens enheter. */
-  remsor?: { x: number; y: number; b: number; h: number }[];
   /** En del av en delad bild: fönstret i skissens enheter och dess plats. */
   del?: { x: number; y: number; b: number; h: number; rad: number; kolumn: number; rader: number; kolumner: number };
 }
@@ -105,42 +100,12 @@ function skala(bredd: number, höjd: number, papper: Papper, liggande: boolean):
   return Math.min(y.b / bredd, y.h / höjd, (STÖRST_PT * MM_PER_PT) / SKISS_BRÖDTEXT);
 }
 
-/** Luften mellan remsorna på bladet (mm), och remsornas överlapp som andel av bildens bredd. */
-export const REMSLUFT = 6;
-const REMSÖVERLAPP = 0.03;
-const MAX_REMSOR = 3;
-/** Remsor bara om texten blir minst så här mycket större. */
-const REMSVINST = 1.25;
-
-/** Millimeter per enhet med bilden i `k` remsor under varandra. */
-function remsskala(bredd: number, höjd: number, k: number, papper: Papper, liggande: boolean): number {
-  if (k === 1) return skala(bredd, höjd, papper, liggande);
-  const y = bildyta(papper, liggande);
-  const remsa = bredd / k + bredd * REMSÖVERLAPP;
-  return Math.min(y.b / remsa, (y.h - (k - 1) * REMSLUFT) / (k * höjd), (STÖRST_PT * MM_PER_PT) / SKISS_BRÖDTEXT);
-}
-
-/** Ett blad: riktningen (och antalet remsor) som ger störst bild om man inte valt själv. */
+/** Ett blad: riktningen som ger störst bild om man inte valt själv. */
 export function placera(rubrik: string, svg: string, bredd: number, höjd: number, papper: Papper, riktning: Riktning): Blad {
-  const riktningar = riktning === "auto" ? [false, true] : [riktning === "liggande"];
-  const hel = riktningar.map((liggande) => ({ liggande, k: 1, s: skala(bredd, höjd, papper, liggande) })).reduce((a, b) => (b.s > a.s ? b : a));
-  let bäst = hel;
-  // Bara när texten annars blir liten – en bild som redan går att läsa får stå hel.
-  if ((SKISS_BRÖDTEXT * hel.s) / MM_PER_PT < LÄSBAR_PT)
-  for (const liggande of riktningar)
-    for (let k = 2; k <= MAX_REMSOR; k++) {
-      const s = remsskala(bredd, höjd, k, papper, liggande);
-      if (s >= hel.s * REMSVINST && s > bäst.s) bäst = { liggande, k, s };
-    }
-  const { liggande, k, s } = bäst;
-  const blad: Blad = { rubrik, svg, bredd, höjd, liggande, bMm: bredd * s, hMm: höjd * s, textPt: (SKISS_BRÖDTEXT * s) / MM_PER_PT };
-  if (k === 1) return blad;
-  const vb = /viewBox="([-\d.]+) ([-\d.]+) /.exec(svg);
-  const x0 = vb ? Number(vb[1]) : 0;
-  const y0 = vb ? Number(vb[2]) : 0;
-  const b = bredd / k + bredd * REMSÖVERLAPP;
-  const remsor = Array.from({ length: k }, (_, i) => ({ x: x0 + (i * (bredd - b)) / (k - 1), y: y0, b, h: höjd }));
-  return { ...blad, bMm: b * s, hMm: höjd * s * k + (k - 1) * REMSLUFT, remsor };
+  const liggande =
+    riktning === "liggande" || (riktning === "auto" && skala(bredd, höjd, papper, true) > skala(bredd, höjd, papper, false));
+  const s = skala(bredd, höjd, papper, liggande);
+  return { rubrik, svg, bredd, höjd, liggande, bMm: bredd * s, hMm: höjd * s, textPt: (SKISS_BRÖDTEXT * s) / MM_PER_PT };
 }
 
 /** Hur bilden delas för att texten ska bli `DELAD_PT`: rader och kolumner i en riktning. */
@@ -244,24 +209,6 @@ function iMillimeter(svg: string, b: Blad): string {
   return ut;
 }
 
-/** Bladets bild: hela, en del av en delad bild, eller remsorna under varandra. */
-function bildHtml(b: Blad): string {
-  if (!b.remsor) return iMillimeter(b.svg, b);
-  const s = b.bMm / b.remsor[0].b;
-  return (
-    `<div class="remsor">` +
-    b.remsor
-      .map((r, i) =>
-        b.svg
-          .replace(/^<svg([^>]*?) width="[^"]*" height="[^"]*"/, `<svg$1 width="${mm(r.b * s)}" height="${mm(r.h * s)}"`)
-          .replace(/viewBox="[^"]*"/, `viewBox="${r.x.toFixed(1)} ${r.y.toFixed(1)} ${r.b.toFixed(1)} ${r.h.toFixed(1)}"`)
-          .replace(/^<svg/, `<svg class="remsa" data-remsa="${i + 1} av ${b.remsor!.length}"`),
-      )
-      .join(`<div class="skarv"></div>`) +
-    `</div>`
-  );
-}
-
 /** Var delen hör hemma: "del 2 av 6, rad 1 kolumn 2". */
 export function delText(b: Blad): string {
   if (!b.del) return "";
@@ -295,9 +242,7 @@ export function utskriftsdokument(titel: string, blad: Blad[], papper: Papper): 
     `.rev { margin-top: 1mm; color: #344054; } .rev .klass { font-weight: 600; color: #101828; }` +
     `.bild { display: flex; justify-content: center; align-items: center; height: calc(100% - ${RUBRIK}mm); }` +
     `.delad .bild { justify-content: flex-start; align-items: flex-start; }` +
-    `.bild svg { display: block; }` +
-    `.remsor { display: flex; flex-direction: column; align-items: center; }` +
-    `.skarv { height: ${REMSLUFT}mm; width: 100%; background: linear-gradient(#d0d5dd, #d0d5dd) center / 100% 0.3mm no-repeat; }`;
+    `.bild svg { display: block; }`;
   const kropp = blad
     .map((b, i) => {
       const y = bildyta(papper, b.liggande);
@@ -306,7 +251,7 @@ export function utskriftsdokument(titel: string, blad: Blad[], papper: Papper): 
         `<div class="rubrik"><div class="rad"><b>${esc(b.rubrik)}${b.del ? ` · ${delText(b)}` : ""}</b><span>Blad ${i + 1} av ${blad.length} · ${papper} ${b.liggande ? "liggande" : "stående"}</span></div>` +
         (b.revision?.length ? `<div class="rev">${b.revision.map((r) => (r.startsWith("Klassning:") ? `<span class="klass">${esc(r)}</span>` : esc(r))).join(" · ")}</div>` : "") +
         `</div>` +
-        `<div class="bild">${bildHtml(b)}</div>` +
+        `<div class="bild">${iMillimeter(b.svg, b)}</div>` +
         `</section>`
       );
     })
