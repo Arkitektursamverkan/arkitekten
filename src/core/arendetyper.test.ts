@@ -37,7 +37,7 @@ describe("ärendetyperna kommer ur installationens inställning (ARK_ARENDETYPER
       ["inkopsorder", "Inköpsorder"],
       ["verksamhetsforslag", "Verksamhetsförslag"],
       ["reklamation", "Reklamation och skador"],
-      ["gemensamt", "Gemensamt"],
+      ["gemensamt", "Övrigt"],
     ]);
     expect(ärendetypFör("reklamation-ny").titel).toBe("Reklamation och skador");
     expect(ärendetypFör("inkopsorder-attestera").id).toBe("inkopsorder");
