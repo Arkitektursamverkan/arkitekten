@@ -217,8 +217,9 @@ describe("kategoriregistret", () => {
     expect(läsFil("annas").ägare).toBeUndefined();
   });
 
-  it("registrets fil ligger inte bland flödena", () => {
+  it("registrets fil ligger inte bland flödena och läses inte som ett stilpaket", async () => {
     expect(fs.existsSync(path.join(tmp, "flows", "kategorier.json"))).toBe(false);
+    expect((await admin("/__ark/symbolstilar")).kropp.fel).toEqual([]);
   });
 });
 

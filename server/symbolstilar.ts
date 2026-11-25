@@ -17,8 +17,8 @@ import { Användarfel } from "./fel";
 import { NEUTRAL_STIL, läsSymbolstil, type Symbolstil } from "../src/tools/affarsprocess/symbolstil";
 
 const VALD = "vald.json";
-/** Andra inställningsfiler i katalogen – inga stilar (server/klassning.ts). */
-const INTE_STILAR = new Set([VALD, "klassning.json"]);
+/** Andra inställningsfiler i katalogen – inga stilar (server/klassning.ts, server/kategorier.ts). */
+const INTE_STILAR = new Set([VALD, "klassning.json", "kategorier.json"]);
 
 export interface Stilkatalog {
   stilar: Symbolstil[];
