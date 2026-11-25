@@ -66,7 +66,7 @@ export const YTOR: ReadonlyArray<{ id: Yta; titel: string; beskrivning: string }
   {
     id: "demo",
     titel: "Demo",
-    beskrivning: "Offentlig yta – alla inloggade kan läsa och ändra.",
+    beskrivning: "Övningsyta – alla inloggade kan läsa och ändra. Publiceras en process härifrån flyttas den till den gemensamma katalogen.",
   },
   {
     id: "egen",
@@ -196,9 +196,14 @@ export function kanByttaYta(u: Användare | null | undefined, flow: HarYta, till
   return från === "egen" && ärÄgare(u, flow);
 }
 
-/** Publicera i EA-portalen: bara det som ligger i den gemensamma katalogen. */
+/**
+ * Publicera i EA-portalen: administratörens sak. Det som publiceras ligger
+ * ALLTID i den gemensamma katalogen – en process i Demo eller i en egen
+ * katalog flyttas dit av publiceringen (`prövaPublicering` i bryggan), så att
+ * det portalen visar är det som gäller och inget annat.
+ */
 export function kanPublicera(u: Användare | null | undefined, flow: HarYta): boolean {
-  return ytaFör(flow) === "gemensam" && ärAdmin(u) && fårSeKlassning(u, flow.klassning);
+  return ärAdmin(u) && fårSeKlassning(u, flow.klassning);
 }
 
 /**
@@ -332,7 +337,11 @@ export function ytgruppFör(u: Användare | null | undefined, flow: HarYta): Ytg
   return yta === "egen" && !ärÄgare(u, flow) ? "andras" : yta;
 }
 
-const GRUPPORDNING: Ytgrupp[] = ["gemensam", "demo", "egen", "andras"];
+/**
+ * Ordningen i menyn och katalogen. Demo står SIST: den är en övningsyta och ska
+ * inte stå bredvid det som gäller.
+ */
+const GRUPPORDNING: Ytgrupp[] = ["gemensam", "egen", "andras", "demo"];
 
 export function ytgruppTitel(g: Ytgrupp): string {
   return g === "andras" ? "Andra användares processer" : ytaTitel(g);

@@ -71,10 +71,13 @@ describe("rollerna", () => {
     expect(kanByttaYta(admin, gemensam, "egen")).toBe(true);
     expect(kanByttaYta(anna, annas, "egen")).toBe(false); // redan där
   });
-  it("bara den gemensamma katalogen publiceras i EA-portalen, och bara av admin", () => {
+  it("bara admin publicerar i EA-portalen – från vilken yta som helst (publiceringen flyttar till gemensam)", () => {
     expect(kanPublicera(admin, gemensam)).toBe(true);
-    expect(kanPublicera(admin, annas)).toBe(false);
+    expect(kanPublicera(admin, annas)).toBe(true);
+    expect(kanPublicera(admin, demo)).toBe(true);
     expect(kanPublicera(anna, gemensam)).toBe(false);
+    expect(kanPublicera(anna, annas)).toBe(false);
+    expect(kanPublicera(anna, demo)).toBe(false);
   });
   it("en ramserie tas bort av sin skapare eller av admin – en gammal utan skapare bara av admin", () => {
     expect(kanTaBortRamserie(anna, { skapadAv: { id: "anna", namn: "Anna" } })).toBe(true);
@@ -109,14 +112,14 @@ describe("indelningen i ytor", () => {
     { id: "3", ...demo },
     { id: "4", ...annas },
   ];
-  it("ger gemensam, demo och mina i fast ordning, med status per yta", () => {
+  it("ger gemensam, mina och sist demo i fast ordning, med status per yta", () => {
     const ytor = delaIYtor(flöden, anna);
-    expect(ytor.map((y) => y.id)).toEqual(["gemensam", "demo", "egen"]);
+    expect(ytor.map((y) => y.id)).toEqual(["gemensam", "egen", "demo"]);
     expect(ytor[0]).toMatchObject({ titel: "Gemensam katalog", fastslagna: 1, utkast: 1 });
   });
   it("för admin är någon annans egna process 'andras', inte 'mina'", () => {
     expect(ytgruppFör(admin, annas)).toBe("andras");
-    expect(delaIYtor(flöden, admin).map((y) => y.id)).toEqual(["gemensam", "demo", "andras"]);
+    expect(delaIYtor(flöden, admin).map((y) => y.id)).toEqual(["gemensam", "andras", "demo"]);
   });
 });
 

@@ -7,6 +7,11 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+## 0.25.0 – 2026-11-25
+
+- **Demo står sist i menyn och katalogen.** Övningsytan stod mellan den gemensamma katalogen och *Mina processer*; nu kommer den efter de egna katalogerna, så att det som gäller står först. Reglerna är oförändrade: alla inloggade läser och ändrar i Demo.
+- **Publicering flyttar processen till den gemensamma katalogen.** En administratör kan publicera i EA-portalen direkt från Demo eller från en egen katalog; processen flyttas då till den gemensamma katalogen i samma steg (som knappen *Flytta*: ingen ny version). Från Demo hamnar den utan kategori och läggs sedan där den hör hemma. Publiceringsrutan säger det innan man publicerar. Det portalen visar ligger alltså fortfarande alltid i den gemensamma katalogen.
+
 ## 0.24.0 – 2026-11-25
 
 - **Flera lager framme läggs intill varandra.** Väljer man två eller fler lager i en systemskiss stod de kvar där de står i skissen, ofta långt ifrån varandra med tomrum emellan. Nu samlas de: det som hör ihop (samma lager, samma zon, ihopkopplat) står kvar i förhållande till varandra, stora tomma band tas bort och delarna ställs i lagrens ordning, rad för rad. Bara bilden ändras – skissen rörs inte, och ritytan är låst så länge vyn är samlad. *Samla lagren* i lagerraden slår av det. Kopiera bild, PNG, SVG och utskriften av det som visas följer med. Ett lager i taget, *Alla* och det som lämnas till Arkitekturportalen är oförändrat. Se `docs/systemskiss.md`.
