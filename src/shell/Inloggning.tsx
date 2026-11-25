@@ -11,6 +11,7 @@
  * logga in mot – då gäller öppen drift, som före inloggningen.
  */
 
+import { Förslagsflagga } from "./Kategoriregister";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { fårLoggaInSjälv, glömUtloggad, markeraAutoinloggning, markeraUtloggad } from "./gemensam-inloggning";
 import { läsSymbolstil, sättSymbolstil } from "@/tools/affarsprocess/symbolstil";
@@ -262,6 +263,7 @@ export function Kontorad() {
   if (läge === "öppen") return admin ? <div className="ark-konto"><InstallningarKnapp läge={läge} egetId={användare.id} /></div> : null;
   return (
     <div className="ark-konto" title={användare.epost ?? användare.namn}>
+      <Förslagsflagga />
       <span className="ark-konto-namn">{användare.namn}</span>
       <span className={`ark-konto-roll ${användare.roller.includes("admin") ? "admin" : ""}`}>
         {rollEtikett(användare)}

@@ -56,12 +56,21 @@ Rollerna är två: **administratör** och **användare**.
 | **Systemskiss** | Skisser över systemmiljöer ([systemskiss.md](systemskiss.md)). Alla skapar nya. | alla – en **dold** bara admin | skaparen + admin | skaparen + admin |
 
 - Med inloggning börjar en **ny process** i *Mina processer*.
+- **Kategorier** skapas med *＋ Ny kategori* i Processkatalogen, också innan
+  någon process ligger i dem: en administratör i den gemensamma katalogen, var
+  och en i *Mina processer*. Den som inte är administratör **föreslår** en
+  kategori i den gemensamma katalogen; administratörerna ser en flagga (⚑) i
+  katalogens huvud och vid sitt namn i menyn, och godkänner eller avslår. Den
+  som flyttar sin process till den gemensamma katalogen väljer bland
+  kategorierna som finns där. Registret ligger i `kategorier.json` i
+  `STILAR_DIR` och skrivs bara av bryggan.
 - **Flytta → Gemensam katalog** (i katalogen eller i processens huvud) är
   ägarens väg att dela en färdig process. Precis som en vanlig flytt blir det
   ingen ny version, och historiken står still. Tillbaka ur den gemensamma
   katalogen flyttar bara en admin.
-- Bara admin **publicerar i EA-portalen**, och bara från den gemensamma
-  katalogen.
+- Bara admin **publicerar i EA-portalen**. Det publicerade ligger alltid i
+  den gemensamma katalogen: publiceras en process från en egen katalog flyttas
+  den dit i samma steg.
 - En admin ser också *Andra användares processer*. Utan det kan ingen ta hand
   om processer som tillhör någon som har slutat.
 - Sparar två personer samma process samtidigt får den som sparar sist svaret

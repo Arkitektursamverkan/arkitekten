@@ -467,6 +467,30 @@ body { background: var(--bg); color: var(--text); }
 .ark-flytta-nu { font-size: 12.5px; color: var(--text); margin: 0 0 2px; }
 .ark-flytta-nu strong { font-weight: 650; }
 .ark-flytta-fot { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+
+/* Kategoriregistret (shell/Kategoriregister.tsx): knapparna i katalogens
+   huvud, de tomma kategorierna och flaggan för förslag som väntar. */
+.ark-katalog-knappar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.ark-tomma-kategorier { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.ark-tom-kategori {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 8px 12px; border: 1px dashed var(--border, #cbd5e1); border-radius: 8px;
+}
+.ark-tom-kategori-namn { font-weight: 600; }
+.ark-tom-kategori .ark-linkbtn { margin-left: auto; }
+.ark-forslagsflagga {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 999px; border: 1px solid #b45309;
+  background: #fff7ed; color: #9a3412; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.ark-forslagsflagga.admin { background: #b45309; color: #fff; }
+.ark-forslagslista { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ark-forslag {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border, #cbd5e1); border-radius: 8px;
+}
+.ark-forslag-motivering { margin-top: 4px; font-size: 13px; white-space: pre-wrap; }
+.ark-forslag-knappar { display: flex; gap: 6px; flex-shrink: 0; }
 .ark-katalog-malgrupp { margin: 0 0 14px; }
 .ark-katalog-malgrupptxt {
   font-size: 11.5px; font-weight: 600; color: var(--muted); margin: 0 0 8px;

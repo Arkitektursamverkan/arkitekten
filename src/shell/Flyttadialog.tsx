@@ -7,6 +7,8 @@
  * katalog man redan lämnat är en omväg (beslut 2026-09-07).
  */
 
+import { kanSkapaKategori } from "@/core/kategoriregister";
+import { useRegistreradeKategorier } from "./Kategoriregister";
 import { useState } from "react";
 import type { FlowSummary, Placering } from "@/core/flow-store";
 import {
@@ -89,6 +91,17 @@ export function Flyttadialog({
     till === "egen" ? ytgruppFör(användare, f) === "egen" : ytaFör(f) === till,
   );
   const [kategori, setKategori] = useState(flow.category ?? "");
+  /** Kategorier som skapats i förväg i ytan processen hamnar i – tomma syns inte bland processerna. */
+  const registrerade = useRegistreradeKategorier(till);
+  const medRegistrerade = (titlar: string[]) => [
+    ...titlar,
+    ...registrerade.filter((r) => !titlar.some((k) => k.toLowerCase() === r.toLowerCase())),
+  ];
+  /** Till den gemensamma katalogen väljer den som inte är administratör bland kategorierna som finns. */
+  const nyKategoriNekas =
+    !kanSkapaKategori(användare, till) &&
+    Boolean(kategori.trim()) &&
+    !medRegistrerade(kategoriTitlar(iYtan)).some((k) => k.toLowerCase() === kategori.trim().toLowerCase());
   const [underkategori, setUnderkategori] = useState(flow.subcategory ?? "");
   const [arbetar, setArbetar] = useState(false);
 
@@ -156,7 +169,8 @@ export function Flyttadialog({
         <KategoriVal
           id="ark-flytta-kategori"
           värde={kategori}
-          kategorier={visaYtor ? kategoriTitlar(iYtan) : kategoriTitlar(flöden)}
+          kategorier={medRegistrerade(visaYtor ? kategoriTitlar(iYtan) : kategoriTitlar(flöden))}
+          kanSkapaNy={kanSkapaKategori(användare, till)}
           onChange={setKategori}
           tomEtikett={härledd ? `Ingen egen – hamnar i ${härledd}` : "Ingen kategori"}
         />
@@ -181,10 +195,17 @@ export function Flyttadialog({
           nivå="underkategori"
         />
 
+        {nyKategoriNekas && (
+          <p className="ark-hint ark-hint--warn">
+            Kategorin ”{kategori.trim()}” finns inte i den gemensamma katalogen. Välj en som finns, eller föreslå den
+            med <strong>＋ Ny kategori</strong> i Processkatalogen.
+          </p>
+        )}
+
         <div className="ark-flytta-fot">
           <button
             className="ark-btn ark-btn--primary"
-            disabled={arbetar}
+            disabled={arbetar || nyKategoriNekas}
             onClick={async () => {
               setArbetar(true);
               await onFlytta(
