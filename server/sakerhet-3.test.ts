@@ -147,9 +147,10 @@ describe("publiceringen ägs av servern", () => {
     expect(läsFil("demo-2").publicering).toBeUndefined();
   });
 
-  it("publiceringsvägen kräver administratör och den gemensamma katalogen", async () => {
+  it("publiceringsvägen kräver administratör", async () => {
     expect((await anna("/__ark/ea/publicering/gemensam-1", put({ publicering: PUBLICERING }))).status).toBe(403);
-    expect((await admin("/__ark/ea/publicering/demo-1", put({ publicering: PUBLICERING }))).status).toBe(403);
+    expect((await anna("/__ark/ea/publicering/demo-1", put({ publicering: PUBLICERING }))).status).toBe(403);
+    expect(läsFil("demo-1").publicering).toBeUndefined();
     expect((await admin("/__ark/ea/publicering/gemensam-1", put({ publicering: { eaNodId: "x" } }))).status).toBe(400);
     const före = läsFil("gemensam-1");
     const r = await admin("/__ark/ea/publicering/gemensam-1", put({ publicering: { ...PUBLICERING, okänt: "<x>" } }));
@@ -184,6 +185,22 @@ describe("publiceringen ägs av servern", () => {
     } finally {
       await new Promise<void>((klar) => tjänst.close(() => klar()));
     }
+  });
+
+  it("publicering från Demo flyttar processen till den gemensamma katalogen", async () => {
+    fs.writeFileSync(path.join(tmp, "flows", "demo-pub.json"), JSON.stringify(flödet("demo-pub", { category: "Demo" })));
+    const före = läsFil("demo-pub");
+    // En ofullständig publicering flyttar ingenting.
+    expect((await admin("/__ark/ea/publicering/demo-pub", put({ publicering: { eaNodId: "x" } }))).status).toBe(400);
+    expect(läsFil("demo-pub").category).toBe("Demo");
+    expect((await admin("/__ark/ea/publicering/demo-pub", put({ publicering: PUBLICERING }))).status).toBe(200);
+    const efter = läsFil("demo-pub");
+    expect(efter.publicering).toMatchObject({ eaNodId: "nod-1" });
+    expect(efter.category).toBeUndefined();
+    expect(efter.ägare).toBeUndefined();
+    // Som en flytt: ingen ny version, savedAt står still.
+    expect(efter.versions).toEqual(före.versions);
+    expect(efter.savedAt).toBe(före.savedAt);
   });
 
   it("byte av yta tar bort publiceringen", async () => {

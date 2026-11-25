@@ -515,7 +515,7 @@ describe("publicering i EA-portalen", () => {
       name: "ap test",
       rawText: TEXT,
       draft: textToDraft(TEXT),
-      category: "Demo",
+      category: "Ekonomi",
     });
     await sättPublicering(store, flow.id, PUB);
     const efter = await taBortPublicering(store, flow.id);
@@ -523,7 +523,21 @@ describe("publicering i EA-portalen", () => {
     expect("publicering" in (await store.load(flow.id))).toBe(false);
     expect(efter.versions).toHaveLength(flow.versions.length);
     expect(efter.savedAt).toBe(flow.savedAt);
-    expect(efter.category).toBe("Demo");
+    expect(efter.category).toBe("Ekonomi");
+  });
+
+  it("en process i Demo flyttas till den gemensamma katalogen när den publiceras", async () => {
+    const flow = await saveFlowVersion(store, {
+      name: "ap demo",
+      rawText: TEXT,
+      draft: textToDraft(TEXT),
+      category: "Demo",
+    });
+    const efter = await sättPublicering(store, flow.id, PUB);
+    expect(efter.publicering).toEqual(PUB);
+    expect(efter.category).toBeUndefined();
+    expect(efter.versions).toHaveLength(flow.versions.length);
+    expect(efter.savedAt).toBe(flow.savedAt);
   });
 });
 

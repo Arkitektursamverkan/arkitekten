@@ -84,7 +84,7 @@ import { knytIhop, läggTillObjekt, taBortKedjepil } from "./lagg-till";
 import { granskaAp, sammanfattaKontroll } from "./kontroll";
 import { layoutAp } from "./layout-affarsprocess";
 import { renderApSvg } from "./svg-affarsprocess";
-import { PRESENTATIONSKATEGORI } from "@/tools/ramar/avskalad";
+import { ärPresentationskategori } from "@/tools/ramar/avskalad";
 import { AvskaladVy } from "@/tools/ramar/AvskaladVy";
 import { apUnderlag } from "@/tools/ramar/ai-presentation";
 import { PresentationsKnapp } from "@/tools/ramar/PresentationsKnapp";
@@ -394,7 +394,7 @@ export function ApTool({
 
   /**
    * UTSEENDET: affärsprocessverktygets rityta eller den avskalade presentationsbilden
-   * (tools/ramar/avskalad.ts). En process i kategorin Presentation öppnas
+   * (tools/ramar/avskalad.ts). En process i kategorin Förenklade processer öppnas
    * avskalad – det är så den ska se ut när man visar den. Avskalad är en BILD:
    * i redigeringsläget visas alltid ritytan, annars finns inget att dra i.
    */
@@ -403,7 +403,7 @@ export function ApTool({
   // inte `kategori` – den hör till biblioteket i panelen.
   const flödesKategori = sparatFlöde?.category ?? kategori;
   useEffect(() => {
-    setUtseende(flödesKategori === PRESENTATIONSKATEGORI ? "avskalad" : "verktyg");
+    setUtseende(ärPresentationskategori(flödesKategori) ? "avskalad" : "verktyg");
   }, [flowId, flödesKategori]);
   // Avskalad i BÅDA lägena: i redigeringsläget går rutorna att dra där
   // (AvskaladVy). Innehållet ändras i affärsprocessutseendet.

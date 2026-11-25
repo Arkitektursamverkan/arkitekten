@@ -3,7 +3,7 @@
  *
  * Fungerar som "Tolka med AI": trycket lägger en begäran i ark-bryggans
  * brevlåda, och Claude Code i terminalen gör arbetet. Svaret blir en förenklad
- * process (ett eget flöde i kategorin Presentation) och en ramserie som
+ * process (ett eget flöde i kategorin Förenklade processer) och en ramserie som
  * berättar den – se `ai-presentation.ts`. Den öppna processen rörs inte.
  *
  * Delas av båda verktygen, så knappen ser ut och beter sig likadant i

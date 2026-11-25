@@ -57,7 +57,7 @@ function personI(ä: unknown): Ägare | undefined {
  *   av integrationen som läser in processen, och en sparning ur appen kan
  *   varken sätta det, ändra det eller tappa det.
  * - Publiceringen tas likaså ur filen, aldrig ur begäran: den skrivs bara av
- *   `prövaPublicering` (admin + gemensam katalog, samma regel som
+ *   `prövaPublicering` (admin; flyttar till gemensam katalog, samma regel som
  *   `kanPublicera`). REGRESSION: en vanlig PUT bar publiceringen, så den som
  *   fick spara i Demo kunde skicka ut en process till EA-portalen.
  * - Byter sparningen yta ändå (kategorin sattes till eller från Demo) prövas
@@ -232,20 +232,27 @@ export function bytYta(u: Användare, befintlig: Flöde, byte: YtByte): Prövnin
 /**
  * Publicerar (eller avpublicerar, `null`) en process i EA-portalen.
  *
- * Bara administratören, och bara i den gemensamma katalogen – `kanPublicera`,
- * samma regel som gömmer knappen. Som placeringen (invariant 11): posten
- * SPRIDS, ingen ny version och ingen ny `savedAt`.
+ * Bara administratören – `kanPublicera`, samma regel som gömmer knappen. Som
+ * placeringen (invariant 11): posten SPRIDS, ingen ny version och ingen ny
+ * `savedAt`.
+ *
+ * Det publicerade ligger ALLTID i den gemensamma katalogen: en process i Demo
+ * eller i en egen katalog FLYTTAS dit av publiceringen (`bytYta`, samma flytt
+ * som knappen Flytta gör). Flödestjänsten lämnar bara ut den gemensamma
+ * katalogens publiceringar, så utan flytten hade publiceringen inte synts.
  */
 export function prövaPublicering(u: Användare, befintlig: Flöde, publicering: unknown): Prövning<Flöde> {
-  if (!kanPublicera(u, befintlig))
-    return nej(403, "Bara administratörer publicerar, och bara processer i den gemensamma katalogen.");
+  if (!kanPublicera(u, befintlig)) return nej(403, "Bara administratörer publicerar.");
   if (publicering === null) {
     const { publicering: _borttagen, ...resten } = befintlig;
     return { ok: true, värde: resten };
   }
   const p = läsPublicering(publicering);
   if (!p) return nej(400, "Publiceringen saknar nod, processägare eller beskrivning.");
-  return { ok: true, värde: { ...befintlig, publicering: p } };
+  if (ytaFör(befintlig) === "gemensam") return { ok: true, värde: { ...befintlig, publicering: p } };
+  const flyttad = bytYta(u, befintlig, { till: "gemensam" });
+  if (!flyttad.ok) return flyttad;
+  return { ok: true, värde: { ...flyttad.värde, publicering: p } };
 }
 
 /** Ramserien som ska skrivas: skaparen sätts vid skapandet och följer sedan med. */

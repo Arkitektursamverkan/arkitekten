@@ -509,7 +509,7 @@ export async function sättPublicering(
   id: string,
   publicering: Publicering,
 ): Promise<SavedFlow> {
-  // Mot disk skriver BRYGGAN fältet (admin + gemensam katalog, server/atkomst.ts) –
+  // Mot disk skriver BRYGGAN fältet (admin; flyttar till gemensam katalog, server/atkomst.ts) –
   // en vanlig sparning bär det aldrig.
   if (store.kind === "disk") {
     return normalizeFlow(
@@ -522,8 +522,10 @@ export async function sättPublicering(
       ).flow,
     );
   }
-  const flow = await store.load(id);
-  const nästa: SavedFlow = { ...flow, publicering };
+  // Det publicerade ligger i den gemensamma katalogen – som bryggan gör.
+  const { ägare: _ägare, ...flow } = await store.load(id);
+  const iDemo = flow.category?.trim().toLowerCase() === DEMO_KATEGORI.toLowerCase();
+  const nästa: SavedFlow = { ...flow, ...(iDemo ? { category: undefined } : {}), publicering };
   await store.save(nästa);
   return nästa;
 }

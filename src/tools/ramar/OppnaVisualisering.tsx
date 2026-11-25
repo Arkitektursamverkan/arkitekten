@@ -4,7 +4,7 @@
  * En visualisering (en ramserie, core/ram.ts) bygger på EN process – men man
  * hittade den bara genom att gå till Visualisering och leta i listan. Står
  * man i processen och den har en visualisering ska den vara ett klick bort,
- * särskilt för presentationerna som AI:n gör (kategorin Presentation), där
+ * särskilt för presentationerna som AI:n gör (kategorin Förenklade processer), där
  * processen och visualiseringen hör ihop från början.
  *
  * Samma knapp i båda verktygen. Skalet äger listan och navigeringen.

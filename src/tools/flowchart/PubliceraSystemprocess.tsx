@@ -15,6 +15,7 @@
  * publiceringen; applikationen rörs aldrig.
  */
 
+import { ytaFör, ytaTitel } from "@/core/behorighet";
 import { useEffect, useMemo, useState } from "react";
 import {
   bridgeJson,
@@ -310,6 +311,12 @@ export function SystemprocessDialog({
               onChange={(e) => setUtkast((u) => ({ ...u, beskrivning: e.target.value }))}
             />
 
+            {ytaFör(flöde) !== "gemensam" && (
+              <p className="ark-hint">
+                Systemprocessen ligger i <strong>{ytaTitel(ytaFör(flöde))}</strong>. När den publiceras flyttas den till den
+                gemensamma katalogen{ytaFör(flöde) === "demo" ? ", utan kategori – lägg den sedan där den hör hemma med Flytta" : ""}.
+              </p>
+            )}
             {visaFel && saknas.length > 0 && (
               <ul className="ark-hint ark-hint--warn ark-publicera-saknas">
                 {saknas.map((s) => (

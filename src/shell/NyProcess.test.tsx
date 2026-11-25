@@ -149,13 +149,14 @@ it("en befintlig kategori går att välja utan att stavas om", () => {
 });
 
 it("REGRESSION: Presentation erbjuds inte – en ny affärsprocess där öppnades avskalad, som en förenklad bild", () => {
-  rita([], ["Systemprocesser", "Presentation", "Systemförvaltning"]);
+  rita([], ["Systemprocesser", "Presentation", "Förenklade processer", "Systemförvaltning"]);
 
   const val = Array.from(
     (screen.getByLabelText("Kategori i katalogen") as HTMLSelectElement).options,
   ).map((o) => o.value);
   expect(val).toContain("Systemförvaltning");
   expect(val).not.toContain("Presentation");
+  expect(val).not.toContain("Förenklade processer");
 });
 
 /** Förvalet ska följa verktyget så länge man inte rört väljaren. */
