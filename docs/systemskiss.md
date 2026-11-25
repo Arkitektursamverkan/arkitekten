@@ -45,6 +45,15 @@ som användaren bakom proxyn. Gemensamt utan koppling till lagret döljs.
 Gemensamma zoner dras ihop kring det som visas. Filtret är den tittandes eget
 och sparas inte.
 
+**Samla lagren**: när två eller fler lager är framme läggs de intill varandra
+i stället för där de står i skissen – annars blir bilden mest tomrum när
+lagren ligger långt isär. Det som hör ihop (samma lager, samma zon,
+ihopkopplat) står kvar i förhållande till varandra, stora tomma band där dolda
+lager stod tas bort, och delarna ställs i lagrens ordning, rad för rad, så
+nära en liggande skärm som de tillåter. Bara bilden ändras, aldrig skissen;
+ritytan är därför låst så länge vyn är samlad. Slå av *Samla lagren* i
+lagerraden för att se lagren där de står och för att flytta och ändra.
+
 **Exporten följer filtret**: kopiera bild, PNG och SVG ger det som visas. Utskriften kan också ge ett blad per lager (se *Skriv ut*).
 
 ## Skriv ut

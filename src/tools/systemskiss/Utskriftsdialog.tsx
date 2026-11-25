@@ -49,10 +49,12 @@ export function Utskriftsdialog(props: {
   skiss: Systemskiss;
   filter: ReadonlySet<string> | null;
   grannar: boolean;
+  /** Lagerradens *Samla lagren* – utskriften av det som visas följer den. */
+  samla?: boolean;
   revision?: Revision;
   onStäng: () => void;
 }) {
-  const { skiss, filter, grannar, revision, onStäng } = props;
+  const { skiss, filter, grannar, samla = false, revision, onStäng } = props;
   const [val, setVal] = useState<Utskriftsval>(läsVal);
   const ändra = (ny: Partial<Utskriftsval>) => {
     const v = { ...val, ...ny };
@@ -61,8 +63,8 @@ export function Utskriftsdialog(props: {
   };
   const harLager = (skiss.lager ?? []).length > 0;
   const blad = useMemo(
-    () => utskriftsblad(skiss, harLager ? val : { ...val, innehåll: "visas" }, filter, grannar, revision),
-    [skiss, val, harLager, filter, grannar, revision],
+    () => utskriftsblad(skiss, harLager ? val : { ...val, innehåll: "visas" }, filter, grannar, revision, samla),
+    [skiss, val, harLager, filter, grannar, revision, samla],
   );
   const sämsta = blad.length ? Math.min(...blad.map((b) => b.textPt)) : 0;
 
