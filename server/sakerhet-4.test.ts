@@ -180,6 +180,49 @@ describe("ramserierna följer sin process", () => {
   });
 });
 
+describe("kategoriregistret", () => {
+  const titlar = (r: { kropp: Record<string, any> }) => (r.kropp.register.kategorier as Array<{ namn: string }>).map((k) => k.namn);
+
+  it("administratören skapar i den gemensamma katalogen, var och en i sin egen – och ser bara sitt", async () => {
+    expect((await anna("/__ark/kategorier", post({ namn: "Ekonomi", yta: "gemensam" }))).status).toBe(403);
+    expect((await admin("/__ark/kategorier", post({ namn: "Ekonomi", yta: "gemensam" }))).status).toBe(200);
+    expect((await admin("/__ark/kategorier", post({ namn: "ekonomi", yta: "gemensam" }))).status).toBe(409);
+    expect((await anna("/__ark/kategorier", post({ namn: "Annas utkast", yta: "egen" }))).status).toBe(200);
+    expect(titlar(await anna("/__ark/kategorier"))).toEqual(["Ekonomi", "Annas utkast"]);
+    expect(titlar(await bo("/__ark/kategorier"))).toEqual(["Ekonomi"]);
+    // En kategori som redan finns genom sina processer skapas inte en gång till.
+    expect((await anna("/__ark/kategorier", post({ namn: "demo", yta: "egen" }))).status).toBe(409);
+  });
+
+  it("alla föreslår, administratören beslutar – förslaget syns för administratören och den som föreslog", async () => {
+    const r = await bo("/__ark/kategorier/forslag", post({ namn: "Hållbarhet", motivering: "Saknas." }));
+    expect(r.status).toBe(200);
+    const id = r.kropp.register.förslag[0].id as string;
+    expect((await anna("/__ark/kategorier")).kropp.register.förslag).toEqual([]);
+    expect((await admin("/__ark/kategorier")).kropp.register.förslag).toHaveLength(1);
+    expect((await anna("/__ark/kategorier/forslag", post({ namn: "hållbarhet" }))).status).toBe(409);
+    expect((await anna(`/__ark/kategorier/forslag/${id}`, post({ godkänn: true }))).status).toBe(403);
+    expect((await bo(`/__ark/kategorier/forslag/${id}`, post({ godkänn: true }))).status).toBe(403);
+    expect((await admin(`/__ark/kategorier/forslag/${id}`, post({ godkänn: true }))).status).toBe(200);
+    expect(titlar(await bo("/__ark/kategorier"))).toContain("Hållbarhet");
+    expect((await admin("/__ark/kategorier")).kropp.register.förslag).toEqual([]);
+  });
+
+  it("den som inte är administratör hittar inte på en kategori i den gemensamma katalogen genom att flytta dit", async () => {
+    expect((await anna("/__ark/flows/annas/yta", post({ till: "gemensam", category: "Påhittad" }))).status).toBe(403);
+    expect(läsFil("annas").ägare.namn).toBe("anna");
+    // En kategori som finns går bra.
+    expect((await anna("/__ark/flows/annas/yta", post({ till: "gemensam", category: "Ekonomi" }))).status).toBe(200);
+    expect(läsFil("annas")).toMatchObject({ category: "Ekonomi" });
+    expect(läsFil("annas").ägare).toBeUndefined();
+  });
+
+  it("registrets fil ligger inte bland flödena och läses inte som ett stilpaket", async () => {
+    expect(fs.existsSync(path.join(tmp, "flows", "kategorier.json"))).toBe(false);
+    expect((await admin("/__ark/symbolstilar")).kropp.fel).toEqual([]);
+  });
+});
+
 describe("underlaget", () => {
   it("REGRESSION: svaret bar serverns absoluta sökväg – nu en referens relativ till brevlådan", async () => {
     const upp = await anna("/__ark/underlag?namn=a.txt", { method: "POST", body: "x", headers: { "content-type": "application/octet-stream", origin: bas } });

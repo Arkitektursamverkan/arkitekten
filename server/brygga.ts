@@ -78,6 +78,18 @@ import { bytYta, prövaPublicering, prövaRamserie, prövaSkiss, prövaSparning 
 import { läggTillSkissversion, läsSkiss, sammanfattaSkiss } from "../src/core/systemskiss";
 import { Klassningsfel, läsKlassning, prövaKlassning, utanBehöriga } from "../src/core/klassning";
 import { läsKlassningsinställningFil, sparaKlassningsinställning } from "./klassning";
+import { läsKategoriregisterFil, sparaKategoriregister } from "./kategorier";
+import {
+  beslutaFörslag,
+  föreslåKategori,
+  registreradeTitlar,
+  registretFör,
+  sammaKategori,
+  skapaKategori,
+  taBortKategori,
+  type Kategoriregister,
+  type Utfall,
+} from "../src/core/kategoriregister";
 import { läsStilar, valdStil, väljStil } from "./symbolstilar";
 import { Inloggningsspärr, Kontofel, Kontolager, sessionsversion, somAnvändare, spärrnycklar, utåt } from "./konton";
 import { ALLMÄNT_FEL, Användarfel, Kroppsfel } from "./fel";
@@ -1434,6 +1446,77 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             return;
           }
 
+          // --- Kategoriregistret (core/kategoriregister.ts): kategorier som
+          // finns utan processer, och förslag på nya. Reglerna bor i kärnan;
+          // här läses filen, regeln frågas och det prövade skrivs.
+          /** Kategorierna som finns i en yta genom sina processer. */
+          const kategorierIYtan = (yta: Yta): string[] => [
+            ...new Set(
+              listFlows(användare)
+                .filter((f) => (yta === "gemensam" ? !f.ägare : f.ägare?.id === användare.id))
+                .map((f) => (typeof f.category === "string" ? f.category.trim() : ""))
+                .filter(Boolean),
+            ),
+          ];
+          const svaraRegister = (utfall: Utfall<Kategoriregister>, logg: string): void => {
+            if (!utfall.ok) {
+              json(res, utfall.status, { ok: false, error: utfall.fel });
+              return;
+            }
+            const sparat = sparaKategoriregister(o.stilarDir, utfall.värde);
+            log.info(`  [ark] ${logg} (${användare.namn})`);
+            json(res, 200, { ok: true, register: registretFör(sparat, användare) });
+          };
+          if (url === "/kategorier" && req.method === "GET") {
+            json(res, 200, { ok: true, register: registretFör(läsKategoriregisterFil(o.stilarDir), användare) });
+            return;
+          }
+          if (url === "/kategorier" && req.method === "POST") {
+            const b = JSON.parse((await readBody(req)) || "{}");
+            const yta: Yta = b.yta === "egen" ? "egen" : "gemensam";
+            svaraRegister(
+              skapaKategori(läsKategoriregisterFil(o.stilarDir), användare, b, kategorierIYtan(yta), new Date().toISOString()),
+              "Skapade en kategori",
+            );
+            return;
+          }
+          if (url === "/kategorier/ta-bort" && req.method === "POST") {
+            const b = JSON.parse((await readBody(req)) || "{}");
+            svaraRegister(taBortKategori(läsKategoriregisterFil(o.stilarDir), användare, b), "Tog bort en kategori ur registret");
+            return;
+          }
+          if (url === "/kategorier/forslag" && req.method === "POST") {
+            const b = JSON.parse((await readBody(req)) || "{}");
+            svaraRegister(
+              föreslåKategori(
+                läsKategoriregisterFil(o.stilarDir),
+                användare,
+                b,
+                kategorierIYtan("gemensam"),
+                new Date().toISOString(),
+                crypto.randomUUID(),
+              ),
+              "Föreslog en kategori",
+            );
+            return;
+          }
+          const förslagMatch = /^\/kategorier\/forslag\/([A-Za-z0-9-]{1,64})$/.exec(url);
+          if (förslagMatch && req.method === "POST") {
+            const b = JSON.parse((await readBody(req)) || "{}");
+            svaraRegister(
+              beslutaFörslag(
+                läsKategoriregisterFil(o.stilarDir),
+                användare,
+                förslagMatch[1],
+                b.godkänn === true,
+                kategorierIYtan("gemensam"),
+                new Date().toISOString(),
+              ),
+              b.godkänn === true ? "Godkände ett kategoriförslag" : "Tog bort ett kategoriförslag",
+            );
+            return;
+          }
+
           // --- Byt yta: Mina processer → gemensam katalog. Som en
           // flytt i katalogen: ingen ny version, historiken står still.
           const ytMatch = /^\/flows\/([^/]+)\/yta$/.exec(url);
@@ -1446,6 +1529,23 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               return;
             }
             const b = JSON.parse((await readBody(req)) || "{}");
+            // Nya kategorier i den gemensamma katalogen är administratörens sak
+            // (core/kategoriregister.ts): den som flyttar dit sin egen process
+            // väljer bland dem som finns, eller föreslår en ny.
+            const önskad = String(typeof b.category === "string" ? b.category : (befintlig.category ?? "")).trim();
+            if (b.till === "gemensam" && önskad && !ärAdmin(användare)) {
+              const finns = [
+                ...listFlows(användare).filter((f) => !f.ägare).map((f) => f.category ?? ""),
+                ...registreradeTitlar(läsKategoriregisterFil(o.stilarDir), användare, "gemensam"),
+              ];
+              if (!finns.some((k) => k && sammaKategori(k, önskad))) {
+                json(res, 403, {
+                  ok: false,
+                  error: `Kategorin ”${önskad}” finns inte i den gemensamma katalogen. Välj en som finns, eller föreslå den i Processkatalogen.`,
+                });
+                return;
+              }
+            }
             const prövad = bytYta(användare, befintlig, {
               till: String(b.till) as Yta,
               category: typeof b.category === "string" ? b.category : undefined,

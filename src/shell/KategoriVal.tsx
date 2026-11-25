@@ -37,6 +37,12 @@ export interface KategoriValProps {
    */
   nivå?: string;
   id?: string;
+  /**
+   * Får en NY kategori skrivas in här? Nej när processen ska till den
+   * gemensamma katalogen och man inte är administratör – nya kategorier där
+   * föreslås i Processkatalogen (core/kategoriregister.ts).
+   */
+  kanSkapaNy?: boolean;
 }
 
 export function KategoriVal({
@@ -46,6 +52,7 @@ export function KategoriVal({
   tomEtikett = "Ingen kategori",
   nivå = "kategori",
   id,
+  kanSkapaNy = true,
 }: KategoriValProps) {
   /**
    * Skriver användaren in en ny kategori just nu? Eget tillstånd, för värdet
@@ -81,7 +88,7 @@ export function KategoriVal({
             {k}
           </option>
         ))}
-        <option value={NY}>Ny {nivå} …</option>
+        {kanSkapaNy && <option value={NY}>Ny {nivå} …</option>}
       </select>
 
       {skriverNy && (

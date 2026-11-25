@@ -18,6 +18,7 @@
  * Komponenten äger ingen flödesdata – den får listan och rapporterar klick.
  */
 
+import { Förslagsflagga, NyKategoriKnapp, TommaKategorier } from "./Kategoriregister";
 import { useMemo, useState } from "react";
 import { flowFamily, type FlowFamily, type FlowSummary, type Placering } from "@/core/flow-store";
 import {
@@ -196,9 +197,13 @@ export function ProcessKatalog({
             </p>
           )}
         </div>
-        <button className="ark-btn ark-btn--primary" onClick={onNy}>
-          ✚ Ny process
-        </button>
+        <div className="ark-katalog-knappar">
+          <Förslagsflagga />
+          <NyKategoriKnapp />
+          <button className="ark-btn ark-btn--primary" onClick={onNy}>
+            ✚ Ny process
+          </button>
+        </div>
       </header>
 
       <div className="ark-katalog-filter">
@@ -375,6 +380,9 @@ export function ProcessKatalog({
                     );
                   })}
                 </div>
+                {(del.id === "gemensam" || del.id === "egen") && !filtrerat && (
+                  <TommaKategorier yta={del.id} upptagna={del.träd.map((kat) => kat.kategori?.titel ?? "")} />
+                )}
               </section>
             ))}
             {/* Mina processer finns alltid när man är inloggad – också tom, så
@@ -388,6 +396,7 @@ export function ProcessKatalog({
                     tills du flyttar det till den gemensamma katalogen.
                   </p>
                 </header>
+                <TommaKategorier yta="egen" upptagna={[]} />
               </section>
             )}
           </>

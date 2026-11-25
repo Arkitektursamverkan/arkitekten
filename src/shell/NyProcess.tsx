@@ -19,6 +19,7 @@ import { familyPrefix } from "@/core/flow-store";
 import { kategoriFör } from "@/core/flow-tree";
 import { KategoriVal } from "./KategoriVal";
 import { ärPresentationskategori } from "@/tools/ramar/avskalad";
+import { useRegistreradeKategorier } from "./Kategoriregister";
 import { useInloggningsläge } from "./Inloggning";
 import { TOOLS, type NyProcessBegäran, type NyProcessStart } from "./tools";
 
@@ -109,7 +110,12 @@ export function NyProcess({
    * den här såg en nyss skapad affärsprocess ut som en förenklad bild utan
    * roller och objekt (beslut 2026-10-20).
    */
-  const valbaraKategorier = kategorier.filter((k) => !ärPresentationskategori(k));
+  /** Också de egna kategorier som skapats i förväg (core/kategoriregister.ts) – tomma syns inte bland processerna. */
+  const registrerade = useRegistreradeKategorier(inloggad ? "egen" : "gemensam");
+  const valbaraKategorier = [
+    ...kategorier,
+    ...registrerade.filter((r) => !kategorier.some((k) => k.toLowerCase() === r.toLowerCase())),
+  ].filter((k) => !ärPresentationskategori(k));
   const namnKrockar = taget.some((n) => n.trim().toLowerCase() === namn.trim().toLowerCase());
   /** Textvägarna behöver något att tolka; mall och tom yta gör det inte. */
   const behöverText = start === "regler" || start === "ai";

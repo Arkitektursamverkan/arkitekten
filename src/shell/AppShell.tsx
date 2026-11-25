@@ -59,6 +59,7 @@ import { Startvy } from "./Startvy";
 import { NyProcess } from "./NyProcess";
 import { KostnadsDialog } from "./KostnadsDialog";
 import { ProcessKatalog } from "./ProcessKatalog";
+import { KategoriregisterLeverantör } from "./Kategoriregister";
 import { kategoriTitlar, underkategoriTitlar } from "@/core/flow-tree";
 import { läsSenaste, minnsFlöde, type SenastPost } from "./senaste";
 import { läsProcessLänk, processLänk } from "./lank";
@@ -375,6 +376,7 @@ export function AppShell() {
   const visaTrädet = !(vy === "verktyg" && läge === "redigerar");
 
   return (
+    <KategoriregisterLeverantör>
     <div className="ark-shell" style={{ ["--ark-menybredd" as string]: `${bredd}px` }}>
       <KostnadsDialog />
       <nav className="ark-sidebar">
@@ -552,5 +554,6 @@ export function AppShell() {
         )}
       </section>
     </div>
+    </KategoriregisterLeverantör>
   );
 }
