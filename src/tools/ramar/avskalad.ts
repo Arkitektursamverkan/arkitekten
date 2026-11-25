@@ -34,7 +34,15 @@ import { esc } from "@/tools/flowchart/render/text-util";
  * Katalogens kategori för processer som är gjorda för att VISAS. De öppnas i
  * det avskalade utseendet; "Redigera" tar fram verktygets rityta som vanligt.
  */
-export const PRESENTATIONSKATEGORI = "Presentation";
+export const PRESENTATIONSKATEGORI = "Förenklade processer";
+/** Kategorins namn före 0.25.0. Processer som ligger kvar där räknas fortfarande hit. */
+export const PRESENTATIONSKATEGORI_ÄLDRE = "Presentation";
+
+/** Är det här kategorin för förenklade processer – under sitt nya eller sitt äldre namn? */
+export function ärPresentationskategori(kategori: string | undefined | null): boolean {
+  const k = kategori?.trim().toLowerCase();
+  return k === PRESENTATIONSKATEGORI.toLowerCase() || k === PRESENTATIONSKATEGORI_ÄLDRE.toLowerCase();
+}
 
 /* ------------------------------------------------------------------ */
 /* Modellen för bilden                                                 */

@@ -198,7 +198,7 @@ describe("byggPresentation", () => {
 describe("sparaPresentation", () => {
   const lagring = () => ({ flöden: createLocalStore(minne()) as FlowStore, ramar: createLocalRamStore(minne()) });
 
-  it("första gången: ett nytt flöde i kategorin Presentation och en ramserie", async () => {
+  it("första gången: ett nytt flöde i kategorin Förenklade processer och en ramserie", async () => {
     const { flöden, ramar } = lagring();
     const { flöde, serie } = await sparaPresentation(flöden, ramar, byggPresentation(svar([ram()]), KÄLLA));
     expect(flöde.id).toBe("ap-utlaning-presentation");

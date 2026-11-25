@@ -10,6 +10,7 @@ funktioner, en ny korrigering för rättelser.
 ## 0.25.0 – 2026-11-25
 
 - **Demo står sist i menyn och katalogen.** Övningsytan stod mellan den gemensamma katalogen och *Mina processer*; nu kommer den efter de egna katalogerna, så att det som gäller står först. Reglerna är oförändrade: alla inloggade läser och ändrar i Demo.
+- **Kategorin *Presentation* heter nu *Förenklade processer*.** Det är där *✦ Förenkla och presentera* lägger sina processer. Processer som redan ligger i *Presentation* fungerar som förut (öppnas i det avskalade utseendet); döp om grenen i katalogen för att samla allt under det nya namnet.
 - **Publicering flyttar processen till den gemensamma katalogen.** En administratör kan publicera i EA-portalen direkt från Demo eller från en egen katalog; processen flyttas då till den gemensamma katalogen i samma steg (som knappen *Flytta*: ingen ny version). Från Demo hamnar den utan kategori och läggs sedan där den hör hemma. Publiceringsrutan säger det innan man publicerar. Det portalen visar ligger alltså fortfarande alltid i den gemensamma katalogen.
 
 ## 0.24.0 – 2026-11-25
