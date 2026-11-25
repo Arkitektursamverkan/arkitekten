@@ -543,7 +543,7 @@ export function Publiceringsdialog({
             {ytaFör(flöde) !== "gemensam" && (
               <p className="ark-hint">
                 Processen ligger i <strong>{ytaTitel(ytaFör(flöde))}</strong>. När den publiceras flyttas den till den
-                gemensamma katalogen{ytaFör(flöde) === "demo" ? ", utan kategori – lägg den sedan där den hör hemma med Flytta" : ""}.
+                gemensamma katalogen.
               </p>
             )}
             {visaFel && saknas.length > 0 && (

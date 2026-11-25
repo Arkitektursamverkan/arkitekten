@@ -10,7 +10,6 @@
  *
  * YTAN ÄR HÄRLEDD, INTE LAGRAD. Ett flöde ligger i
  *   - "egen"     – om det har en `ägare` (en användares egen katalog),
- *   - "demo"     – annars om kategorin är Demo (offentlig för alla),
  *   - "gemensam" – annars. Det är den gemensamma katalogen (affärsprocesserna,
  *                  portalen …), och alla flöden som fanns före
  *                  inloggningen hamnar här utan att en enda fil skrivs om.
@@ -51,10 +50,12 @@ export interface Ägare {
   namn: string;
 }
 
-export type Yta = "gemensam" | "demo" | "egen";
-
-/** Kategorin som gör en process offentlig. Samma titel som katalogen visar. */
-export const DEMO_KATEGORI = "Demo";
+/**
+ * Ytorna. Före 0.26.0 fanns också "demo" – en övningsyta som alla fick ändra
+ * i, härledd ur kategorin Demo. Den är borttagen: en process som ligger kvar i
+ * kategorin Demo är en vanlig process i den gemensamma katalogen.
+ */
+export type Yta = "gemensam" | "egen";
 
 /** Ytornas namn i gränssnittet – samma ord i menyn, katalogen och rubriken. */
 export const YTOR: ReadonlyArray<{ id: Yta; titel: string; beskrivning: string }> = [
@@ -62,11 +63,6 @@ export const YTOR: ReadonlyArray<{ id: Yta; titel: string; beskrivning: string }
     id: "gemensam",
     titel: "Gemensam katalog",
     beskrivning: "Organisationens processer. Alla kan läsa, administratörer ändrar och fastslår.",
-  },
-  {
-    id: "demo",
-    titel: "Demo",
-    beskrivning: "Övningsyta – alla inloggade kan läsa och ändra. Publiceras en process härifrån flyttas den till den gemensamma katalogen.",
   },
   {
     id: "egen",
@@ -92,7 +88,6 @@ export interface HarYta extends HarKlassning {
 
 export function ytaFör(flow: HarYta): Yta {
   if (flow.ägare?.id) return "egen";
-  if (flow.category?.trim().toLowerCase() === DEMO_KATEGORI.toLowerCase()) return "demo";
   return "gemensam";
 }
 
@@ -149,7 +144,7 @@ function ärÄgare(u: Användare | null | undefined, flow: HarYta): boolean {
 }
 
 /**
- * Läsa. Gemensamt och demo läser alla inloggade; en egen process bara ägaren –
+ * Läsa. Det gemensamma läser alla inloggade; en egen process bara ägaren –
  * och administratören, som annars inte kan ta hand om processerna efter någon
  * som slutat.
  */
@@ -168,14 +163,12 @@ export function kanRedigera(u: Användare | null | undefined, flow: HarYta): boo
   switch (ytaFör(flow)) {
     case "gemensam":
       return ärAdmin(u);
-    case "demo":
-      return true;
     case "egen":
       return ärÄgare(u, flow) || ärAdmin(u);
   }
 }
 
-/** Ta bort processen MED HELA HISTORIKEN. Demo är offentlig men inte fri att tömma. */
+/** Ta bort processen MED HELA HISTORIKEN. */
 export function kanTaBort(u: Användare | null | undefined, flow: HarYta): boolean {
   if (!u || !fårSeKlassning(u, flow.klassning)) return false;
   if (ytaFör(flow) === "egen") return ärÄgare(u, flow) || ärAdmin(u);
@@ -183,9 +176,9 @@ export function kanTaBort(u: Användare | null | undefined, flow: HarYta): boole
 }
 
 /**
- * Byta yta. Den vanliga vägen är ägarens: egen → gemensam (eller demo) när
+ * Byta yta. Den vanliga vägen är ägarens: egen → gemensam när
  * processen är klar. Att ta en process UR den gemensamma katalogen eller ur
- * demo – eller att flytta någon annans – är administratörens sak. Till "egen"
+ * – eller att flytta någon annans – är administratörens sak. Till "egen"
  * flyttar man bara till sig själv.
  */
 export function kanByttaYta(u: Användare | null | undefined, flow: HarYta, till: Yta): boolean {
@@ -198,7 +191,7 @@ export function kanByttaYta(u: Användare | null | undefined, flow: HarYta, till
 
 /**
  * Publicera i EA-portalen: administratörens sak. Det som publiceras ligger
- * ALLTID i den gemensamma katalogen – en process i Demo eller i en egen
+ * ALLTID i den gemensamma katalogen – en process i en egen
  * katalog flyttas dit av publiceringen (`prövaPublicering` i bryggan), så att
  * det portalen visar är det som gäller och inget annat.
  */
@@ -207,25 +200,20 @@ export function kanPublicera(u: Användare | null | undefined, flow: HarYta): bo
 }
 
 /**
- * Var en NY process hamnar. Med inloggning börjar allt i ens egen katalog (eller
- * i Demo, om man valt den kategorin) och delas med en uttrycklig flytt. Utan
+ * Var en NY process hamnar. Med inloggning börjar allt i ens egen katalog
+ * och delas med en uttrycklig flytt. Utan
  * inloggning ("öppen" drift, som före Entra) finns bara en användare och allt
  * hamnar i den gemensamma katalogen, precis som förut.
  */
-export function ägareVidSkapande(
-  u: Användare,
-  läge: Inloggningsläge,
-  flow: { category?: string },
-): Ägare | undefined {
+export function ägareVidSkapande(u: Användare, läge: Inloggningsläge): Ägare | undefined {
   if (läge === "öppen") return undefined;
-  if (ytaFör(flow) === "demo") return undefined;
   return { id: u.id, namn: u.namn };
 }
 
 /** Skapa en ny process i en viss yta (det som `ägareVidSkapande` gav). */
 export function kanSkapa(u: Användare | null | undefined, flow: HarYta): boolean {
   if (!u) return false;
-  return ytaFör(flow) === "gemensam" ? ärAdmin(u) : ytaFör(flow) === "demo" || ärÄgare(u, flow);
+  return ytaFör(flow) === "gemensam" ? ärAdmin(u) : ärÄgare(u, flow);
 }
 
 /* ------------------------------------------------------------------ */
@@ -337,11 +325,8 @@ export function ytgruppFör(u: Användare | null | undefined, flow: HarYta): Ytg
   return yta === "egen" && !ärÄgare(u, flow) ? "andras" : yta;
 }
 
-/**
- * Ordningen i menyn och katalogen. Demo står SIST: den är en övningsyta och ska
- * inte stå bredvid det som gäller.
- */
-const GRUPPORDNING: Ytgrupp[] = ["gemensam", "egen", "andras", "demo"];
+/** Ordningen i menyn och katalogen. */
+const GRUPPORDNING: Ytgrupp[] = ["gemensam", "egen", "andras"];
 
 export function ytgruppTitel(g: Ytgrupp): string {
   return g === "andras" ? "Andra användares processer" : ytaTitel(g);

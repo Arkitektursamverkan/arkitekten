@@ -525,20 +525,6 @@ describe("publicering i EA-portalen", () => {
     expect(efter.savedAt).toBe(flow.savedAt);
     expect(efter.category).toBe("Ekonomi");
   });
-
-  it("en process i Demo flyttas till den gemensamma katalogen när den publiceras", async () => {
-    const flow = await saveFlowVersion(store, {
-      name: "ap demo",
-      rawText: TEXT,
-      draft: textToDraft(TEXT),
-      category: "Demo",
-    });
-    const efter = await sättPublicering(store, flow.id, PUB);
-    expect(efter.publicering).toEqual(PUB);
-    expect(efter.category).toBeUndefined();
-    expect(efter.versions).toHaveLength(flow.versions.length);
-    expect(efter.savedAt).toBe(flow.savedAt);
-  });
 });
 
 describe("egna kataloger", () => {

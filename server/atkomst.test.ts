@@ -77,16 +77,16 @@ describe("sparning", () => {
     expect(prövaSparning(testa, "entra", befintlig, { ...befintlig, versions: [v("v1"), v("v2")] })).toMatchObject({ ok: false, status: 403 });
     expect(prövaSparning(admin, "entra", befintlig, { ...befintlig, versions: [v("v1"), v("v2")] }).ok).toBe(true);
   });
-  it("att byta kategori till Demo är ett byte av yta och prövas som ett", () => {
+  it("kategorin Demo är en vanlig kategori i den gemensamma katalogen – ingen egen yta", () => {
     const befintlig = { category: "Affärsprocesser", versions: [v("v1")] };
     const r = prövaSparning(admin, "entra", befintlig, { ...befintlig, category: "Demo" });
     expect(r.ok).toBe(true);
     const demo = { category: "Demo", versions: [v("v1")] };
-    expect(prövaSparning(testa, "entra", demo, { ...demo, category: "Affärsprocesser" })).toMatchObject({ ok: false, status: 403 });
+    expect(prövaSparning(testa, "entra", demo, { ...demo, versions: [v("v1"), v("v2")] })).toMatchObject({ ok: false, status: 403 });
   });
   it("REGRESSION: två som sparar samtidigt – den som kommer sist skriver inte över den andras version (invariant 11)", () => {
-    const befintlig = { category: "Demo", versions: [v("v1"), v("v2", "prov")] };
-    const r = prövaSparning(testa, "entra", befintlig, { category: "Demo", versions: [v("v1"), v("v2", "test")] });
+    const befintlig = { ägare: { id: "test", namn: "Test Testsson" }, versions: [v("v1"), v("v2", "prov")] };
+    const r = prövaSparning(testa, "entra", befintlig, { versions: [v("v1"), v("v2", "test")] });
     expect(r).toMatchObject({ ok: false, status: 409 });
   });
   it("i öppen drift fungerar allt som före inloggningen", () => {
@@ -97,7 +97,6 @@ describe("sparning", () => {
 
 describe("historikens integritet (invariant 11)", () => {
   const egen = (versions: Array<Record<string, unknown>>) => ({ ägare: { id: "test", namn: "Test Testsson" }, versions });
-  const demo = (versions: Array<Record<string, unknown>>) => ({ category: "Demo", versions });
 
   it("REGRESSION: versions som inte är en lista avvisas – en PUT utan historik kunde ersätta hela filen", () => {
     for (const versions of [undefined, null, "v1", { 0: v("v1") }])
@@ -105,9 +104,9 @@ describe("historikens integritet (invariant 11)", () => {
     expect(prövaSparning(testa, "entra", null, {} as never)).toMatchObject({ ok: false, status: 400 });
   });
 
-  it("REGRESSION: en äldre version kunde skrivas om så länge den sista stod kvar – nu 403, också i Demo", () => {
+  it("REGRESSION: en äldre version kunde skrivas om så länge den sista stod kvar – nu 403", () => {
     const gamla = [{ ...v("v1"), rawText: "A" }, { ...v("v2"), rawText: "B" }];
-    for (const befintlig of [egen(gamla), demo(gamla)]) {
+    for (const befintlig of [egen(gamla)]) {
       const omskriven = [{ ...v("v1"), rawText: "ÄNDRAD" }, gamla[1], v("v3")];
       expect(prövaSparning(testa, "entra", befintlig, { ...befintlig, versions: omskriven })).toMatchObject({ ok: false, status: 403 });
       // Omkastad ordning.
@@ -131,13 +130,13 @@ describe("historikens integritet (invariant 11)", () => {
   });
 
   it("REGRESSION: begärans savedBy stod kvar på en ny version – nu sätter servern den inloggade, alltid", () => {
-    const r = prövaSparning(testa, "entra", demo([v("v1")]), { category: "Demo", versions: [v("v1"), { ...v("v2"), savedBy: "Prov Provsson" }] });
+    const r = prövaSparning(testa, "entra", egen([v("v1")]), { versions: [v("v1"), { ...v("v2"), savedBy: "Prov Provsson" }] });
     expect(r.ok && r.värde.versions?.[1].savedBy).toBe("Test Testsson");
     const ny = prövaSparning(testa, "lokal", null, { versions: [{ ...v("v1"), savedBy: "Någon annan" }] });
     expect(ny.ok && ny.värde.versions?.[0].savedBy).toBe("Test Testsson");
     // Den äldre versionens signatur rörs inte.
     const gammal = { ...v("v1"), savedBy: "Prov Provsson" };
-    const r2 = prövaSparning(testa, "entra", demo([gammal]), { category: "Demo", versions: [gammal, v("v2")] });
+    const r2 = prövaSparning(testa, "entra", egen([gammal]), { versions: [gammal, v("v2")] });
     expect(r2.ok && r2.värde.versions?.[0].savedBy).toBe("Prov Provsson");
   });
 
@@ -154,16 +153,15 @@ describe("byte av yta", () => {
     expect(r.ok && r.värde).toMatchObject({ category: "Affärsprocesser", subcategory: "A", versions: [v("v1")], savedAt: "s" });
     expect(r.ok && "ägare" in r.värde).toBe(false);
   });
-  it("till Demo sätts kategorin", () => {
-    const r = bytYta(testa, testssons, { till: "demo" });
-    expect(r.ok && r.värde.category).toBe("Demo");
+  it("ytan Demo finns inte längre – en begäran dit avvisas", () => {
+    expect(bytYta(testa, testssons, { till: "demo" as never })).toMatchObject({ ok: false, status: 400 });
   });
   it("någon annan får inte flytta processen", () => {
     expect(bytYta(prova, testssons, { till: "gemensam" })).toMatchObject({ ok: false, status: 403 });
   });
   it("admin kan ta en process ur den gemensamma katalogen till sin egen", () => {
     const r = bytYta(admin, { category: "Demo" }, { till: "egen" });
-    expect(r.ok && r.värde).toMatchObject({ ägare: { id: "a" }, category: undefined });
+    expect(r.ok && r.värde).toMatchObject({ ägare: { id: "a" }, category: "Demo" });
   });
 });
 

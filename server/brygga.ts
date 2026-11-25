@@ -691,7 +691,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
                 category: typeof flow.category === "string" ? flow.category : undefined,
                 subcategory:
                   typeof flow.subcategory === "string" ? flow.subcategory : undefined,
-                // Ytan (gemensam/demo/egen) härleds ur ägaren – se core/behorighet.ts.
+                // Ytan (gemensam/egen) härleds ur ägaren – se core/behorighet.ts.
                 ägare: flow.ägare && typeof flow.ägare.id === "string" ? flow.ägare : undefined,
                 // Klassningen: katalogen visar den, och `kanLäsa` nedan prövar den.
                 klassning: läsKlassning(flow.klassning),
@@ -1434,7 +1434,7 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
             return;
           }
 
-          // --- Byt yta: Mina processer → gemensam katalog (eller Demo). Som en
+          // --- Byt yta: Mina processer → gemensam katalog. Som en
           // flytt i katalogen: ingen ny version, historiken står still.
           const ytMatch = /^\/flows\/([^/]+)\/yta$/.exec(url);
           if (ytMatch && req.method === "POST") {

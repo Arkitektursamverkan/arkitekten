@@ -18,7 +18,6 @@ import { useState } from "react";
 import { familyPrefix } from "@/core/flow-store";
 import { kategoriFör } from "@/core/flow-tree";
 import { KategoriVal } from "./KategoriVal";
-import { DEMO_KATEGORI } from "@/core/behorighet";
 import { ärPresentationskategori } from "@/tools/ramar/avskalad";
 import { useInloggningsläge } from "./Inloggning";
 import { TOOLS, type NyProcessBegäran, type NyProcessStart } from "./tools";
@@ -99,23 +98,18 @@ export function NyProcess({
   const [text, setText] = useState("");
 
   /**
-   * VAR den hamnar. Med inloggning börjar allt i Mina processer (eller i Demo)
+   * VAR den hamnar. Med inloggning börjar allt i Mina processer
    * och delas med en uttrycklig flytt – reglerna i core/behorighet.ts, som
    * bryggan verkställer när processen sparas första gången.
    */
   const inloggad = useInloggningsläge() !== "öppen";
-  const iDemo = kategori.trim().toLowerCase() === DEMO_KATEGORI.toLowerCase();
   /**
    * Förenklade processer erbjuds aldrig: den kategorin fylls av "✦ Förenkla och
    * presentera", och en process där öppnas i det AVSKALADE utseendet. Valdes
    * den här såg en nyss skapad affärsprocess ut som en förenklad bild utan
    * roller och objekt (beslut 2026-10-20).
    */
-  const valbaraKategorier = kategorier.filter(
-    (k) =>
-      !ärPresentationskategori(k) &&
-      !(inloggad && k.toLowerCase() === DEMO_KATEGORI.toLowerCase()),
-  );
+  const valbaraKategorier = kategorier.filter((k) => !ärPresentationskategori(k));
   const namnKrockar = taget.some((n) => n.trim().toLowerCase() === namn.trim().toLowerCase());
   /** Textvägarna behöver något att tolka; mall och tom yta gör det inte. */
   const behöverText = start === "regler" || start === "ai";
@@ -187,35 +181,12 @@ export function NyProcess({
           )}
 
           {inloggad && (
-            <fieldset className="ark-flytta-ytor ark-ny-yta">
-              <legend className="ark-field-label">Var hamnar den?</legend>
-              <label className={`ark-flytta-yta ${!iDemo ? "vald" : ""}`}>
-                <input type="radio" name="ark-ny-yta" checked={!iDemo} onChange={() => setKategoriVal(null)} />
-                <span>
-                  <strong>Mina processer</strong>
-                  <span className="ark-hint">
-                    {" "}
-                    – bara du ser den. Flytta den till den gemensamma katalogen när den är klar.
-                  </span>
-                </span>
-              </label>
-              <label className={`ark-flytta-yta ${iDemo ? "vald" : ""}`}>
-                <input
-                  type="radio"
-                  name="ark-ny-yta"
-                  checked={iDemo}
-                  onChange={() => setKategoriVal(DEMO_KATEGORI)}
-                />
-                <span>
-                  <strong>Demo</strong>
-                  <span className="ark-hint"> – offentlig, alla inloggade kan läsa och ändra.</span>
-                </span>
-              </label>
-            </fieldset>
+            <p className="ark-hint ark-ny-yta">
+              Processen hamnar i <strong>Mina processer</strong> – bara du ser den. Flytta den till den gemensamma
+              katalogen när den är klar.
+            </p>
           )}
 
-          {!iDemo && (
-            <>
           <label className="ark-field-label ark-ny-kategoriEtikett" htmlFor="ark-ny-kategori">
             Kategori i katalogen
           </label>
@@ -231,8 +202,6 @@ export function NyProcess({
             <strong> {valtVerktyg?.name ?? "verktyget"}</strong> avgör hur processen RITAS, kategorin
             var den HÖR HEMMA. En affärsprocess kan alltså ligga under Systemförvaltning.
           </p>
-            </>
-          )}
 
           <label className="ark-field-label ark-ny-kategoriEtikett" htmlFor="ark-ny-underkategori">
             Underkategori

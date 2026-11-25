@@ -33,9 +33,9 @@ describe("ytan härleds ur flödet", () => {
     expect(ytaFör({})).toBe("gemensam");
     expect(ytaFör(gemensam)).toBe("gemensam");
   });
-  it("kategorin Demo är den offentliga ytan, oavsett skiftläge", () => {
-    expect(ytaFör(demo)).toBe("demo");
-    expect(ytaFör({ category: " demo " })).toBe("demo");
+  it("kategorin Demo är ingen egen yta längre – en vanlig kategori i den gemensamma katalogen", () => {
+    expect(ytaFör(demo)).toBe("gemensam");
+    expect(ytaFör({ category: " demo " })).toBe("gemensam");
   });
   it("en ägare vinner över kategorin", () => {
     expect(ytaFör({ ...demo, ägare: { id: "x", namn: "X" } })).toBe("egen");
@@ -43,7 +43,7 @@ describe("ytan härleds ur flödet", () => {
 });
 
 describe("rollerna", () => {
-  it("alla inloggade läser gemensamt och demo, men bara ägaren (och admin) en egen process", () => {
+  it("alla inloggade läser det gemensamma, men bara ägaren (och admin) en egen process", () => {
     expect(kanLäsa(bo, gemensam)).toBe(true);
     expect(kanLäsa(bo, demo)).toBe(true);
     expect(kanLäsa(anna, annas)).toBe(true);
@@ -51,13 +51,14 @@ describe("rollerna", () => {
     expect(kanLäsa(admin, annas)).toBe(true);
     expect(kanLäsa(null, gemensam)).toBe(false);
   });
-  it("den gemensamma katalogen ändras bara av administratörer; demo av alla", () => {
+  it("den gemensamma katalogen ändras bara av administratörer – också kategorin Demo", () => {
     expect(kanRedigera(anna, gemensam)).toBe(false);
     expect(kanRedigera(admin, gemensam)).toBe(true);
-    expect(kanRedigera(anna, demo)).toBe(true);
+    expect(kanRedigera(anna, demo)).toBe(false);
+    expect(kanRedigera(admin, demo)).toBe(true);
     expect(kanRedigera(bo, annas)).toBe(false);
   });
-  it("demo är offentlig men töms inte av vem som helst", () => {
+  it("ta bort: ägaren sin egen, administratören det gemensamma", () => {
     expect(kanTaBort(anna, demo)).toBe(false);
     expect(kanTaBort(anna, annas)).toBe(true);
     expect(kanTaBort(bo, annas)).toBe(false);
@@ -65,7 +66,6 @@ describe("rollerna", () => {
   });
   it("ägaren flyttar sin process till den gemensamma katalogen – men inte tillbaka", () => {
     expect(kanByttaYta(anna, annas, "gemensam")).toBe(true);
-    expect(kanByttaYta(anna, annas, "demo")).toBe(true);
     expect(kanByttaYta(bo, annas, "gemensam")).toBe(false);
     expect(kanByttaYta(anna, gemensam, "egen")).toBe(false);
     expect(kanByttaYta(admin, gemensam, "egen")).toBe(true);
@@ -89,15 +89,15 @@ describe("rollerna", () => {
 
 describe("nya processer", () => {
   it("börjar i ens egen katalog när man är inloggad", () => {
-    expect(ägareVidSkapande(anna, "entra", { category: "X" })).toEqual({ id: "anna", namn: "Anna" });
-    expect(ägareVidSkapande(admin, "entra", {})).toEqual({ id: "a", namn: "Admin" });
+    expect(ägareVidSkapande(anna, "entra")).toEqual({ id: "anna", namn: "Anna" });
+    expect(ägareVidSkapande(admin, "entra")).toEqual({ id: "a", namn: "Admin" });
   });
-  it("i Demo om man valt den kategorin", () => {
-    expect(ägareVidSkapande(anna, "entra", demo)).toBeUndefined();
-    expect(kanSkapa(anna, demo)).toBe(true);
+  it("kategorin Demo ger ingen genväg förbi den egna katalogen", () => {
+    expect(kanSkapa(anna, demo)).toBe(false);
+    expect(kanSkapa(anna, { ...demo, ägare: { id: "anna", namn: "Anna" } })).toBe(true);
   });
   it("i öppen drift som förut: i den gemensamma katalogen", () => {
-    expect(ägareVidSkapande(admin, "öppen", { category: "X" })).toBeUndefined();
+    expect(ägareVidSkapande(admin, "öppen")).toBeUndefined();
   });
   it("bara admin skapar direkt i den gemensamma katalogen", () => {
     expect(kanSkapa(anna, gemensam)).toBe(false);
@@ -112,14 +112,14 @@ describe("indelningen i ytor", () => {
     { id: "3", ...demo },
     { id: "4", ...annas },
   ];
-  it("ger gemensam, mina och sist demo i fast ordning, med status per yta", () => {
+  it("ger gemensam och mina i fast ordning, med status per yta – Demo räknas till det gemensamma", () => {
     const ytor = delaIYtor(flöden, anna);
-    expect(ytor.map((y) => y.id)).toEqual(["gemensam", "egen", "demo"]);
-    expect(ytor[0]).toMatchObject({ titel: "Gemensam katalog", fastslagna: 1, utkast: 1 });
+    expect(ytor.map((y) => y.id)).toEqual(["gemensam", "egen"]);
+    expect(ytor[0]).toMatchObject({ titel: "Gemensam katalog", fastslagna: 1, utkast: 2 });
   });
   it("för admin är någon annans egna process 'andras', inte 'mina'", () => {
     expect(ytgruppFör(admin, annas)).toBe("andras");
-    expect(delaIYtor(flöden, admin).map((y) => y.id)).toEqual(["gemensam", "andras", "demo"]);
+    expect(delaIYtor(flöden, admin).map((y) => y.id)).toEqual(["gemensam", "andras"]);
   });
 });
 
@@ -156,9 +156,10 @@ describe("klassningen skär av", () => {
     expect(kanLäsa(cecilia, gemensam)).toBe(false);
     expect(kanLäsa(boK, gemensam)).toBe(true);
     expect(kanLäsa(admin, gemensam)).toBe(true);
-    const demo = { category: "Demo", klassning: { nivå: "niva-3" } };
-    expect(kanRedigera(cecilia, demo)).toBe(false);
-    expect(kanRedigera(boK, demo)).toBe(true);
+    const cecilias = { ägare: { id: "c", namn: "Cecilia" }, klassning: { nivå: "niva-3" } };
+    const bos = { ägare: { id: boK.id, namn: "Bo" }, klassning: { nivå: "niva-3" } };
+    expect(kanRedigera(cecilia, cecilias)).toBe(false);
+    expect(kanRedigera(boK, bos)).toBe(true);
     const egen = { ägare: { id: "c", namn: "Cecilia" }, klassning: { nivå: "niva-3" } };
     expect(kanLäsa(cecilia, egen)).toBe(false);
     expect(kanTaBort(cecilia, egen)).toBe(false);

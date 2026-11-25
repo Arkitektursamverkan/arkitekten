@@ -131,13 +131,13 @@ const läsFil = (id: string) => JSON.parse(fs.readFileSync(path.join(tmp, "flows
 describe("publiceringen ägs av servern", () => {
   beforeAll(async () => {
     // En process i den gemensamma katalogen (skapas i adminens egen och flyttas),
-    // och en i Demo.
+    // och en i Annas egen (kategorin Demo ger ingen egen yta längre).
     expect((await admin("/__ark/flows/gemensam-1", put(flödet("gemensam-1")))).status).toBe(200);
     expect((await admin("/__ark/flows/gemensam-1/yta", post({ till: "gemensam" }))).status).toBe(200);
     expect((await anna("/__ark/flows/demo-1", put(flödet("demo-1", { category: "Demo" })))).status).toBe(200);
   });
 
-  it("REGRESSION: en vanlig sparning i Demo bar publiceringen – nu tas den aldrig ur begäran", async () => {
+  it("REGRESSION: en vanlig sparning bar publiceringen – nu tas den aldrig ur begäran", async () => {
     const fil = läsFil("demo-1");
     const r = await anna("/__ark/flows/demo-1", put({ ...fil, publicering: PUBLICERING }));
     expect(r.status).toBe(200);
@@ -172,9 +172,9 @@ describe("publiceringen ägs av servern", () => {
     expect(läsFil("gemensam-1").publicering?.eaNodId).toBe("nod-1");
   });
 
-  it("REGRESSION: flödestjänsten lämnade ut en publicering i Demo – nu bara den gemensamma katalogens", async () => {
-    // En Demo-fil med publicering (skriven före rättningen).
-    fs.writeFileSync(path.join(tmp, "flows", "demo-gammal.json"), JSON.stringify(flödet("demo-gammal", { category: "Demo", publicering: PUBLICERING })));
+  it("REGRESSION: flödestjänsten lämnade ut en publicering utanför den gemensamma katalogen – nu bara den gemensamma katalogens", async () => {
+    // En fil i en egen katalog med publicering (skriven före rättningen).
+    fs.writeFileSync(path.join(tmp, "flows", "demo-gammal.json"), JSON.stringify(flödet("demo-gammal", { ägare: { id: "x", namn: "X" }, publicering: PUBLICERING })));
     const tjänst = http.createServer(skapaHanterare(path.join(tmp, "flows"), path.join(tmp, "stilar"), ""));
     await new Promise<void>((klar) => tjänst.listen(0, klar));
     try {
@@ -187,16 +187,16 @@ describe("publiceringen ägs av servern", () => {
     }
   });
 
-  it("publicering från Demo flyttar processen till den gemensamma katalogen", async () => {
-    fs.writeFileSync(path.join(tmp, "flows", "demo-pub.json"), JSON.stringify(flödet("demo-pub", { category: "Demo" })));
+  it("publicering från en egen katalog flyttar processen till den gemensamma katalogen", async () => {
+    fs.writeFileSync(path.join(tmp, "flows", "demo-pub.json"), JSON.stringify(flödet("demo-pub", { ägare: { id: "x", namn: "X" }, category: "Mitt" })));
     const före = läsFil("demo-pub");
     // En ofullständig publicering flyttar ingenting.
     expect((await admin("/__ark/ea/publicering/demo-pub", put({ publicering: { eaNodId: "x" } }))).status).toBe(400);
-    expect(läsFil("demo-pub").category).toBe("Demo");
+    expect(läsFil("demo-pub").ägare).toEqual({ id: "x", namn: "X" });
     expect((await admin("/__ark/ea/publicering/demo-pub", put({ publicering: PUBLICERING }))).status).toBe(200);
     const efter = läsFil("demo-pub");
     expect(efter.publicering).toMatchObject({ eaNodId: "nod-1" });
-    expect(efter.category).toBeUndefined();
+    expect(efter.category).toBe("Mitt");
     expect(efter.ägare).toBeUndefined();
     // Som en flytt: ingen ny version, savedAt står still.
     expect(efter.versions).toEqual(före.versions);
@@ -204,7 +204,7 @@ describe("publiceringen ägs av servern", () => {
   });
 
   it("byte av yta tar bort publiceringen", async () => {
-    expect((await admin("/__ark/flows/gemensam-1/yta", post({ till: "demo" }))).status).toBe(200);
+    expect((await admin("/__ark/flows/gemensam-1/yta", post({ till: "egen" }))).status).toBe(200);
     expect(läsFil("gemensam-1").publicering).toBeUndefined();
     // Avpubliceringen tar bara bort fältet.
     await admin("/__ark/flows/gemensam-1/yta", post({ till: "gemensam" }));
