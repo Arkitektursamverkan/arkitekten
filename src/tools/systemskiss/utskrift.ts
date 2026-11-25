@@ -33,6 +33,7 @@
 import { revisionsRader, type Revision } from "@/tools/flowchart/export/revision";
 import { esc } from "@/tools/flowchart/render/text-util";
 import { filtreraSkiss, type Systemskiss } from "@/core/systemskiss";
+import { visadSkiss } from "./samla";
 import { SKISS_BRÖDTEXT, skissSvg } from "./skiss-svg";
 
 export type Papper = "A4" | "A3";
@@ -164,7 +165,7 @@ export function delaUpp(rubrik: string, svg: string, bredd: number, höjd: numbe
 
 /**
  * Bladen för en utskrift. `skiss` är versionen man tittar på, OFILTRERAD;
- * `filter` och `grannar` är lagerradens val (det som visas).
+ * `filter`, `grannar` och `samla` är lagerradens val (det som visas).
  */
 export function utskriftsblad(
   skiss: Systemskiss,
@@ -172,6 +173,7 @@ export function utskriftsblad(
   filter: ReadonlySet<string> | null,
   grannar: boolean,
   revision?: Revision,
+  samla = false,
 ): Blad[] {
   const blad = (rubrik: string, s: Systemskiss): Blad[] => {
     if (s.objekt.length === 0 && s.zoner.length === 0) return [];
@@ -182,7 +184,7 @@ export function utskriftsblad(
   const lager = skiss.lager ?? [];
   if (val.innehåll === "visas" || lager.length === 0) {
     const namn = filter ? lager.filter((l) => filter.has(l.id)).map((l) => l.namn).join(", ") : "";
-    return blad(namn ? `${skiss.namn} – ${namn}` : skiss.namn, filtreraSkiss(skiss, filter, grannar));
+    return blad(namn ? `${skiss.namn} – ${namn}` : skiss.namn, visadSkiss(skiss, filter, grannar, samla));
   }
   return [
     ...(val.medHela ? blad(skiss.namn, skiss) : []),

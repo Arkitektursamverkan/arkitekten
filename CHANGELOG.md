@@ -7,6 +7,10 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+## 0.24.0 – 2026-11-25
+
+- **Flera lager framme läggs intill varandra.** Väljer man två eller fler lager i en systemskiss stod de kvar där de står i skissen, ofta långt ifrån varandra med tomrum emellan. Nu samlas de: det som hör ihop (samma lager, samma zon, ihopkopplat) står kvar i förhållande till varandra, stora tomma band tas bort och delarna ställs i lagrens ordning, rad för rad. Bara bilden ändras – skissen rörs inte, och ritytan är låst så länge vyn är samlad. *Samla lagren* i lagerraden slår av det. Kopiera bild, PNG, SVG och utskriften av det som visas följer med. Ett lager i taget, *Alla* och det som lämnas till Arkitekturportalen är oförändrat. Se `docs/systemskiss.md`.
+
 ## 0.23.1 – 2026-11-24
 
 - **Skyddsklass via Entra-grupp fungerar även för den som är med i många grupper.** Sessionen rymmer högst 40 Entra-grupper; de togs i tokenens ordning, så en användare med fler grupper kunde tappa just gruppen som gav skyddsklassen och inte se de klassade skisserna. Nu går grupperna som ger något – skyddsklasser och administratörsgrupper (`ENTRA_ADMIN_GRUPPER`) – först. Loggen visar vid inloggningen hur många grupper tokenen bar och vilka skyddsklasser användaren fick. Ändrade skyddsklasser gäller grupper från nästa inloggning.

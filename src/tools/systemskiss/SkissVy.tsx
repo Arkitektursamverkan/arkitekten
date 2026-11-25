@@ -18,12 +18,12 @@ import { getSkissStore, type Sparval, type SkissStore } from "@/core/skiss-store
 import { klassningIExport, klassningsText, type Klassningsinställning } from "@/core/klassning";
 import { sammanfattaStatus, statusDef, versionsBeteckningar } from "@/core/status";
 import { KlassningsVal, useKlassningsinställning } from "@/shell/Klassning";
+import { kanSamlas, visadSkiss } from "./samla";
 import {
   SKISS_SORTER,
   ZON_FÄRGER,
   dupliceraISkiss,
   döpOmLager,
-  filtreraSkiss,
   läggTillLager,
   läggTillObjekt,
   läggTillZon,
@@ -81,6 +81,8 @@ export function SkissVy() {
   const [aktivaLager, setAktivaLager] = useState<string[] | null>(null);
   /** Visa också det som är kopplat till lagren (se `filtreraSkiss`). */
   const [medGrannar, setMedGrannar] = useState(true);
+  /** Flera lager framme läggs intill varandra (se `samlaSkiss`) – då är ritytan låst. */
+  const [samla, setSamla] = useState(true);
   const [fel, setFel] = useState<string | null>(null);
   const [kvitto, setKvitto] = useState<string | null>(null);
   /** Dialogen Skriv ut är öppen. */
@@ -228,7 +230,13 @@ export function SkissVy() {
     const kvar = aktivaLager.filter((id) => lager.some((l) => l.id === id));
     return kvar.length ? new Set(kvar) : null;
   }, [aktivaLager, lager]);
-  const visad = useMemo(() => (bild ? filtreraSkiss(bild, filter, medGrannar) : null), [bild, filter, medGrannar]);
+  const samlad = samla && kanSamlas(filter);
+  // Samlad vy är en annan bild än skissen: visa hela när valet ändras.
+  const samladNyckel = samlad ? [...(filter ?? [])].join("|") : "";
+  useEffect(() => {
+    if (samladNyckel) canvas.current?.anpassa();
+  }, [samladNyckel]);
+  const visad = useMemo(() => (bild ? visadSkiss(bild, filter, medGrannar, samla) : null), [bild, filter, medGrannar, samla]);
   // Det markerade kan ha hamnat utanför det som visas.
   useEffect(() => setMarkerade([]), [aktivaLager]);
   /** Ett klick på ett lager: första klicket visar BARA det, nästa lägger till eller tar bort. */
@@ -603,6 +611,12 @@ export function SkissVy() {
               Med integrationerna
             </label>
           )}
+          {kanSamlas(filter) && (
+            <label className="ark-ramar-val" title="Lägger de valda lagren intill varandra, i lagrens ordning, i stället för där de står i skissen. Bara bilden ändras – slå av för att flytta och ändra.">
+              <input type="checkbox" checked={samla} onChange={(e) => setSamla(e.target.checked)} />
+              Samla lagren
+            </label>
+          )}
         </div>
       )}
 
@@ -611,7 +625,7 @@ export function SkissVy() {
           ref={canvas}
           skiss={bild ?? skiss}
           visad={visad ?? bild ?? skiss}
-          låst={!fårÄndra}
+          låst={!fårÄndra || samlad}
           markerade={markerade}
           onMarkera={setMarkerade}
           onÄndra={ändra}
@@ -929,7 +943,7 @@ export function SkissVy() {
         </aside>
       </div>
       {skriverUt && bild && (
-        <Utskriftsdialog skiss={bild} filter={filter} grannar={medGrannar} revision={revisionFörBild()} onStäng={() => setSkriverUt(false)} />
+        <Utskriftsdialog skiss={bild} filter={filter} grannar={medGrannar} samla={samla} revision={revisionFörBild()} onStäng={() => setSkriverUt(false)} />
       )}
     </div>
   );
