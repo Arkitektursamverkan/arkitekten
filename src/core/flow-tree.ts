@@ -210,7 +210,9 @@ function frånOrganisation(): Ärendetyp[] {
   }
   const lista = [
     ...typer,
-    { id: RESERV_ID, titel: typer.length ? "Gemensamt" : "Alla processer", test: () => true },
+    // "Övrigt", inte "Gemensamt": grenen står också under Mina processer och Demo,
+    // och förväxlades där med den gemensamma katalogen.
+    { id: RESERV_ID, titel: typer.length ? "Övrigt" : "Alla processer", test: () => true },
   ];
   tolkad = { nyckel, lista };
   return lista;
@@ -345,7 +347,7 @@ export function byggFlödesträd(flöden: FlowSummary[]): ÄrendeGren[] {
     /**
      * Har flödet en EGEN underkategori ersätter den både ärendetypen och
      * målgruppen: strukturen är då användarens, och en påhängd rubrik
-     * ("Gemensamt", "Användaren") hade bara varit brus i hennes egen samling.
+     * ("Övrigt", "Användaren") hade bara varit brus i hennes egen samling.
      * Saknas den gäller reglerna precis som förut.
      */
     const under = underkategoriFör(flow);
