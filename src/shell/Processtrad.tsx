@@ -58,7 +58,7 @@ export function Processträd({ flöden, aktivtFlöde, onÖppna, nu }: Processtr�
 
   const användare = useAnvändare();
   /**
-   * YTAN ÖVERST: gemensam katalog, Demo, Mina processer. Var en process ligger
+   * YTAN ÖVERST: gemensam katalog, Mina processer. Var en process ligger
    * avgör vem som ser och ändrar den, så den frågan ska besvaras innan man
    * letar i kategorierna. Inom varje yta är trädet detsamma som förut.
    */

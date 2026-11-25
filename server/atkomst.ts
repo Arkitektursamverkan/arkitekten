@@ -12,7 +12,6 @@
 import { läsPublicering } from "../src/core/publicering";
 import { läsUrsprung } from "../src/core/ursprung";
 import {
-  DEMO_KATEGORI,
   kanByttaYta,
   kanDöljaSkiss,
   kanPublicera,
@@ -59,8 +58,8 @@ function personI(ä: unknown): Ägare | undefined {
  * - Publiceringen tas likaså ur filen, aldrig ur begäran: den skrivs bara av
  *   `prövaPublicering` (admin; flyttar till gemensam katalog, samma regel som
  *   `kanPublicera`). REGRESSION: en vanlig PUT bar publiceringen, så den som
- *   fick spara i Demo kunde skicka ut en process till EA-portalen.
- * - Byter sparningen yta ändå (kategorin sattes till eller från Demo) prövas
+ *   fick spara kunde skicka ut en process till EA-portalen.
+ * - Byter sparningen yta ändå prövas
  *   det som ett byte av yta – och publiceringen följer inte med ut ur den
  *   gemensamma katalogen.
  * - HISTORIKEN BYGGS BARA PÅ (invariant 11). `versions` ska vara en lista,
@@ -69,7 +68,7 @@ function personI(ä: unknown): Ägare | undefined {
  *   senaste version har någon annan sparat sedan processen öppnades (409 –
  *   ladda om); är en äldre version ändrad, borttagen eller omkastad är det
  *   ingen sparning appen gör (403). REGRESSION: servern såg bara efter att
- *   filens SISTA version fanns kvar, så den som fick spara (t.ex. i Demo)
+ *   filens SISTA version fanns kvar, så den som fick spara
  *   kunde skriva om eller stryka hela den tidigare historiken.
  * - Signaturen på en NY version (`savedBy`) sätts av servern till den
  *   inloggade – aldrig ur begäran. REGRESSION: begärans `savedBy` fick stå
@@ -93,7 +92,7 @@ export function prövaSparning(
     ...kropp
   } = ny;
   if (!befintlig) {
-    const ägare = ägareVidSkapande(u, läge, kropp);
+    const ägare = ägareVidSkapande(u, läge);
     // I öppen drift finns bara den lokala användaren – ett namn som inte säger något.
     const skapadAv = läge === "öppen" ? undefined : { id: u.id, namn: u.namn };
     const ut: Flöde = { ...kropp, ...(ägare ? { ägare } : {}), ...(skapadAv ? { skapadAv } : {}) };
@@ -124,7 +123,7 @@ export function prövaSparning(
   };
   const till = ytaFör(ut);
   if (till !== ytaFör(befintlig) && !kanByttaYta(u, befintlig, till))
-    return nej(403, `Du kan inte flytta processen till ${till === "demo" ? "Demo" : "den ytan"}.`);
+    return nej(403, "Du kan inte flytta processen till den ytan.");
   // Filens publicering står kvar – så länge processen ligger kvar i den gemensamma katalogen.
   if (befintlig.publicering !== undefined && till === "gemensam") ut.publicering = befintlig.publicering;
 
@@ -198,7 +197,7 @@ export interface YtByte {
  * SPRIDS, historiken och `savedAt` står still, ingen ny version.
  */
 export function bytYta(u: Användare, befintlig: Flöde, byte: YtByte): Prövning<Flöde> {
-  if (!["gemensam", "demo", "egen"].includes(byte.till)) return nej(400, "Okänd yta.");
+  if (!["gemensam", "egen"].includes(byte.till)) return nej(400, "Okänd yta.");
   if (!kanByttaYta(u, befintlig, byte.till))
     return nej(403, "Du har inte behörighet att flytta processen dit.");
   // Publiceringen följer inte med: bara den gemensamma katalogen publiceras
@@ -206,8 +205,6 @@ export function bytYta(u: Användare, befintlig: Flöde, byte: YtByte): Prövnin
   const { ägare: _gammal, publicering: _publicering, ...kropp } = befintlig;
   const kategori = byte.category?.trim() || undefined;
   const under = byte.subcategory === undefined ? befintlig.subcategory : byte.subcategory.trim() || undefined;
-  const utanDemo = (k: string | undefined) =>
-    k && k.toLowerCase() === DEMO_KATEGORI.toLowerCase() ? undefined : k;
   switch (byte.till) {
     case "egen":
       return {
@@ -215,16 +212,14 @@ export function bytYta(u: Användare, befintlig: Flöde, byte: YtByte): Prövnin
         värde: {
           ...kropp,
           ägare: { id: u.id, namn: u.namn },
-          category: utanDemo(kategori ?? befintlig.category),
+          category: kategori ?? befintlig.category,
           subcategory: under,
         },
       };
-    case "demo":
-      return { ok: true, värde: { ...kropp, category: DEMO_KATEGORI, subcategory: under } };
     case "gemensam":
       return {
         ok: true,
-        värde: { ...kropp, category: utanDemo(kategori ?? befintlig.category), subcategory: under },
+        värde: { ...kropp, category: kategori ?? befintlig.category, subcategory: under },
       };
   }
 }
@@ -236,8 +231,8 @@ export function bytYta(u: Användare, befintlig: Flöde, byte: YtByte): Prövnin
  * placeringen (invariant 11): posten SPRIDS, ingen ny version och ingen ny
  * `savedAt`.
  *
- * Det publicerade ligger ALLTID i den gemensamma katalogen: en process i Demo
- * eller i en egen katalog FLYTTAS dit av publiceringen (`bytYta`, samma flytt
+ * Det publicerade ligger ALLTID i den gemensamma katalogen: en process
+ * i en egen katalog FLYTTAS dit av publiceringen (`bytYta`, samma flytt
  * som knappen Flytta gör). Flödestjänsten lämnar bara ut den gemensamma
  * katalogens publiceringar, så utan flytten hade publiceringen inte synts.
  */

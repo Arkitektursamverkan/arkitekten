@@ -116,7 +116,7 @@ export function ProcessKatalog({
   );
 
   /**
-   * YTAN är katalogens översta nivå: gemensam katalog, Demo, Mina processer
+   * YTAN är katalogens översta nivå: gemensam katalog, Mina processer
    * (core/behorighet.ts). Den avgör vem som ser och ändrar en process, så den
    * står först – och med sin status, så att man ser vad som gäller.
    */
@@ -168,7 +168,7 @@ export function ProcessKatalog({
   };
   /** Får jag flytta processen – inom sin yta eller till en annan? */
   const kanFlyttas = (f: FlowSummary) =>
-    kanÄndra && (kanRedigera(användare, f) || (["gemensam", "demo", "egen"] as Yta[]).some((y) => kanByttaYta(användare, f, y)));
+    kanÄndra && (kanRedigera(användare, f) || (["gemensam", "egen"] as Yta[]).some((y) => kanByttaYta(användare, f, y)));
   /** En gren döps om på ALLA processer i den – då måste man få ändra dem alla. */
   const kanDöpaOmAlla = (grenar: ÄrendeGren[]) =>
     kanÄndra &&

@@ -1735,15 +1735,13 @@ select.ark-input { cursor: pointer; background: var(--panel); }
 .ark-btn--fara:hover:not(:disabled) { background: #912018; border-color: #912018; }
 
 /* ---- Inloggning, konton och ytor ----
-   Ytan (gemensam katalog, Demo, Mina processer – core/behorighet.ts) avgör
+   Ytan (gemensam katalog, Mina processer – core/behorighet.ts) avgör
    vem som ser och ändrar en process. Varje yta har en egen DÄMPAD ton, samma
    i menyn, katalogen, kortet och rubriken, så att man känner igen den utan att
-   läsa: blå = gemensamt, ockra = demo, grönt = mitt eget, grått = andras. */
+   läsa: blå = gemensamt, grönt = mitt eget, grått = andras. */
 :root {
   --yta-gemensam: #1f5c9e;
   --yta-gemensam-svag: #eef4fb;
-  --yta-demo: #8a5a00;
-  --yta-demo-svag: #fdf5e6;
   --yta-egen: #1d6b46;
   --yta-egen-svag: #edf8f2;
   --yta-andras: #475467;
@@ -1787,7 +1785,6 @@ select.ark-input { cursor: pointer; background: var(--panel); }
   font-size: 11.5px; font-weight: 700; padding: 6px 8px 4px; margin-top: 4px;
   border-left: 3px solid var(--yta-gemensam); color: var(--yta-gemensam);
 }
-.ark-meny-yta--demo .ark-meny-yta-titel { border-color: var(--yta-demo); color: var(--yta-demo); }
 .ark-meny-yta--egen .ark-meny-yta-titel { border-color: var(--yta-egen); color: var(--yta-egen); }
 .ark-meny-yta--andras .ark-meny-yta-titel { border-color: var(--yta-andras); color: var(--yta-andras); }
 .ark-meny-yta-status { display: inline-flex; gap: 4px; margin-left: auto; }
@@ -1803,7 +1800,6 @@ select.ark-input { cursor: pointer; background: var(--panel); }
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;
   padding-left: 10px; border-left: 4px solid var(--yta-gemensam);
 }
-.ark-katalog-yta--demo .ark-katalog-yta-topp { border-color: var(--yta-demo); }
 .ark-katalog-yta--egen .ark-katalog-yta-topp { border-color: var(--yta-egen); }
 .ark-katalog-yta--andras .ark-katalog-yta-topp { border-color: var(--yta-andras); }
 .ark-katalog-yta-rubrik { font-size: 15px; margin: 0; }
@@ -1818,7 +1814,6 @@ select.ark-input { cursor: pointer; background: var(--panel); }
   border: 1px solid transparent;
 }
 .ark-kort-yta--gemensam { background: var(--yta-gemensam-svag); color: var(--yta-gemensam); }
-.ark-kort-yta--demo { background: var(--yta-demo-svag); color: var(--yta-demo); }
 .ark-kort-yta--egen { background: var(--yta-egen-svag); color: var(--yta-egen); }
 .ark-kort-yta--andras { background: var(--yta-andras-svag); color: var(--yta-andras); }
 .ark-flow-header-yta { font-size: 11px; padding: 2px 7px; }

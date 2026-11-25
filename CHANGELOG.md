@@ -7,6 +7,10 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+## 0.26.0 – 2026-11-25
+
+- **Ytan Demo är borttagen.** Övningsytan där alla inloggade fick ändra finns inte längre: menyn och katalogen har *Gemensam katalog* och *Mina processer* (för administratören också *Andra användares processer*). En ny process börjar alltid i *Mina processer*, och *Flytta* erbjuder inte Demo. **Att göra vid uppgradering:** processer som ligger kvar i kategorin `Demo` utan ägare räknas nu till den gemensamma katalogen – de syns för alla som förut, men ändras bara av administratörer. Flytta dem till rätt kategori eller till någons egen katalog, eller ta bort dem.
+
 ## 0.25.0 – 2026-11-25
 
 - **Demo står sist i menyn och katalogen.** Övningsytan stod mellan den gemensamma katalogen och *Mina processer*; nu kommer den efter de egna katalogerna, så att det som gäller står först. Reglerna är oförändrade: alla inloggade läser och ändrar i Demo.

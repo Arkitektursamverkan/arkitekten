@@ -19,7 +19,7 @@ import { skapadTid } from "./nyhet";
 import type { Publicering } from "./publicering";
 import type { Ursprung } from "./ursprung";
 import type { Klassning } from "./klassning";
-import { DEMO_KATEGORI, type Yta, type Ägare } from "./behorighet";
+import type { Yta, Ägare } from "./behorighet";
 
 /** Vyinställningar som hör till arbetet, inte till processen. */
 export interface FlowView {
@@ -114,7 +114,7 @@ export interface SavedFlow {
   klassning?: Klassning;
   /**
    * Användaren vars EGNA katalog processen ligger i. Saknas = den gemensamma
-   * katalogen (eller Demo) – ytan härleds i core/behorighet.ts. Skrivs BARA av
+   * katalogen – ytan härleds i core/behorighet.ts. Skrivs BARA av
    * bryggan: vid skapandet och när ytan byts (`flyttaTillYta`). Samma sorts
    * uppgift som placeringen, så ett byte är ingen ny version (invariant 11).
    */
@@ -524,8 +524,7 @@ export async function sättPublicering(
   }
   // Det publicerade ligger i den gemensamma katalogen – som bryggan gör.
   const { ägare: _ägare, ...flow } = await store.load(id);
-  const iDemo = flow.category?.trim().toLowerCase() === DEMO_KATEGORI.toLowerCase();
-  const nästa: SavedFlow = { ...flow, ...(iDemo ? { category: undefined } : {}), publicering };
+  const nästa: SavedFlow = { ...flow, publicering };
   await store.save(nästa);
   return nästa;
 }
@@ -604,8 +603,7 @@ export async function flyttaTillYta(
     ).flow as SavedFlow;
   }
   const { ägare: _gammal, ...flow } = await store.load(id);
-  const kategori =
-    till === "demo" ? DEMO_KATEGORI : placering.category?.trim() || undefined;
+  const kategori = placering.category?.trim() || undefined;
   const nästa: SavedFlow = {
     ...flow,
     ...(till === "egen" && jag ? { ägare: jag } : {}),

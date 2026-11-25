@@ -51,13 +51,11 @@ Rollerna är två: **administratör** och **användare**.
 | Yta | Vad | Läsa | Ändra / fastslå | Ta bort |
 |---|---|---|---|---|
 | **Gemensam katalog** | Allt utan ägare. Alla befintliga flöden hamnar här. | alla | admin | admin |
-| **Demo** | Kategorin `Demo`. Offentlig. | alla | alla | admin |
 | **Mina processer** | Flöden med `ägare`. Varje användare har sin egen, med egna kategorier. | ägaren + admin | ägaren + admin | ägaren + admin |
 | **Visualisering** | Ramserierna. Alla skapar nya. | som processen serien visar | skaparen + admin | skaparen + admin |
 | **Systemskiss** | Skisser över systemmiljöer ([systemskiss.md](systemskiss.md)). Alla skapar nya. | alla – en **dold** bara admin | skaparen + admin | skaparen + admin |
 
-- Med inloggning börjar en **ny process** i *Mina processer*, eller i *Demo* om
-  man väljer det i "Ny process".
+- Med inloggning börjar en **ny process** i *Mina processer*.
 - **Flytta → Gemensam katalog** (i katalogen eller i processens huvud) är
   ägarens väg att dela en färdig process. Precis som en vanlig flytt blir det
   ingen ny version, och historiken står still. Tillbaka ur den gemensamma
@@ -71,7 +69,7 @@ Rollerna är två: **administratör** och **användare**.
   (invariant 11).
 - **Historiken byggs bara på.** En sparning får bara lägga till versioner
   sist; ändras, tas bort eller kastas en tidigare version om svarar servern
-  403 – på alla ytor, också Demo. Signaturen på en ny version (`savedBy`) är
+  403 – på alla ytor. Signaturen på en ny version (`savedBy`) är
   alltid den inloggades, vad begäran än säger (i öppen drift: det användaren
   skrev).
 - En process i någon annans egen katalog **syns inte**: en GET svarar 404,

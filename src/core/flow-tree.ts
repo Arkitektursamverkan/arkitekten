@@ -210,7 +210,7 @@ function frånOrganisation(): Ärendetyp[] {
   }
   const lista = [
     ...typer,
-    // "Övrigt", inte "Gemensamt": grenen står också under Mina processer och Demo,
+    // "Övrigt", inte "Gemensamt": grenen står också under Mina processer,
     // och förväxlades där med den gemensamma katalogen.
     { id: RESERV_ID, titel: typer.length ? "Övrigt" : "Alla processer", test: () => true },
   ];

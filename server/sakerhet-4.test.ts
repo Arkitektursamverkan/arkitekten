@@ -93,9 +93,13 @@ beforeAll(async () => {
     await admin("/__ark/konton", post({ användarnamn: `${namn}@example.org`, namn, roll: "user", lösenord: LÖSEN }));
     expect((await k("/__ark/auth/lokal", post({ användarnamn: `${namn}@example.org`, lösenord: LÖSEN }))).status).toBe(200);
   }
-  // Annas egen process, och en i Demo.
+  // Annas egna processer (kategorin Demo ger ingen egen yta längre), och en i
+  // den gemensamma katalogen (skapas i adminens egen och flyttas).
   expect((await anna("/__ark/flows/annas", put(flödet("annas")))).status).toBe(200);
   expect((await anna("/__ark/flows/demo-1", put(flödet("demo-1", { category: "Demo" })))).status).toBe(200);
+  expect(läsFil("demo-1").ägare.namn).toBe("anna");
+  expect((await admin("/__ark/flows/gemensam-1", put(flödet("gemensam-1")))).status).toBe(200);
+  expect((await admin("/__ark/flows/gemensam-1/yta", post({ till: "gemensam" }))).status).toBe(200);
 });
 
 afterAll(async () => {
@@ -105,22 +109,22 @@ afterAll(async () => {
 });
 
 describe("flödenas integritet", () => {
-  it("REGRESSION: en äldre version i Demo kunde skrivas om så länge den sista stod kvar – nu 403 och filen orörd", async () => {
+  it("REGRESSION: en äldre version kunde skrivas om så länge den sista stod kvar – nu 403 och filen orörd", async () => {
     const fil = läsFil("demo-1");
     const v2 = { id: "v2", savedAt: "2026-11-02T00:00:00.000Z", status: "utkast", rawText: "B", draft: { steps: [] } };
-    expect((await bo("/__ark/flows/demo-1", put({ ...fil, versions: [...fil.versions, v2] }))).status).toBe(200);
+    expect((await anna("/__ark/flows/demo-1", put({ ...fil, versions: [...fil.versions, v2] }))).status).toBe(200);
     const nu = läsFil("demo-1");
     const omskriven = [{ ...nu.versions[0], rawText: "FÖRFALSKAD" }, nu.versions[1]];
-    expect((await bo("/__ark/flows/demo-1", put({ ...nu, versions: omskriven }))).status).toBe(403);
-    expect((await bo("/__ark/flows/demo-1", put({ ...nu, versions: "ingen lista" }))).status).toBe(400);
+    expect((await anna("/__ark/flows/demo-1", put({ ...nu, versions: omskriven }))).status).toBe(403);
+    expect((await anna("/__ark/flows/demo-1", put({ ...nu, versions: "ingen lista" }))).status).toBe(400);
     expect(läsFil("demo-1").versions).toEqual(nu.versions);
   });
 
   it("REGRESSION: en ny versions signatur kom ur begäran – nu den inloggades", async () => {
     const fil = läsFil("demo-1");
     const ny = { id: "v3", savedAt: "2026-11-03T00:00:00.000Z", status: "utkast", rawText: "C", draft: { steps: [] }, savedBy: "Admin" };
-    expect((await bo("/__ark/flows/demo-1", put({ ...fil, versions: [...fil.versions, ny] }))).status).toBe(200);
-    expect(läsFil("demo-1").versions.at(-1).savedBy).toBe("bo");
+    expect((await anna("/__ark/flows/demo-1", put({ ...fil, versions: [...fil.versions, ny] }))).status).toBe(200);
+    expect(läsFil("demo-1").versions.at(-1).savedBy).toBe("anna");
   });
 
   it("REGRESSION: id:t i kroppen kunde skilja sig från adressens – nu 400", async () => {
@@ -150,15 +154,15 @@ describe("ramserierna följer sin process", () => {
 
   beforeAll(async () => {
     expect((await anna("/__ark/ramar/annas-serie", put(serie("annas-serie", "annas")))).status).toBe(200);
-    expect((await anna("/__ark/ramar/demo-serie", put(serie("demo-serie", "demo-1")))).status).toBe(200);
+    expect((await anna("/__ark/ramar/gemensam-serie", put(serie("gemensam-serie", "gemensam-1")))).status).toBe(200);
   });
 
   it("REGRESSION: alla inloggade listade och läste serier över processer de inte fick öppna", async () => {
     const lista = (await bo("/__ark/ramar")).kropp.ramar.map((r: { id: string }) => r.id);
-    expect(lista).toContain("demo-serie");
+    expect(lista).toContain("gemensam-serie");
     expect(lista).not.toContain("annas-serie");
     expect((await bo("/__ark/ramar/annas-serie")).status).toBe(404);
-    expect((await bo("/__ark/ramar/demo-serie")).status).toBe(200);
+    expect((await bo("/__ark/ramar/gemensam-serie")).status).toBe(200);
     // Ägaren och administratören ser den.
     expect((await anna("/__ark/ramar/annas-serie")).status).toBe(200);
     expect((await admin("/__ark/ramar")).kropp.ramar.map((r: { id: string }) => r.id)).toContain("annas-serie");
@@ -166,13 +170,13 @@ describe("ramserierna följer sin process", () => {
 
   it("en serie kan inte hängas på, ändras eller tas bort över en process man inte ser", async () => {
     expect((await bo("/__ark/ramar/bos-serie", put(serie("bos-serie", "annas")))).status).toBe(404);
-    expect((await bo("/__ark/ramar/annas-serie", put(serie("annas-serie", "demo-1")))).status).toBe(404);
+    expect((await bo("/__ark/ramar/annas-serie", put(serie("annas-serie", "gemensam-1")))).status).toBe(404);
     expect((await bo("/__ark/ramar/annas-serie", { method: "DELETE" })).status).toBe(404);
     expect(fs.existsSync(path.join(tmp, "ramar", "annas-serie.json"))).toBe(true);
   });
 
   it("REGRESSION: seriens id kunde skilja sig från adressens – nu 400", async () => {
-    expect((await bo("/__ark/ramar/bos-serie", put(serie("annat", "demo-1")))).status).toBe(400);
+    expect((await bo("/__ark/ramar/bos-serie", put(serie("annat", "gemensam-1")))).status).toBe(400);
   });
 });
 

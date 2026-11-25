@@ -18,7 +18,6 @@ import {
 } from "@/core/flow-tree";
 import { KategoriVal } from "./KategoriVal";
 import {
-  DEMO_KATEGORI,
   YTOR,
   kanByttaYta,
   kanRedigera,
@@ -80,8 +79,8 @@ export function Flyttadialog({
     y.id === nuYta ? kanRedigera(användare, flow) : kanByttaYta(användare, flow, y.id),
   );
   /**
-   * I öppen drift finns bara en användare och inga egna kataloger – där är
-   * Demo bara en kategori bland andra, och dialogen ser ut som förut.
+   * I öppen drift finns bara en användare och inga egna kataloger – där
+   * finns inga ytor att välja mellan.
    */
   const visaYtor = useInloggningsläge() !== "öppen" && ytval.length > 1;
   const [till, setTill] = useState<Yta>(ytval.some((y) => y.id === nuYta) ? nuYta : (ytval[0]?.id ?? nuYta));
@@ -89,9 +88,7 @@ export function Flyttadialog({
   const iYtan = flöden.filter((f) =>
     till === "egen" ? ytgruppFör(användare, f) === "egen" : ytaFör(f) === till,
   );
-  const [kategori, setKategori] = useState(
-    visaYtor && nuYta === "demo" ? "" : (flow.category ?? ""),
-  );
+  const [kategori, setKategori] = useState(flow.category ?? "");
   const [underkategori, setUnderkategori] = useState(flow.subcategory ?? "");
   const [arbetar, setArbetar] = useState(false);
 
@@ -153,25 +150,16 @@ export function Flyttadialog({
           </fieldset>
         )}
 
-        {/* Demo ÄR en kategori – där väljs bara underkategorin. */}
-        {!(visaYtor && till === "demo") && (
-          <>
-            <label className="ark-field-label" htmlFor="ark-flytta-kategori">
-              Kategori i katalogen
-            </label>
-            <KategoriVal
-              id="ark-flytta-kategori"
-              värde={kategori}
-              kategorier={
-                visaYtor
-                  ? kategoriTitlar(iYtan).filter((k) => k.toLowerCase() !== DEMO_KATEGORI.toLowerCase())
-                  : kategoriTitlar(flöden)
-              }
-              onChange={setKategori}
-              tomEtikett={härledd ? `Ingen egen – hamnar i ${härledd}` : "Ingen kategori"}
-            />
-          </>
-        )}
+        <label className="ark-field-label" htmlFor="ark-flytta-kategori">
+          Kategori i katalogen
+        </label>
+        <KategoriVal
+          id="ark-flytta-kategori"
+          värde={kategori}
+          kategorier={visaYtor ? kategoriTitlar(iYtan) : kategoriTitlar(flöden)}
+          onChange={setKategori}
+          tomEtikett={härledd ? `Ingen egen – hamnar i ${härledd}` : "Ingen kategori"}
+        />
 
         <label className="ark-field-label" htmlFor="ark-flytta-underkategori">
           Underkategori
@@ -181,7 +169,7 @@ export function Flyttadialog({
           värde={underkategori}
           kategorier={
             visaYtor
-              ? underkategoriTitlar(iYtan, till === "demo" ? DEMO_KATEGORI : kategori)
+              ? underkategoriTitlar(iYtan, kategori)
               : underkategoriTitlar(flöden, kategori)
           }
           onChange={setUnderkategori}
@@ -200,7 +188,7 @@ export function Flyttadialog({
             onClick={async () => {
               setArbetar(true);
               await onFlytta(
-                { category: visaYtor && till === "demo" ? DEMO_KATEGORI : kategori, subcategory: underkategori },
+                { category: kategori, subcategory: underkategori },
                 till === nuYta ? undefined : till,
               );
             }}
