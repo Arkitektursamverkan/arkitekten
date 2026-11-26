@@ -1,6 +1,7 @@
 /**
  * BMT-exporten i appen: hämtar installationens MALL från servern
- * (`/__ark/bmt/mall`, server/bmt-mall.ts), bygger filen i webbläsaren med
+ * (`/__ark/bmt/mall`, server/bmt-mall.ts – utpekad i miljön eller uppladdad
+ * under Inställningar), bygger filen i webbläsaren med
  * `byggBmt` och laddar ner den. Knappen visas bara när servern säger att en
  * mall finns (`bmtMall` i `/__ark/status`).
  */
@@ -13,6 +14,16 @@ import { byggBmt, inställningarUrMall } from "./bmt";
 import { layoutAp } from "./layout-affarsprocess";
 
 let delad: Promise<boolean> | null = null;
+const lyssnare = new Set<(finns: boolean) => void>();
+
+/**
+ * Inställningar säger till när mallen laddats upp eller tagits bort, så att
+ * exportknappen följer med utan att sidan laddas om.
+ */
+export function bmtMallÄndrad(finns: boolean): void {
+  delad = Promise.resolve(finns);
+  for (const l of lyssnare) l(finns);
+}
 
 /** Finns en mall för BMT-exporten i installationen? Frågas en gång per sidladdning. */
 export function useBmtMall(): boolean {
@@ -24,8 +35,10 @@ export function useBmtMall(): boolean {
       .then((s: { bmtMall?: boolean } | null) => Boolean(s?.bmtMall))
       .catch(() => false);
     void delad.then((v) => levande && setFinns(v));
+    lyssnare.add(setFinns);
     return () => {
       levande = false;
+      lyssnare.delete(setFinns);
     };
   }, []);
   return finns;

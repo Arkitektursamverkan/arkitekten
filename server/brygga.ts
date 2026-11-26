@@ -97,7 +97,7 @@ import { exempelpaket, importera } from "./innehallspaket.mjs";
 import { organisation, organisationUrMiljö, sättOrganisation } from "../src/core/organisation";
 import { skapaUtseende, type UtseendeKälla } from "./utseende";
 import { skapaPortalWebb, type PortalWebb } from "./installation";
-import { läsBmtMall } from "./bmt-mall";
+import { MAX_MALL, bmtMallInfo, läsBmtMall, sparaBmtMall, taBortBmtMall } from "./bmt-mall";
 import {
   ärAdmin,
   fårSeKlassning,
@@ -297,7 +297,7 @@ export function klientadress(req: IncomingMessage, proxyer: number | boolean): s
 }
 
 /** Vägar som tar emot binärt (inte JSON) – de prövas bara på ursprunget. */
-const BINÄRA_VÄGAR = new Set(["/underlag"]);
+const BINÄRA_VÄGAR = new Set(["/underlag", "/bmt/mall"]);
 
 /**
  * En enkel hastighetsgräns i minnet: högst `tak` händelser per nyckel inom
@@ -1122,22 +1122,47 @@ export function skapaBrygga(o: BryggOptioner): Hanterare {
               besvaras: aiLäge(utvecklarläge),
               claudeCode: utvecklarläge,
               // Finns en mall för BMT-exporten? Utan den visas inte knappen.
-              bmtMall: läsBmtMall() !== null,
+              bmtMall: läsBmtMall(o.stilarDir) !== null,
             });
             return;
           }
 
           // --- Mallen för BMT-exporten (server/bmt-mall.ts). Webbläsaren bygger filen.
           if (url === "/bmt/mall" && req.method === "GET") {
-            const mall = läsBmtMall();
+            const mall = läsBmtMall(o.stilarDir);
             if (!mall) {
-              json(res, 404, { ok: false, error: "Installationen har ingen mall för BMT-exporten (ARK_BMT_MALL)." });
+              json(res, 404, {
+                ok: false,
+                error: "Installationen har ingen mall för BMT-exporten – en administratör laddar upp den under Inställningar.",
+              });
               return;
             }
             res.statusCode = 200;
             res.setHeader("content-type", "application/zip");
             res.setHeader("cache-control", "no-store");
             res.end(mall);
+            return;
+          }
+          // Administratören ser var mallen kommer ifrån, laddar upp en egen
+          // (prövad med exportens läsare innan den sparas) och tar bort den.
+          // En mall som miljön pekar ut (ARK_BMT_MALL) rörs aldrig härifrån.
+          if (url === "/bmt/mall/info" && req.method === "GET") {
+            if (baraAdmin()) return;
+            json(res, 200, { ok: true, mall: bmtMallInfo(o.stilarDir) });
+            return;
+          }
+          if (url === "/bmt/mall" && req.method === "PUT") {
+            if (baraAdmin()) return;
+            await sparaBmtMall(o.stilarDir, await readBytes(req, MAX_MALL));
+            log.info(`  [ark] Mall för BMT-exporten uppladdad (${användare.namn})`);
+            json(res, 200, { ok: true, mall: bmtMallInfo(o.stilarDir) });
+            return;
+          }
+          if (url === "/bmt/mall" && req.method === "DELETE") {
+            if (baraAdmin()) return;
+            taBortBmtMall(o.stilarDir);
+            log.info(`  [ark] Uppladdad mall för BMT-exporten borttagen (${användare.namn})`);
+            json(res, 200, { ok: true, mall: bmtMallInfo(o.stilarDir) });
             return;
           }
 

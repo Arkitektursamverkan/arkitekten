@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+- **Mallen för BMT-exporten laddas upp under Inställningar.** En administratör laddar upp mallen – en export av en enda modell, gärna tom, ur verktyget som ska läsa in filerna – och knappen *BMT (.bmt)* under Export → Som fil finns sedan för alla, utan omstart. Förut krävdes att den som installerar lade filen på servern och pekade ut den med `ARK_BMT_MALL`; det gick inte där man inte når serverns filer. Servern prövar filen med exportens egen läsare innan den sparas, så en fil som inte är en modellexport avvisas med ett besked. `ARK_BMT_MALL` fungerar som förut och vinner när den pekar på en läsbar mall. Den uppladdade mallen sparas som `bmt-mall.bmt` i `STILAR_DIR`; ta med filen i säkerhetskopian.
+
 ## 0.27.0 – 2026-11-25
 
 - **Skapa och föreslå kategorier i Processkatalogen.** Knappen *＋ Ny kategori* skapar en kategori innan någon process ligger i den: en administratör i den gemensamma katalogen, var och en i *Mina processer*. Tomma kategorier syns i katalogen och går att välja i *Ny process* och *Flytta*. Den som inte är administratör kan **föreslå** en kategori i den gemensamma katalogen, med en motivering; administratörerna ser en flagga (⚑) med antalet förslag i katalogens huvud och vid sitt namn i menyn, och godkänner eller avslår. Den som föreslagit ser sitt förslag och kan dra tillbaka det.
