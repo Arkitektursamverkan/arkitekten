@@ -7,6 +7,8 @@ funktioner, en ny korrigering för rättelser.
 
 ## Ej släppt
 
+## 0.28.0 – 2026-11-26
+
 - **Mallen för BMT-exporten laddas upp under Inställningar.** En administratör laddar upp mallen – en export av en enda modell, gärna tom, ur verktyget som ska läsa in filerna – och knappen *BMT (.bmt)* under Export → Som fil finns sedan för alla, utan omstart. Förut krävdes att den som installerar lade filen på servern och pekade ut den med `ARK_BMT_MALL`; det gick inte där man inte når serverns filer. Servern prövar filen med exportens egen läsare innan den sparas, så en fil som inte är en modellexport avvisas med ett besked. `ARK_BMT_MALL` fungerar som förut och vinner när den pekar på en läsbar mall. Den uppladdade mallen sparas som `bmt-mall.bmt` i `STILAR_DIR`; ta med filen i säkerhetskopian.
 
 ## 0.27.0 – 2026-11-25
