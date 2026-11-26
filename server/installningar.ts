@@ -10,7 +10,7 @@
  * rad per problem, en VARNING loggas. Vite-dev-servern loggar båda.
  */
 
-import { bmtMallFil, läsBmtMall } from "./bmt-mall";
+import { miljönsBmtMallOläsbar } from "./bmt-mall";
 import fs from "node:fs";
 import path from "node:path";
 import { AUTH_LÄGEN, authKonfigUrMiljö, basUrlUrMiljö, förstaKontoKod, iProduktion, saknasFörEntra } from "./auth";
@@ -117,8 +117,10 @@ export function kontrollera(
 
   if (!env.ANTHROPIC_API_KEY?.trim() && !env.BERGET_API_KEY?.trim() && !på(env.ARK_UTVECKLARLAGE))
     varningar.push("AI-stödet är av (ingen ANTHROPIC_API_KEY eller BERGET_API_KEY).");
-  if (bmtMallFil(env) && !läsBmtMall(env))
-    varningar.push("ARK_BMT_MALL pekar inte på en läsbar modellexport (.bmt) – BMT-exporten är av.");
+  if (miljönsBmtMallOläsbar(env))
+    varningar.push(
+      "ARK_BMT_MALL pekar inte på en läsbar modellexport (.bmt) – BMT-exporten använder en mall uppladdad under Inställningar, om det finns en.",
+    );
   if (env.ARK_FLODESTJANST_PORT?.trim() && !env.ARK_FLODESTJANST_NYCKEL?.trim())
     varningar.push("ARK_FLODESTJANST_NYCKEL saknas – flödestjänsten svarar vem som helst som når den.");
   // Portalen säger själv sin adress (portal_url) – då behövs inte EA_WEBB_URL.

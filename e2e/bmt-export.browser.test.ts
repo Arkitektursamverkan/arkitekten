@@ -1,6 +1,6 @@
 /**
  * BMT-exporten i appen: knappen visas bara när installationen har en mall
- * (ARK_BMT_MALL), och filen den laddar ner är ett arkiv med processen som
+ * (ARK_BMT_MALL, eller uppladdad under Inställningar), och filen den laddar ner är ett arkiv med processen som
  * modell, i mallens namnrymd, med mallens profil och användare.
  *
  * Mallen här är påhittad – en riktig hör till en installation och ligger
@@ -69,6 +69,56 @@ describe.skipIf(!chromium)("BMT-exporten", () => {
       .filter(([k]) => k.startsWith("symbols/"))
       .map(([, v]) => new TextDecoder().decode(v));
     expect(objekt.some((o) => o.includes(">Genomför urval<"))).toBe(true);
+    expect(rigg.fel).toEqual([]);
+  }, 60_000);
+});
+
+describe.skipIf(!chromium)("BMT-mallen laddas upp under Inställningar", () => {
+  let rigg: Awaited<ReturnType<typeof startaAppen>>;
+  const tidigare = process.env.ARK_BMT_MALL;
+  let fil: string;
+
+  beforeAll(async () => {
+    delete process.env.ARK_BMT_MALL;
+    fil = join(mkdtempSync(join(tmpdir(), "ark-bmt-upp-")), "mall.bmt");
+    writeFileSync(
+      fil,
+      await packaZip({
+        [`languages/${SPRÅK}.xml`]: `<mt-language xmlns="${NS}" uuid="${SPRÅK}"><title>Svenska</title></mt-language>`,
+        "config.xml": "<repository-profile/>",
+        "models/schema.xsd": `<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="${NS}"/>`,
+      }),
+    );
+    rigg = await startaAppen({ ny: { verktyg: "Affärsprocess", text: AFFARSPROCESS_EXEMPEL } });
+  }, 90_000);
+
+  afterAll(async () => {
+    await rigg?.stäng();
+    if (tidigare !== undefined) process.env.ARK_BMT_MALL = tidigare;
+  });
+
+  it("utan mall finns ingen knapp; efter uppladdningen finns den – utan omladdning – och exporten fungerar", async () => {
+    const { page } = rigg;
+    const exportmeny = page.locator("button.ark-vrad-knapp", { hasText: /^Export/ });
+    const knapp = page.locator("button", { hasText: "BMT (.bmt)" });
+    await exportmeny.click();
+    await page.locator("button", { hasText: /SVG/ }).first().waitFor({ timeout: 10_000 });
+    expect(await knapp.count()).toBe(0);
+    await page.keyboard.press("Escape");
+
+    await page.locator("button.ark-konto-installningar").click();
+    const dialog = page.locator('[role="dialog"][aria-label="Inställningar"]');
+    await dialog.getByText("Ingen mall – exporten är av.").waitFor({ timeout: 10_000 });
+    await dialog.locator('input[type="file"]').setInputFiles(fil);
+    await dialog.getByText("Mallen är uppladdad – exporten är på.").waitFor({ timeout: 10_000 });
+    await dialog.getByText("En mall är uppladdad").waitFor();
+    await dialog.locator("button", { hasText: "Avbryt" }).click();
+
+    if (!(await knapp.isVisible())) await exportmeny.click();
+    await knapp.waitFor({ timeout: 10_000 });
+    const [nedladdning] = await Promise.all([page.waitForEvent("download"), knapp.click()]);
+    const arkiv = await läsZip(new Uint8Array(readFileSync(await nedladdning.path())));
+    expect(Object.keys(arkiv)).toContain("config.xml");
     expect(rigg.fel).toEqual([]);
   }, 60_000);
 });

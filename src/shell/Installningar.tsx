@@ -6,13 +6,14 @@
  * (src/tools/affarsprocess/symbolstil.ts). Stilarna kommer ur installationens
  * innehållspaket; standardstilen finns alltid. Valet gäller alla användare och
  * portalens bilder, och sidan laddas om så att varje rityta ritas med den nya
- * stilen. Servern prövar behörigheten (server/brygga.ts) – knappen visas bara
+ * stilen. Och MALLEN för BMT-exporten, som laddas upp här. Servern prövar behörigheten (server/brygga.ts) – knappen visas bara
  * för att en administratör ska hitta dit.
  */
 
 import { useEffect, useState } from "react";
 import type { Inloggningsläge } from "@/core/behorighet";
 import { KontoAdmin } from "./LokalaKonton";
+import { bmtMallÄndrad } from "@/tools/affarsprocess/bmt-export";
 import {
   EGEN_MODELL,
   INBYGGDA_MODELLER,
@@ -150,6 +151,7 @@ export function InstallningarDialog({ läge, egetId, onStäng }: Props & { onSt�
             </span>
           </label>
         ))}
+        <BmtMall />
         <Exempelinnehall />
         {läge === "lokal" && <KontoAdmin egetId={egetId} />}
         {fel.map((f) => (
@@ -318,6 +320,108 @@ function Skyddsklasser(p: {
       <button className="ark-linkbtn" onClick={() => p.onÄndra([...klasser, { id: "", namn: "", nivåer: [], behöriga: [] }])}>
         + Ny skyddsklass
       </button>
+    </div>
+  );
+}
+
+interface MallInfo {
+  källa: "miljö" | "uppladdad" | null;
+  storlek?: number;
+  ändrad?: string;
+}
+
+const storlekText = (byte: number) =>
+  byte >= 1024 * 1024 ? `${(byte / (1024 * 1024)).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(byte / 1024))} kB`;
+
+/**
+ * Mallen för BMT-exporten (server/bmt-mall.ts): en export av en enda modell ur
+ * verktyget som ska läsa in filerna. Uppladdningen gäller direkt – den hör
+ * inte till Spara-knappen – och servern prövar filen innan den sparas.
+ */
+function BmtMall() {
+  const [info, setInfo] = useState<MallInfo | null>(null);
+  const [arbetar, setArbetar] = useState(false);
+  const [besked, setBesked] = useState<{ text: string; fel?: boolean } | null>(null);
+
+  useEffect(() => {
+    void fetch("/__ark/bmt/mall/info")
+      .then((r) => r.json())
+      .then((b) => b.ok && setInfo(b.mall))
+      .catch(() => {});
+  }, []);
+  if (!info) return null;
+
+  async function skicka(init: RequestInit, klart: string) {
+    setArbetar(true);
+    setBesked(null);
+    try {
+      const b = await (await fetch("/__ark/bmt/mall", init)).json();
+      if (!b.ok) throw new Error(b.error ?? "Det gick inte.");
+      setInfo(b.mall);
+      bmtMallÄndrad(b.mall.källa !== null);
+      setBesked({ text: klart });
+    } catch (e) {
+      setBesked({ text: e instanceof Error ? e.message : String(e), fel: true });
+    } finally {
+      setArbetar(false);
+    }
+  }
+
+  const datum = info.ändrad ? new Date(info.ändrad).toLocaleDateString("sv-SE") : "";
+  return (
+    <div>
+      <h3 className="ark-installning-rubrik">Mall för BMT-exporten</h3>
+      <p className="ark-hint">
+        Affärsprocesser kan exporteras som modellarkiv (.bmt) till ett modelleringsverktyg med samma metod. Exporten
+        behöver en mall: en export av en enda modell – gärna tom – ur det verktyg som ska läsa in filerna. Knappen
+        <em> BMT (.bmt)</em> under Export visas för alla när mallen finns.
+      </p>
+      <p className="ark-hint">
+        {info.källa === "miljö" && (
+          <>
+            <strong>Mallen är utpekad av installationen</strong> (ARK_BMT_MALL, {storlekText(info.storlek ?? 0)}) och byts
+            där.
+          </>
+        )}
+        {info.källa === "uppladdad" && (
+          <>
+            <strong>En mall är uppladdad</strong> ({storlekText(info.storlek ?? 0)}, {datum}).
+          </>
+        )}
+        {info.källa === null && <strong>Ingen mall – exporten är av.</strong>}
+      </p>
+      {info.källa !== "miljö" && (
+        <div className="ark-installning-val">
+          <label className="ark-linkbtn">
+            {info.källa === "uppladdad" ? "Byt mall …" : "Ladda upp mall …"}
+            <input
+              type="file"
+              accept=".bmt,.zip,application/zip"
+              hidden
+              disabled={arbetar}
+              onChange={(e) => {
+                const fil = e.target.files?.[0];
+                e.target.value = "";
+                if (fil)
+                  void skicka(
+                    { method: "PUT", headers: { "content-type": "application/octet-stream" }, body: fil },
+                    "Mallen är uppladdad – exporten är på.",
+                  );
+              }}
+            />
+          </label>
+          {info.källa === "uppladdad" && (
+            <button
+              className="ark-linkbtn"
+              disabled={arbetar}
+              onClick={() => void skicka({ method: "DELETE" }, "Mallen är borttagen – exporten är av.")}
+            >
+              Ta bort mallen
+            </button>
+          )}
+        </div>
+      )}
+      {besked && <p className={besked.fel ? "ark-error" : "ark-hint"}>{besked.text}</p>}
     </div>
   );
 }

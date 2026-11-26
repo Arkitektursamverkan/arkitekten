@@ -425,10 +425,16 @@ ett modellarkiv (zip med XML) som ett modelleringsverktyg med samma metod
 läser in. Produkten NÄMNER INTE det verktyget (`server/neutralitet.test.ts`).
 
 - **Allt repositoryspecifikt kommer ur MALLEN** – en vanlig modellexport ur
-  mål-repositoryt som installationen pekar ut med `ARK_BMT_MALL`
-  (`server/bmt-mall.ts`, läses vid varje begäran). XML-namnrymden, språket,
-  skaparen, beskrivningstypen, profilen (`config.xml`) och schemana tas
-  ordagrant ur den (`inställningarUrMall`). Utan mall visas ingen knapp
+  mål-repositoryt (`server/bmt-mall.ts`, läses vid varje begäran). Två källor:
+  `ARK_BMT_MALL` (en fil den som installerar lagt på servern) eller en mall
+  som en administratör laddat upp under Inställningar (`PUT /__ark/bmt/mall`,
+  sparad som `bmt-mall.bmt` i `STILAR_DIR`). Miljön vinner när den är läsbar
+  och rörs aldrig av uppladdningen. XML-namnrymden, språket, skaparen,
+  beskrivningstypen, profilen (`config.xml`) och schemana tas ordagrant ur
+  mallen av `inställningarUrMall` (`core/bmt-mall.ts`) – servern prövar en
+  uppladdad fil med SAMMA läsare innan den sparas; skriv aldrig en egen
+  kontroll. (Läsaren ligger i core utan `@/`-importer: bryggan laddas också av
+  vite.config.ts, som inte löser upp aliaset.) Utan mall visas ingen knapp
   (`bmtMall` i `/__ark/status`). En fil utan profil, scheman och skapare gick
   inte att läsa in (provat 2026-11-04).
 - **Webbläsaren bygger filen**: `/__ark/bmt/mall` → `läsZip` →
